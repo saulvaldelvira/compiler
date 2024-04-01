@@ -1,0 +1,11 @@
+/* Hello world program to
+   test my compiler! :) */
+
+int main(){
+    print("Hello world!\n");
+    float f = 1.1;
+    return 0; // Inline comment
+}
+
+// Unc@mm3nt this line to trigger an error
+
