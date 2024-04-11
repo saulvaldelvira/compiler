@@ -1,7 +1,7 @@
 pub mod token;
 use std::usize;
 
-use token::{Token,TokenType};
+use crate::lexer::token::{Token,TokenType};
 
 pub struct Lexer<'a> {
     text: &'a str,
