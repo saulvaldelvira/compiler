@@ -24,7 +24,8 @@ fn main() {
         exit(1);
     }
     while !parser.is_finished() {
-        parser.parse().print();
-        print!("\n");
+        let expr = parser.parse();
+        expr.print();
+        println!(" = {}", expr.eval());
     }
 }

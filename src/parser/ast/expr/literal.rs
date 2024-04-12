@@ -37,9 +37,12 @@ impl Literal<Nil> {
 
 impl<T> Expr for Literal<T>
 where
-    T: Display
+    T: Display 
 {
     fn print(&self) {
         print!("{}", self.value);
+    }
+    fn eval(&self) -> f64 {
+        self.value.to_string().parse::<f64>().unwrap()
     }
 }

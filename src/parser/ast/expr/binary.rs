@@ -28,5 +28,17 @@ impl Expr for Binary {
         self.right.print();
         print!(")");
     }
+    fn eval(&self) -> f64 {
+        let left = self.left.eval();
+        let right = self.right.eval();
+        match self.op.get_lexem() {
+            "*" => left * right,
+            "+" => left + right,
+            "-" => left - right,
+            "/" => left / right,
+            "," => right,
+            _ => panic!("Unreachable")
+        }
+    }
 }
 

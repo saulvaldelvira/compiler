@@ -84,7 +84,7 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr> {
         if self.match_type(&[TokenType::Bang,TokenType::Minus]) {
             let op = self.previous().take();
-            let expr = self.primary()?;
+            let expr = self.unary()?;
             return Ok(Unary::new(op, expr).as_box());
         }
         self.primary()

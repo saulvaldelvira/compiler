@@ -8,4 +8,5 @@ pub use unary::Unary;
 
 pub trait Expr {
     fn print(&self);
+    fn eval(&self) -> f64;
 }
