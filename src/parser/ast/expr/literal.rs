@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use super::Expr;
+use super::Expression;
 
 pub struct Nil;
 
@@ -35,9 +35,9 @@ impl Literal<Nil> {
     }
 }
 
-impl<T> Expr for Literal<T>
+impl<T> Expression for Literal<T>
 where
-    T: Display 
+    T: Display
 {
     fn print(&self) {
         print!("{}", self.value);

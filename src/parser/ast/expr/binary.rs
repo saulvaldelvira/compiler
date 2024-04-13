@@ -1,17 +1,17 @@
-use super::Expr;
+use super::{Expr, Expression};
 use crate::lexer::token::Token;
 
 pub struct Binary {
-    left: Box<dyn Expr>,
+    left: Expr,
     op: Token,
-    right: Box<dyn Expr>,
+    right: Expr,
 }
 
 impl Binary {
     pub fn new(
-        left: Box<dyn Expr>,
+        left: Expr,
         op: Token,
-        right: Box<dyn Expr>,
+        right: Expr,
     ) -> Self {
         Self {left,op,right}
     }
@@ -20,7 +20,13 @@ impl Binary {
     }
 }
 
-impl Expr for Binary {
+macro_rules! tern  {
+    ($cond:expr) => {
+        if $cond { 1.0 } else { 0.0 }
+    };
+}
+
+impl Expression for Binary {
     fn print(&self) {
         print!("(");
         self.left.print();
@@ -36,6 +42,12 @@ impl Expr for Binary {
             "+" => left + right,
             "-" => left - right,
             "/" => left / right,
+            ">" => tern!(left > right),
+            "<" => tern!(left < right),
+            ">=" => tern!(left >= right),
+            "<=" => tern!(left <= right),
+            "==" => tern!(left == right),
+            "!=" => tern!(left != right),
             "," => right,
             _ => panic!("Unreachable")
         }

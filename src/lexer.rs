@@ -77,6 +77,8 @@ impl<'a> Lexer<'a> {
             '-' => self.add_token(TokenType::Minus),
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
+            ':' => self.add_token(TokenType::Colon),
+            '?' => self.add_token(TokenType::Question),
             '*' => self.add_token(TokenType::Star),
             '!' =>
                 if self.match_next('=') {

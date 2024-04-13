@@ -4,11 +4,9 @@ pub mod error;
 use crate::lexer::token::{Token, TokenType};
 
 use self::{
-    ast::expr::{self, Binary, Literal, Unary},
+    ast::expr::{Binary, Expr, Literal, Ternary, Unary},
     error::ParseError
 };
-
-type Expr = Box<dyn expr::Expr>;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
@@ -30,11 +28,21 @@ impl Parser {
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
     fn expression(&mut self) -> Result<Expr> {
-        let mut expr = self.equality()?;
+        let mut expr = self.ternary()?;
         if self.match_type(&[TokenType::Comma]) {
             let op = self.previous().take();
             let right = self.expression()?;
             expr = Binary::new(expr, op, right).as_box();
+        }
+        Ok(expr)
+    }
+    fn ternary(&mut self) -> Result<Expr> {
+        let mut expr = self.equality()?;
+        if self.match_type(&[TokenType::Question]) {
+            let if_true = self.equality()?;
+            self.consume(TokenType::Colon, "Expected ':'")?;
+            let if_false = self.equality()?;
+            expr = Ternary::new(expr, if_true, if_false).as_box();
         }
         Ok(expr)
     }

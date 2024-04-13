@@ -1,13 +1,13 @@
-use super::Expr;
+use super::{Expr, Expression};
 use crate::lexer::token::Token;
 
 pub struct Unary {
     op: Token,
-    expr: Box<dyn Expr>,
+    expr: Expr,
 }
 
 impl Unary {
-    pub fn new(op: Token, expr: Box<dyn Expr>) -> Self {
+    pub fn new(op: Token, expr: Expr) -> Self {
         Self {op,expr}
     }
     pub fn as_box(self) -> Box<Self> {
@@ -15,7 +15,7 @@ impl Unary {
     }
 }
 
-impl Expr for Unary {
+impl Expression for Unary {
     fn print(&self) {
         print!("({}", self.op.get_lexem());
         self.expr.print();
