@@ -24,8 +24,9 @@ fn main() {
         exit(1);
     }
     while !parser.is_finished() {
-        let expr = parser.parse();
-        expr.print();
-        println!(" = {}", expr.eval());
+        if let Some(expr) = parser.parse() {
+            expr.print();
+            println!(" = {}", expr.eval());
+        }
     }
 }

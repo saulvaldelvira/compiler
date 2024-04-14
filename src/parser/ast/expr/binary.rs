@@ -20,12 +20,6 @@ impl Binary {
     }
 }
 
-macro_rules! tern  {
-    ($cond:expr) => {
-        if $cond { 1.0 } else { 0.0 }
-    };
-}
-
 impl Expression for Binary {
     fn print(&self) {
         print!("(");
@@ -35,6 +29,12 @@ impl Expression for Binary {
         print!(")");
     }
     fn eval(&self) -> f64 {
+        macro_rules! tern  {
+            ($cond:expr) => {
+                if $cond { 1.0 } else { 0.0 }
+            };
+        }
+
         let left = self.left.eval();
         let right = self.right.eval();
         match self.op.get_lexem() {
