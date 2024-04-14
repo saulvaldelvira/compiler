@@ -6,11 +6,14 @@ pub enum ParseError {
 }
 
 impl ParseError {
-    pub fn from_str<T>(msg: &'static str) -> Result<T,Self> {
-        Err(Self::Str(msg))
+    pub fn from_str(msg: &'static str) -> Self {
+        Self::Str(msg)
     }
-    pub fn from_string<T>(msg: String) -> Result<T,Self> {
-        Err(Self::String(msg))
+    pub fn from_string(msg: String) -> Self {
+        Self::String(msg)
+    }
+    pub fn err<T>(self) -> Result<T,Self> {
+        Err(self)
     }
     pub fn get_message(&self) -> &str {
         match &self {

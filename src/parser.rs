@@ -116,11 +116,11 @@ impl Parser {
             return Ok(expr);
         }
         ParseError::from_string(
-             format!("Expected literal, found: {}", self.peek().get_lexem()))
+             format!("Expected literal, found: {}", self.peek().get_lexem())).err()
     }
     fn consume(&mut self, t: TokenType, msg: &'static str) -> Result<&mut Token> {
         if self.check(t) { return Ok(self.advance()); }
-        ParseError::from_str(msg)
+        ParseError::from_str(msg).err()
     }
     fn match_type(&mut self, types: &[TokenType]) -> bool {
         for t in types {
