@@ -24,7 +24,7 @@ impl Expression for Unary {
     fn eval(&self) -> f64 {
         let expr = self.expr.eval();
         match self.op.get_lexem() {
-            "!" => if expr == 0.0 { 1.0 } else { 0.0 }
+            "!" => if expr == 1.0 { 0.0 } else { 1.0 }
             _ => panic!("Unreachable")
         }
     }
