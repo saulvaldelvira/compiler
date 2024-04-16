@@ -1,32 +1,31 @@
-pub mod lexer;
-pub mod parser;
-use std::{fs, process::exit};
-use crate::parser::Parser;
-use crate::lexer::Lexer;
+use std::{env, fs, io::{stdin, Read}};
+
+use compiler::{parse, tokenize};
+
+pub mod config;
+use config::Config;
+
+fn process(text: &str) {
+    println!("*** LEXER ***");
+    let tokens = tokenize(text);
+    tokens.iter().for_each(|t| t.print());
+    println!("\n*** PARSER ***");
+    let program = parse(tokens);
+    for expr in program.get_expressions() {
+        expr.print();
+        println!(" = {}", expr.eval());
+    }
+}
 
 fn main() {
-    let text = fs::read_to_string("expr.txt").expect("Could not read file");
-    let mut lexer = Lexer::new();
-    let tokens = lexer.tokenize(&text);
-
-    println!("*** LEXER ***");
-    if lexer.has_errors() {
-        println!("Number of errors: {}", lexer.n_errors());
-        exit(1);
+    let conf = Config::parse(env::args());
+    for file in conf.files() {
+        let text = fs::read_to_string(file).expect("Could not read file");
+        process(&text);
     }
-
-    tokens.iter().for_each(|t| t.print());
-
-    let mut parser = Parser::new(tokens);
-    println!("\n*** PARSER ***");
-    if parser.has_errors() {
-        println!("Number of errors: {}", parser.n_errors());
-        exit(1);
-    }
-    while !parser.is_finished() {
-        if let Some(expr) = parser.parse() {
-            expr.print();
-            println!(" = {}", expr.eval());
-        }
+    if conf.files().is_empty() {
+        let mut text = String::new();
+        stdin().read_to_string(&mut text).expect("Error reading from stdin");
+        process(&text);
     }
 }

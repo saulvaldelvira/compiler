@@ -4,7 +4,7 @@ pub mod error;
 use crate::lexer::token::{Token, TokenType};
 
 use self::{
-    ast::expr::{Binary, Expr, Literal, Ternary, Unary},
+    ast::{expr::{Binary, Expr, Literal, Ternary, Unary}, Program},
     error::ParseError
 };
 
@@ -21,22 +21,31 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {tokens, current:0, n_errors:0}
     }
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Err(e) => {
-                self.error(e.get_message());
-                if self.synchronize() {
-                    self.parse()
-                }else {
-                    None
-                }
-            },
-            Ok(expr) => Some(expr),
+    pub fn parse(&mut self) -> Program {
+        let mut exprs = Vec::new();
+        while !self.is_finished() {
+            if let Some(expr) = self.statement() {
+                exprs.push(expr);
+            }
         }
+        Program::new(exprs)
     }
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
+    fn statement(&mut self) -> Option<Expr> {
+        match self.expression() {
+                Err(e) => {
+                    self.error(e.get_message());
+                    if self.synchronize() {
+                        self.statement()
+                    }else {
+                        None
+                    }
+                },
+                Ok(expr) => Some(expr),
+            }
+    }
     fn expression(&mut self) -> Result<Expr> {
         let mut expr = self.ternary()?;
         if self.match_type(&[TokenType::Comma]) {
