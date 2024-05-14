@@ -48,7 +48,7 @@ impl Parser {
     }
     fn expression(&mut self) -> Result<Expr> {
         let mut expr = self.ternary()?;
-        if self.match_type(&[TokenType::Comma]) {
+        if self.match_type(TokenType::Comma) {
             let op = self.previous()?.take();
             let right = self.expression()?;
             expr = Binary::new(expr, op, right).as_box();
@@ -57,7 +57,7 @@ impl Parser {
     }
     fn ternary(&mut self) -> Result<Expr> {
         let mut expr = self.equality()?;
-        if self.match_type(&[TokenType::Question]) {
+        if self.match_type(TokenType::Question) {
             let if_true = self.equality()?;
             self.consume(TokenType::Colon, "Expected ':'")?;
             let if_false = self.equality()?;
@@ -67,7 +67,7 @@ impl Parser {
     }
     fn equality(&mut self) -> Result<Expr> {
         let mut expr = self.comparison()?;
-        while self.match_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while self.match_types(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let op = self.previous()?.take();
             let right = self.comparison()?;
             expr = Binary::new(expr, op, right).as_box();
@@ -77,7 +77,7 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expr> {
         let mut expr = self.term()?;
 
-        while self.match_type(&[TokenType::Greater,
+        while self.match_types(&[TokenType::Greater,
                                 TokenType::GreaterEqual,
                                 TokenType::Less,
                                 TokenType::LessEqual]
@@ -91,7 +91,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expr> {
         let mut expr = self.factor()?;
 
-        while self.match_type(&[TokenType::Minus,TokenType::Plus]){
+        while self.match_types(&[TokenType::Minus,TokenType::Plus]){
             let op = self.previous()?.take();
             let right = self.factor()?;
             expr = Binary::new(expr,op,right).as_box();
@@ -101,7 +101,7 @@ impl Parser {
     fn factor(&mut self) -> Result<Expr> {
         let mut expr = self.unary()?;
 
-        while self.match_type(&[TokenType::Slash,TokenType::Star]){
+        while self.match_types(&[TokenType::Slash,TokenType::Star]){
             let op = self.previous()?.take();
             let right = self.unary()?;
             expr = Binary::new(expr,op,right).as_box();
@@ -109,7 +109,7 @@ impl Parser {
         Ok(expr)
     }
     fn unary(&mut self) -> Result<Expr> {
-        if self.match_type(&[TokenType::Bang,TokenType::Minus]) {
+        if self.match_types(&[TokenType::Bang,TokenType::Minus]) {
             let op = self.previous()?.take();
             let expr = self.unary()?;
             return Ok(Unary::new(op, expr).as_box());
@@ -117,19 +117,19 @@ impl Parser {
         self.primary()
     }
     fn primary(&mut self) -> Result<Expr> {
-        if self.match_type(&[TokenType::False]) {
+        if self.match_type(TokenType::False) {
             return Ok(Literal::new(false).as_box());
         }
-        if self.match_type(&[TokenType::True]) {
+        if self.match_type(TokenType::True) {
             return Ok(Literal::new(true).as_box());
         }
-        if self.match_type(&[TokenType::Nil]) {
+        if self.match_type(TokenType::Nil) {
             return Ok(Literal::nil().as_box());
         }
-        if self.match_type(&[TokenType::Number,TokenType::String]) {
+        if self.match_types(&[TokenType::Number,TokenType::String]) {
             return Ok(Literal::new(self.previous()?.take_lexem()).as_box());
         }
-        if self.match_type(&[TokenType::LeftParen]) {
+        if self.match_type(TokenType::LeftParen) {
             let expr = self.expression()?;
             self.consume(TokenType::RightParen, "Expected ')' after expression.")?;
             return Ok(expr);
@@ -141,14 +141,15 @@ impl Parser {
         if self.check(t) { return Ok(self.advance()?); }
         ParseError::from_str(msg).err()
     }
-    fn match_type(&mut self, types: &[TokenType]) -> bool {
-        for t in types {
-            if self.check(*t) {
-                self.advance().unwrap();
-                return true;
-            }
+    fn match_type(&mut self, t: TokenType) -> bool {
+        if self.check(t) {
+            self.advance().unwrap();
+            return true;
         }
         false
+    }
+    fn match_types(&mut self, types: &[TokenType]) -> bool {
+        return types.iter().any(|t| self.match_type(*t))
     }
     fn check(&mut self, t: TokenType) -> bool {
         if self.is_finished() { return false; }
