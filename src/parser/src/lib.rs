@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod error;
 
-use crate::lexer::token::{Token, TokenType};
+use lexer::token::{Token, TokenType};
 
 use self::{
     ast::{expr::{Binary, Expr, Literal, Ternary, Unary}, Program},

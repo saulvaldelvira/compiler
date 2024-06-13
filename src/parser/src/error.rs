@@ -1,26 +1,24 @@
-use std::{error::Error, fmt::{Debug, Display}};
+use std::{borrow::Cow, error::Error, fmt::{Debug, Display}};
 
-pub enum ParseError {
-    Str(&'static str),
-    String(String),
+pub struct ParseError {
+    msg: Cow<'static,str>,
 }
 
 impl ParseError {
+    #[inline]
     pub fn from_str(msg: &'static str) -> Self {
-        Self::Str(msg)
+        Self { msg: msg.into() }
     }
+    #[inline]
     pub fn from_string(msg: String) -> Self {
-        Self::String(msg)
+        Self { msg: msg.into() }
     }
+    #[inline]
     pub fn err<T>(self) -> Result<T,Self> {
         Err(self)
     }
-    pub fn get_message(&self) -> &str {
-        match &self {
-            Self::Str(msg) => msg,
-            Self::String(msg) => &msg,
-        }
-    }
+    #[inline]
+    pub fn get_message(&self) -> &str { &self.msg }
 }
 
 impl Debug for ParseError {

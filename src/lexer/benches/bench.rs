@@ -1,6 +1,6 @@
 #![feature(test)]
 extern crate test;
-use compiler::lexer::Lexer;
+use lexer::Lexer;
 use test::Bencher;
 
 #[bench]

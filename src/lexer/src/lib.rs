@@ -1,8 +1,6 @@
 pub mod token;
-
 use std::str::Chars;
-
-use crate::lexer::token::{Token,TokenType};
+use crate::token::{Token,TokenType};
 
 pub struct Lexer<'a> {
     chars: Chars<'a>,

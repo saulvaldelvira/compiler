@@ -1,6 +1,3 @@
-pub mod parser;
-pub mod lexer;
-
 use std::process::exit;
 use lexer::token::Token;
 use lexer::Lexer;

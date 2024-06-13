@@ -1,5 +1,5 @@
 use super::{Expr, Expression};
-use crate::lexer::token::Token;
+use lexer::token::Token;
 
 pub struct Unary {
     op: Token,
