@@ -1,12 +1,14 @@
 pub mod token;
-use std::usize;
+
+use std::str::Chars;
 
 use crate::lexer::token::{Token,TokenType};
 
 pub struct Lexer<'a> {
-    text: &'a str,
+    chars: Chars<'a>,
     line: u32,
     start: usize,
+    start_chars: Chars<'a>,
     current: usize,
     n_errors: u32,
 }
@@ -39,16 +41,18 @@ fn match_keyword(lexem: &str) -> Option<TokenType> {
 impl<'a> Lexer<'a> {
     /* PUBLIC */
     pub fn new() -> Self {
-        Self { text:"", line:0, start:0, current:0, n_errors:0 }
+        Self { chars:"".chars(), start_chars: "".chars(), line:0, start:0, current:0, n_errors:0 }
     }
     pub fn tokenize(&mut self, text: &'a str) -> Vec<Token> {
-        self.text = text;
+        self.chars = text.chars();
+        self.start_chars = text.chars();
         self.line = 0;
         self.current = 0;
         self.n_errors= 0;
         let mut tokens:Vec<Token> = Vec::new();
         while !self.is_finished() {
             self.start = self.current;
+            self.start_chars = self.chars.clone();
             if let Some(t) = self.scan_token() {
                 tokens.push(t);
             }
@@ -59,11 +63,16 @@ impl<'a> Lexer<'a> {
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
     fn is_finished(&self) -> bool {
-        self.current >= self.text.len()
+        self.chars.as_str().is_empty()
+    }
+    fn current_lexem(&self) -> &str {
+        let n = self.current - self.start;
+        let n = self.start_chars.clone().take(n).map(|c| c.len_utf8()).sum();
+        &self.start_chars.as_str()[0..n]
     }
     fn add_token(&self, token_type: TokenType) -> Option<Token> {
         Some(Token::new(
-                &self.text[self.start..self.current],
+                self.current_lexem(),
                 token_type, self.start, self.current))
     }
     fn scan_token(&mut self) -> Option<Token> {
@@ -140,7 +149,7 @@ impl<'a> Lexer<'a> {
         false
     }
     fn advance(&mut self) -> char {
-        let c = self.peek();
+        let c = self.chars.next().unwrap_or('\0');
         self.current += 1;
         c
     }
@@ -149,8 +158,7 @@ impl<'a> Lexer<'a> {
         F: Fn(&char) -> bool
     {
         while f(&self.peek()) {
-            self.advance();
-            if self.peek() == '\n' {
+            if self.advance() == '\n' {
                 self.line += 1;
             }
             if self.is_finished() { return false; }
@@ -158,16 +166,15 @@ impl<'a> Lexer<'a> {
         true
     }
     fn peek(&self) -> char {
-        self.peek_nth(0)
+        self.chars
+            .clone()
+            .next()
+            .unwrap_or('\0')
     }
     fn peek_next(&self) -> char {
-        self.peek_nth(1)
-    }
-    fn peek_nth(&self, n: usize) -> char {
-        self.text
-            .get(self.current + n..)
-            .unwrap_or("\0")
-            .chars().next().unwrap_or('\0')
+        let mut iter = self.chars.clone();
+        iter.next();
+        iter.next().unwrap_or('\0')
     }
     fn comment(&mut self) -> Option<Token> {
         self.advance_while(|c| *c != '\n');
@@ -203,8 +210,8 @@ impl<'a> Lexer<'a> {
         self.add_token(TokenType::Number)
     }
     fn identifier(&mut self) -> Option<Token> {
-        self.advance_while(|c| c.is_alphanumeric());
-        let lexem = &self.text[self.start..self.current];
+        self.advance_while(|c| c.is_ascii_alphanumeric() || *c == '_');
+        let lexem = self.current_lexem();
         let token_type = match_keyword(lexem).unwrap_or(TokenType::Identifier);
         self.add_token(token_type)
     }
