@@ -13,4 +13,5 @@ pub type Expr = Box<dyn Expression>;
 pub trait Expression {
     fn print(&self);
     fn eval(&self) -> f64;
+    fn truthy(&self) -> bool { false }
 }

@@ -52,5 +52,8 @@ impl Expression for Binary {
             _ => panic!("Unreachable")
         }
     }
+    fn truthy(&self) -> bool {
+        self.eval() != 0.0
+    }
 }
 

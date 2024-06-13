@@ -32,4 +32,7 @@ impl Expression for Ternary {
             self.if_false.eval()
         }
     }
+    fn truthy(&self) -> bool {
+        self.eval() != 0.0
+    }
 }

@@ -1,4 +1,4 @@
-use std::{env, fs, io::{stdin, Read}};
+use std::{env, fs, io::{stdin, Read}, process};
 
 use compiler::{parse, tokenize};
 
@@ -13,14 +13,17 @@ fn process(text: &str) {
     let program = parse(tokens);
     for expr in program.get_expressions() {
         expr.print();
-        println!(" = {}", expr.eval());
+        println!(" = {} ({})", expr.eval(), expr.truthy());
     }
 }
 
 fn main() {
     let conf = Config::parse(env::args());
     for file in conf.files() {
-        let text = fs::read_to_string(file).expect("Could not read file");
+        let text = fs::read_to_string(file).unwrap_or_else(|err| {
+            eprintln!("Could not read file \"{file}\": {err}");
+            process::exit(1);
+        });
         process(&text);
     }
     if conf.files().is_empty() {

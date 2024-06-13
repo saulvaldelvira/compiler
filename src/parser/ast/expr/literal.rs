@@ -4,23 +4,15 @@ use super::Expression;
 
 pub struct Nil;
 
-impl Display for Nil {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "nil")
-    }
-}
+pub trait LiteralValue {}
+impl LiteralValue for Nil {}
+impl<T: Display> LiteralValue for T {}
 
-pub struct Literal<T>
-where
-    T: Display
-{
+pub struct Literal<T: LiteralValue> {
     value: T,
 }
 
-impl<T> Literal<T>
-where
-    T: Display
-{
+impl<T: LiteralValue> Literal<T> {
     pub fn new(value: T) -> Self {
         Self {value}
     }
@@ -35,10 +27,7 @@ impl Literal<Nil> {
     }
 }
 
-impl<T> Expression for Literal<T>
-where
-    T: Display
-{
+impl<T: Display> Expression for Literal<T> {
     fn print(&self) {
         print!("{}", self.value);
     }
@@ -46,3 +35,12 @@ where
         self.value.to_string().parse::<f64>().unwrap()
     }
 }
+
+impl Expression for Literal<Nil> {
+    fn print(&self) {
+        print!("nil");
+    }
+    fn eval(&self) -> f64 { 0.0 }
+    fn truthy(&self) -> bool { false }
+}
+
