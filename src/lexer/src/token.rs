@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Copy,Debug,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum TokenType {
     /* Single-character tokens. */
     LeftParen, RightParen, LeftBrace, RightBrace,
@@ -40,10 +40,10 @@ impl Token {
     }
     pub fn get_type(&self) -> TokenType { self.token_type }
     pub fn get_lexem(&self) -> &str {
-        if let Some(l) = &self.lexem {
-            return l;
+        match &self.lexem  {
+            Some(l) => l,
+            None => "",
         }
-        ""
     }
     pub fn take(&mut self) -> Self {
         Self{

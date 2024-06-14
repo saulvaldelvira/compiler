@@ -49,7 +49,7 @@ impl Expression for Binary {
             "==" => tern!(left == right),
             "!=" => tern!(left != right),
             "," => right,
-            _ => panic!("Unreachable")
+            _ => unreachable!("Unknown operator")
         }
     }
     fn truthy(&self) -> bool {
