@@ -1,5 +1,9 @@
 mod cursor;
+use std::collections::HashMap;
+
 use cursor::Cursor;
+
+use delay_init::delay;
 
 pub mod token;
 use token::{Token,TokenType};
@@ -9,30 +13,31 @@ pub struct Lexer<'a> {
     n_errors: u32,
 }
 
-fn match_keyword(lexem: &str) -> Option<TokenType> {
-    match lexem {
-        "and" => Some(TokenType::And),
-        "class" => Some(TokenType::Class),
-        "else" => Some(TokenType::Else),
-        "false" => Some(TokenType::False),
-        "fun" => Some(TokenType::Fun),
-        "for" => Some(TokenType::For),
-        "if" => Some(TokenType::If),
-        "nil" => Some(TokenType::Nil),
-        "or" => Some(TokenType::Or),
-        "print" => Some(TokenType::Print),
-        "int" => Some(TokenType::Int),
-        "char" => Some(TokenType::Char),
-        "float" => Some(TokenType::Float),
-        "return" => Some(TokenType::Return),
-        "super" => Some(TokenType::Super),
-        "this" => Some(TokenType::This),
-        "true" => Some(TokenType::True),
-        "var" => Some(TokenType::Var),
-        "while" => Some(TokenType::While),
-        _ => None
-    }
-}
+delay! {
+    static KEYWORDS : HashMap<&str,TokenType> = {
+        let mut map = HashMap::new();
+        map.insert("and",TokenType::And);
+        map.insert("class",TokenType::Class);
+        map.insert("else",TokenType::Else);
+        map.insert("false",TokenType::False);
+        map.insert("fun",TokenType::Fun);
+        map.insert("for",TokenType::For);
+        map.insert("if",TokenType::If);
+        map.insert("nil",TokenType::Nil);
+        map.insert("or",TokenType::Or);
+        map.insert("print",TokenType::Print);
+        map.insert("int",TokenType::Int);
+        map.insert("char",TokenType::Char);
+        map.insert("float",TokenType::Float);
+        map.insert("return",TokenType::Return);
+        map.insert("super",TokenType::Super);
+        map.insert("this",TokenType::This);
+        map.insert("true",TokenType::True);
+        map.insert("var",TokenType::Var);
+        map.insert("while",TokenType::While);
+        map
+    };
+ }
 
 impl<'a> Lexer<'a> {
     /* PUBLIC */
@@ -161,7 +166,7 @@ impl<'a> Lexer<'a> {
     fn identifier(&mut self) -> Option<Token> {
         self.c.advance_while(|c| c.is_ascii_alphanumeric() || *c == '_');
         let lexem = self.c.current_lexem();
-        let token_type = match_keyword(lexem).unwrap_or(TokenType::Identifier);
+        let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenType::Identifier);
         self.add_token(token_type)
     }
     fn error(&mut self, msg: &str) {

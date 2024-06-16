@@ -11,8 +11,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "delay_init"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d2d88cc78c274dde0136a566b20270b74b03973747102d9301cb7847f280348"
+
+[[package]]
 name = "lexer"
 version = "0.1.0"
+dependencies = [
+ "delay_init",
+]
 
 [[package]]
 name = "parser"
