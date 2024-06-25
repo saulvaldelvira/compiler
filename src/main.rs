@@ -11,9 +11,8 @@ fn process(text: &str) {
     tokens.iter().for_each(|t| t.print());
     println!("\n*** PARSER ***");
     let program = parse(tokens);
-    for expr in program.get_expressions() {
-        expr.print();
-        println!(" = {} ({})", expr.eval(), expr.truthy());
+    for stmt in program.get_stmts() {
+        stmt.execute();
     }
 }
 

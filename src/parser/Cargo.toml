@@ -7,3 +7,8 @@ edition = "2021"
 
 [dependencies]
 lexer = { path = "../lexer" }
+
+[dependencies.builders]
+features = ["constructor","getters","as_box"]
+default-features = false
+git = "https://github.com/saulvaldelvira/builders.git"

@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "src/lexer",
-    "src/parser"
+    "src/parser",
 ]
 
 [package]

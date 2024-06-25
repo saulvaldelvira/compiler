@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod error;
 
+use ast::{stmt::{ExprAsStmt, Stmt}};
 use lexer::token::{Token, TokenType};
 
 use self::{
@@ -33,7 +34,7 @@ impl Parser {
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
-    fn statement(&mut self) -> Option<Expr> {
+    fn statement(&mut self) -> Option<Stmt> {
         match self.expression() {
                 Err(e) => {
                     self.error(e.get_message());
@@ -43,7 +44,7 @@ impl Parser {
                         None
                     }
                 },
-                Ok(expr) => Some(expr),
+                Ok(expr) => Some(ExprAsStmt::new(expr).as_box()),
             }
     }
     fn expression(&mut self) -> Result<Expr> {
@@ -118,16 +119,20 @@ impl Parser {
     }
     fn primary(&mut self) -> Result<Expr> {
         if self.match_type(TokenType::False) {
-            return Ok(Literal::new(false).as_box());
+            return Ok(Literal::bool(false).as_box());
         }
         if self.match_type(TokenType::True) {
-            return Ok(Literal::new(true).as_box());
+            return Ok(Literal::bool(true).as_box());
         }
         if self.match_type(TokenType::Nil) {
             return Ok(Literal::nil().as_box());
         }
-        if self.match_types(&[TokenType::Number,TokenType::String]) {
-            return Ok(Literal::new(self.previous()?.take_lexem()).as_box());
+        if self.match_type(TokenType::String) {
+            return Ok(Literal::str(self.previous()?.take_lexem()).as_box());
+        }
+        if self.match_type(TokenType::Number) {
+            let f: f64 = self.previous()?.take_lexem().parse().unwrap();
+            return Ok(Literal::number(f).as_box());
         }
         if self.match_type(TokenType::LeftParen) {
             let expr = self.expression()?;
