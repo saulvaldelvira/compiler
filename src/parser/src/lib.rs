@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod error;
 
-use ast::{expr::LitValue, stmt::{ExprAsStmt, Stmt}};
+use ast::{expr::LitValue, stmt::{ExprAsStmt, Print, Stmt}};
 use lexer::token::{Token, TokenType};
 
 use self::{
@@ -23,29 +23,37 @@ impl Parser {
         Self {tokens, current:0, n_errors:0}
     }
     pub fn parse(&mut self) -> Program {
-        let mut exprs = Vec::new();
+        let mut stmts = Vec::new();
         while !self.is_finished() {
-            if let Some(expr) = self.statement() {
-                exprs.push(expr);
+            match self.statement() {
+                Ok(stmt) => stmts.push(stmt),
+                Err(e) => {
+                    self.error(e.get_message());
+                    self.synchronize();
+                }
             }
         }
-        Program::new(exprs)
+        Program::new(stmts)
     }
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
-    fn statement(&mut self) -> Option<Stmt> {
-        match self.expression() {
-                Err(e) => {
-                    self.error(e.get_message());
-                    if self.synchronize() {
-                        self.statement()
-                    }else {
-                        None
-                    }
-                },
-                Ok(expr) => Some(ExprAsStmt::new(expr).as_box()),
-            }
+    fn statement(&mut self) -> Result<Stmt> {
+        if self.match_type(TokenType::Print) {
+            self.print_stmt()
+        } else {
+            self.expression_as_stmt()
+        }
+    }
+    fn print_stmt(&mut self) -> Result<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+        Ok(Print::new(expr).as_box())
+    }
+    fn expression_as_stmt(&mut self) -> Result<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+        Ok(ExprAsStmt::new(expr).as_box())
     }
     fn expression(&mut self) -> Result<Expr> {
         let mut expr = self.ternary()?;

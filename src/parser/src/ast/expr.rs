@@ -1,5 +1,6 @@
 use builders::{Constructor, Getters,AsBox};
 use lexer::token::Token;
+use crate::Result;
 
 use super::types::{BoolType, NumberType, StringType, Type};
 
@@ -7,9 +8,12 @@ pub type Expr = Box<dyn Expression>;
 
 pub trait Expression {
     fn print(&self);
-    fn eval(&self) -> f64;
-    fn truthy(&self) -> bool { false }
+    fn eval(&self) -> Result<LitValue>;
+    fn truthy(&self) -> Result<bool> {
+        Ok(self.eval()?.truthy())
+    }
     fn get_type(&self) -> Box<dyn Type>;
+    fn has_side_effect(&self) -> bool { false }
 }
 
 #[derive(Constructor,Getters,AsBox)]
@@ -24,15 +28,23 @@ impl Expression for Unary {
         self.expr.print();
         print!(")");
     }
-    fn eval(&self) -> f64 {
-        let expr = self.expr.eval();
-        match self.op.get_lexem() {
-            "!" => if expr == 1.0 { 0.0 } else { 1.0 }
+    fn eval(&self) -> Result<LitValue> {
+        let expr = self.expr.eval()?;
+        let expr = match expr {
+            LitValue::Number(n) => n != 0.0,
+            LitValue::Bool(b) => b,
+            LitValue::Str(_) | LitValue::Nil => return Ok(expr),
+        };
+        Ok(match self.op.get_lexem() {
+            "!" => LitValue::Bool(if expr { false } else { true }),
             _ => panic!("Unreachable")
-        }
+        })
     }
     fn get_type(&self) -> Box<dyn Type> {
         Box::new(BoolType)
+    }
+    fn has_side_effect(&self) -> bool {
+        self.expr.has_side_effect()
     }
 }
 
@@ -51,35 +63,50 @@ impl Expression for Binary {
         self.right.print();
         print!(")");
     }
-    fn eval(&self) -> f64 {
+    fn eval(&self) -> Result<LitValue> {
         macro_rules! tern  {
             ($cond:expr) => {
-                if $cond { 1.0 } else { 0.0 }
+                LitValue::Bool(if $cond { true } else { false })
             };
         }
 
-        let left = self.left.eval();
-        let right = self.right.eval();
-        match self.op.get_lexem() {
-            "*" => left * right,
-            "+" => left + right,
-            "-" => left - right,
-            "/" => left / right,
+        let left = match self.left.eval()? {
+            LitValue::Str(_) => return Err("Can't use a string in a binary expression".into()),
+            LitValue::Nil => return Ok(LitValue::Nil),
+            LitValue::Number(n) => n,
+            LitValue::Bool(b) => b as u8 as f64,
+        };
+        let right = match self.right.eval()? {
+            LitValue::Str(_) => return Err("Can't use a string in a binary expression".into()),
+            LitValue::Nil => return Ok(LitValue::Nil),
+            LitValue::Number(n) => n,
+            LitValue::Bool(b) => b as u8 as f64,
+        };
+        macro_rules! num {
+            ($e:expr) => {
+                LitValue::Number($e)
+            };
+        }
+        Ok(match self.op.get_lexem() {
+            "*" => num!(left * right),
+            "+" => num!(left + right),
+            "-" => num!(left - right),
+            "/" => num!(left / right),
             ">" => tern!(left > right),
             "<" => tern!(left < right),
             ">=" => tern!(left >= right),
             "<=" => tern!(left <= right),
             "==" => tern!(left == right),
             "!=" => tern!(left != right),
-            "," => right,
+            "," => num!(right),
             _ => unreachable!("Unknown operator")
-        }
-    }
-    fn truthy(&self) -> bool {
-        self.eval() != 0.0
+        })
     }
     fn get_type(&self) -> Box<dyn Type> {
         self.left.get_type().arithmetic(self.right.get_type())
+    }
+    fn has_side_effect(&self) -> bool {
+        self.left.has_side_effect() || self.right.has_side_effect()
     }
 }
 
@@ -100,26 +127,39 @@ impl Expression for Ternary {
         self.if_false.print();
         print!(")");
     }
-    fn eval(&self) -> f64 {
-        if self.cond.eval() == 1.0 {
+    fn eval(&self) -> Result<LitValue> {
+        if self.cond.eval()?.truthy() {
             self.if_true.eval()
         }else {
             self.if_false.eval()
         }
     }
-    fn truthy(&self) -> bool {
-        self.eval() != 0.0
-    }
     fn get_type(&self) -> Box<dyn Type> {
         self.if_true.get_type()
     }
+    fn has_side_effect(&self) -> bool {
+        self.cond.has_side_effect()
+        || self.if_true.has_side_effect()
+        || self.if_false.has_side_effect()
+    }
 }
 
+#[derive(Clone)]
 pub enum LitValue {
     Number(f64),
     Str(String),
     Bool(bool),
     Nil
+}
+
+impl LitValue {
+    fn truthy(&self) -> bool {
+        match self {
+            LitValue::Number(n) => *n != 0.0,
+            LitValue::Bool(b) => *b,
+            LitValue::Nil | LitValue::Str(_) => false,
+        }
+    }
 }
 
 #[derive(AsBox,Constructor)]
@@ -136,20 +176,8 @@ impl Expression for Literal {
             LitValue::Number(n) => print!("{n}"),
         }
     }
-    fn eval(&self) -> f64 {
-        match &self.value {
-            LitValue::Nil => 0.0,
-            LitValue::Bool(b) => if *b { 1.0 }  else { 0.0 },
-            LitValue::Number(n) => *n,
-            LitValue::Str(_) => unreachable!(),
-        }
-    }
-    fn truthy(&self) -> bool {
-        if let LitValue::Nil = self.value {
-            false
-        } else {
-            Expression::truthy(self)
-        }
+    fn eval(&self) -> Result<LitValue> {
+        Ok(self.value.clone())
     }
     fn get_type(&self) -> Box<dyn Type> {
         match self.value {

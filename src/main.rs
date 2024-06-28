@@ -6,13 +6,13 @@ pub mod config;
 use config::Config;
 
 fn process(text: &str) {
-    println!("*** LEXER ***");
+    /* println!("*** LEXER ***"); */
     let tokens = tokenize(text);
-    tokens.iter().for_each(|t| t.print());
-    println!("\n*** PARSER ***");
+    /* tokens.iter().for_each(|t| t.print()); */
+    /* println!("\n*** PARSER ***"); */
     let program = parse(tokens);
     for stmt in program.get_stmts() {
-        stmt.execute();
+        stmt.execute().unwrap();
     }
 }
 
