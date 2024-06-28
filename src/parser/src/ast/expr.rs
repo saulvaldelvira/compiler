@@ -115,21 +115,6 @@ pub struct Literal {
     value: LitValue,
 }
 
-impl Literal {
-    pub fn nil() -> Self {
-        Self {value: LitValue::Nil }
-    }
-    pub fn bool(b: bool) -> Self {
-        Self {value: LitValue::Bool(b) }
-    }
-    pub fn number(n: f64) -> Self {
-        Self {value: LitValue::Number(n) }
-    }
-    pub fn str(s: String) -> Self {
-        Self {value: LitValue::Str(s) }
-    }
-}
-
 impl Expression for Literal {
     fn print(&self) {
         match &self.value {

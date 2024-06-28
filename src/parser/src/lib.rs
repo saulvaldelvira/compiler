@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod error;
 
-use ast::{stmt::{ExprAsStmt, Stmt}};
+use ast::{expr::LitValue, stmt::{ExprAsStmt, Stmt}};
 use lexer::token::{Token, TokenType};
 
 use self::{
@@ -117,22 +117,31 @@ impl Parser {
         }
         self.primary()
     }
+    fn literal(&mut self) -> Result<LitValue> {
+        Ok(
+            if self.match_type(TokenType::False) {
+                LitValue::Bool(false)
+            }
+            else if self.match_type(TokenType::True) {
+                LitValue::Bool(true)
+            }
+            else if self.match_type(TokenType::Nil) {
+                LitValue::Nil
+            }
+            else if self.match_type(TokenType::String) {
+                LitValue::Str(self.previous()?.take_lexem())
+            }
+            else if self.match_type(TokenType::Number) {
+                let f: f64 = self.previous()?.take_lexem().parse().unwrap();
+                LitValue::Number(f)
+            } else {
+                return Err("".into());
+            }
+        )
+    }
     fn primary(&mut self) -> Result<Expr> {
-        if self.match_type(TokenType::False) {
-            return Ok(Literal::bool(false).as_box());
-        }
-        if self.match_type(TokenType::True) {
-            return Ok(Literal::bool(true).as_box());
-        }
-        if self.match_type(TokenType::Nil) {
-            return Ok(Literal::nil().as_box());
-        }
-        if self.match_type(TokenType::String) {
-            return Ok(Literal::str(self.previous()?.take_lexem()).as_box());
-        }
-        if self.match_type(TokenType::Number) {
-            let f: f64 = self.previous()?.take_lexem().parse().unwrap();
-            return Ok(Literal::number(f).as_box());
+        if let Ok(lit_value) = self.literal() {
+            return Ok(Literal::new(lit_value).as_box());
         }
         if self.match_type(TokenType::LeftParen) {
             let expr = self.expression()?;

@@ -21,6 +21,18 @@ impl ParseError {
     pub fn get_message(&self) -> &str { &self.msg }
 }
 
+impl From<&'static str> for ParseError {
+    fn from(value: &'static str) -> Self {
+        ParseError::from_str(value)
+    }
+}
+
+impl From<String> for ParseError {
+    fn from(value: String) -> Self {
+        ParseError::from_string(value)
+    }
+}
+
 impl Debug for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
        write!(f, "{}", self.get_message())
