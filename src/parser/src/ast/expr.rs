@@ -1,12 +1,15 @@
 use builders::{Constructor, Getters,AsBox};
 use lexer::token::Token;
 
+use super::types::{BoolType, NumberType, StringType, Type};
+
 pub type Expr = Box<dyn Expression>;
 
 pub trait Expression {
     fn print(&self);
     fn eval(&self) -> f64;
     fn truthy(&self) -> bool { false }
+    fn get_type(&self) -> Box<dyn Type>;
 }
 
 #[derive(Constructor,Getters,AsBox)]
@@ -27,6 +30,9 @@ impl Expression for Unary {
             "!" => if expr == 1.0 { 0.0 } else { 1.0 }
             _ => panic!("Unreachable")
         }
+    }
+    fn get_type(&self) -> Box<dyn Type> {
+        Box::new(BoolType)
     }
 }
 
@@ -72,6 +78,9 @@ impl Expression for Binary {
     fn truthy(&self) -> bool {
         self.eval() != 0.0
     }
+    fn get_type(&self) -> Box<dyn Type> {
+        self.left.get_type().arithmetic(self.right.get_type())
+    }
 }
 
 #[derive(Constructor,Getters,AsBox)]
@@ -100,6 +109,9 @@ impl Expression for Ternary {
     }
     fn truthy(&self) -> bool {
         self.eval() != 0.0
+    }
+    fn get_type(&self) -> Box<dyn Type> {
+        self.if_true.get_type()
     }
 }
 
@@ -137,6 +149,14 @@ impl Expression for Literal {
             false
         } else {
             Expression::truthy(self)
+        }
+    }
+    fn get_type(&self) -> Box<dyn Type> {
+        match self.value {
+            LitValue::Number(_) => Box::new(NumberType),
+            LitValue::Str(_) => Box::new(StringType),
+            LitValue::Bool(_) => Box::new(BoolType),
+            LitValue::Nil => Box::new(NumberType),
         }
     }
 }
