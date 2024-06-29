@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "ast"
+version = "0.1.0"
+dependencies = [
+ "builders",
+ "lexer",
+]
+
+[[package]]
 name = "builders"
 version = "0.1.8"
 source = "git+https://github.com/saulvaldelvira/builders.git#2f0cc0d51a6f4ce951b84be931e585b09da39cd2"
@@ -16,6 +24,8 @@ dependencies = [
 name = "compiler"
 version = "0.1.0"
 dependencies = [
+ "ast",
+ "interpreter",
  "lexer",
  "parser",
 ]
@@ -24,6 +34,13 @@ dependencies = [
 name = "delay_init"
 version = "0.1.10"
 source = "git+https://github.com/saulvaldelvira/delay-init.git#9fe42bba63d909ea334260343028e11da5a8c0d8"
+
+[[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "ast",
+]
 
 [[package]]
 name = "lexer"
@@ -36,7 +53,7 @@ dependencies = [
 name = "parser"
 version = "0.1.0"
 dependencies = [
- "builders",
+ "ast",
  "lexer",
 ]
 

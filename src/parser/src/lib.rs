@@ -1,19 +1,12 @@
-pub mod ast;
 pub mod error;
-mod enviroment;
-pub mod visitor;
 
 use ast::{expr::LitValue, Stmt, Program};
-use enviroment::Enviroment;
 use lexer::token::{Token, TokenType};
 
-
-use self::{
-    ast::expr::{Expr,Expression},
-    ast::stmt::Statement,
-    ast::declaration::Declaration,
-    error::ParseError
-};
+use ast::expr::{Expr,Expression};
+use ast::stmt::Statement;
+use ast::declaration::Declaration;
+use self::error::ParseError;
 
 use Expression::*;
 use Statement::*;
@@ -25,13 +18,12 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     n_errors: u32,
-    enviroment: Enviroment,
 }
 
 impl Parser {
     /* PUBLIC */
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {tokens, current:0, n_errors:0, enviroment: Enviroment::new() }
+        Self {tokens, current:0, n_errors:0 }
     }
     pub fn parse(&mut self) -> Program {
         let mut stmts = Vec::new();

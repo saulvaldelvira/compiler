@@ -1,7 +1,7 @@
 use std::process::exit;
 use lexer::token::Token;
 use lexer::Lexer;
-use parser::ast::Program;
+use ast::Program;
 use parser::Parser;
 
 pub fn tokenize(text: &str) -> Vec<Token> {

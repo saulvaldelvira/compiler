@@ -4,10 +4,10 @@ pub mod stmt;
 pub use stmt::Stmt;
 pub mod types;
 pub mod declaration;
+pub mod visitor;
+pub use visitor::Visitor;
 
 use builders::{Constructor, Getters};
-
-use crate::visitor::Visitor;
 
 #[derive(Constructor,Getters)]
 pub struct Program {

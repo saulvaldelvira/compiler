@@ -1,5 +1,5 @@
 [package]
-name = "parser"
+name = "ast"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,8 @@ edition = "2021"
 
 [dependencies]
 lexer = { path = "../lexer" }
-ast = { path = "../ast" }
 
+[dependencies.builders]
+features = ["constructor","getters","as_box"]
+default-features = false
+git = "https://github.com/saulvaldelvira/builders.git"
