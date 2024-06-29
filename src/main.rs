@@ -4,6 +4,7 @@ use compiler::{parse, tokenize};
 
 pub mod config;
 use config::Config;
+use parser::visitor::Interpreter;
 
 fn process(text: &str) {
     /* println!("*** LEXER ***"); */
@@ -11,9 +12,8 @@ fn process(text: &str) {
     /* tokens.iter().for_each(|t| t.print()); */
     /* println!("\n*** PARSER ***"); */
     let program = parse(tokens);
-    for stmt in program.get_stmts() {
-        stmt.execute().unwrap();
-    }
+    let mut interpreter = Interpreter::new();
+    interpreter.interpret(&program);
 }
 
 fn main() {

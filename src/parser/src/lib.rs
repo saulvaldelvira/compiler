@@ -1,13 +1,23 @@
 pub mod ast;
 pub mod error;
+mod enviroment;
+pub mod visitor;
 
-use ast::{expr::LitValue, stmt::{ExprAsStmt, Print, Stmt}};
+use ast::{expr::LitValue, Stmt, Program};
+use enviroment::Enviroment;
 use lexer::token::{Token, TokenType};
 
+
 use self::{
-    ast::{expr::{Binary, Expr, Literal, Ternary, Unary}, Program},
+    ast::expr::{Expr,Expression},
+    ast::stmt::Statement,
+    ast::declaration::Declaration,
     error::ParseError
 };
+
+use Expression::*;
+use Statement::*;
+use Declaration::*;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
@@ -15,17 +25,18 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     n_errors: u32,
+    enviroment: Enviroment,
 }
 
 impl Parser {
     /* PUBLIC */
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {tokens, current:0, n_errors:0}
+        Self {tokens, current:0, n_errors:0, enviroment: Enviroment::new() }
     }
     pub fn parse(&mut self) -> Program {
         let mut stmts = Vec::new();
         while !self.is_finished() {
-            match self.statement() {
+            match self.declaration() {
                 Ok(stmt) => stmts.push(stmt),
                 Err(e) => {
                     self.error(e.get_message());
@@ -38,6 +49,22 @@ impl Parser {
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
+    fn declaration(&mut self) -> Result<Stmt> {
+        if self.match_type(TokenType::Var) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        }
+    }
+    fn var_declaration(&mut self) -> Result<Stmt> {
+        let name = self.consume(TokenType::Identifier, "Expected variable name.")?.take_lexem();
+        let mut init = None;
+        if self.match_type(TokenType::Equal) {
+            init = Some(self.expression()?);
+        }
+        self.consume(TokenType::Semicolon, "Expected ';' after variable declaration.")?;
+        Ok(Declaration(VariableDecl { name, init }).as_box())
+    }
     fn statement(&mut self) -> Result<Stmt> {
         if self.match_type(TokenType::Print) {
             self.print_stmt()
@@ -48,43 +75,43 @@ impl Parser {
     fn print_stmt(&mut self) -> Result<Stmt> {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
-        Ok(Print::new(expr).as_box())
+        Ok(Print(expr).as_box())
     }
     fn expression_as_stmt(&mut self) -> Result<Stmt> {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
-        Ok(ExprAsStmt::new(expr).as_box())
+        Ok(ExprAsStmt(expr).as_box())
     }
     fn expression(&mut self) -> Result<Expr> {
-        let mut expr = self.ternary()?;
+        let mut left = self.ternary()?;
         if self.match_type(TokenType::Comma) {
             let op = self.previous()?.take();
             let right = self.expression()?;
-            expr = Binary::new(expr, op, right).as_box();
+            left = Binary {left, op, right}.as_box();
         }
-        Ok(expr)
+        Ok(left)
     }
     fn ternary(&mut self) -> Result<Expr> {
-        let mut expr = self.equality()?;
+        let mut cond = self.equality()?;
         if self.match_type(TokenType::Question) {
             let if_true = self.equality()?;
             self.consume(TokenType::Colon, "Expected ':'")?;
             let if_false = self.equality()?;
-            expr = Ternary::new(expr, if_true, if_false).as_box();
+            cond = Ternary {cond, if_true, if_false}.as_box();
         }
-        Ok(expr)
+        Ok(cond)
     }
     fn equality(&mut self) -> Result<Expr> {
-        let mut expr = self.comparison()?;
+        let mut left = self.comparison()?;
         while self.match_types(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let op = self.previous()?.take();
             let right = self.comparison()?;
-            expr = Binary::new(expr, op, right).as_box();
+            left = Binary { left, op, right }.as_box();
         }
-        Ok(expr)
+        Ok(left)
     }
     fn comparison(&mut self) -> Result<Expr> {
-        let mut expr = self.term()?;
+        let mut left = self.term()?;
 
         while self.match_types(&[TokenType::Greater,
                                 TokenType::GreaterEqual,
@@ -93,35 +120,35 @@ impl Parser {
                              ){
             let op = self.previous()?.take();
             let right = self.term()?;
-            expr = Binary::new(expr,op,right).as_box();
+            left = Binary { left, op, right }.as_box();
         }
-        Ok(expr)
+        Ok(left)
     }
     fn term(&mut self) -> Result<Expr> {
-        let mut expr = self.factor()?;
+        let mut left = self.factor()?;
 
         while self.match_types(&[TokenType::Minus,TokenType::Plus]){
             let op = self.previous()?.take();
             let right = self.factor()?;
-            expr = Binary::new(expr,op,right).as_box();
+            left = Binary { left, op, right }.as_box();
         }
-        Ok(expr)
+        Ok(left)
     }
     fn factor(&mut self) -> Result<Expr> {
-        let mut expr = self.unary()?;
+        let mut left = self.unary()?;
 
         while self.match_types(&[TokenType::Slash,TokenType::Star]){
             let op = self.previous()?.take();
             let right = self.unary()?;
-            expr = Binary::new(expr,op,right).as_box();
+            left = Binary { left, op, right }.as_box();
         }
-        Ok(expr)
+        Ok(left)
     }
     fn unary(&mut self) -> Result<Expr> {
         if self.match_types(&[TokenType::Bang,TokenType::Minus]) {
             let op = self.previous()?.take();
             let expr = self.unary()?;
-            return Ok(Unary::new(op, expr).as_box());
+            return Ok(Unary {op, expr}.as_box());
         }
         self.primary()
     }
@@ -149,7 +176,7 @@ impl Parser {
     }
     fn primary(&mut self) -> Result<Expr> {
         if let Ok(lit_value) = self.literal() {
-            return Ok(Literal::new(lit_value).as_box());
+            return Ok(Literal(lit_value).as_box());
         }
         if self.match_type(TokenType::LeftParen) {
             let expr = self.expression()?;

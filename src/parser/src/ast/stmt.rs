@@ -1,45 +1,28 @@
-use builders::{Constructor,Getters,AsBox};
+use builders::AsBox;
+
 use crate::Result;
 
-use super::expr::{Expr, LitValue};
+use super::{declaration::Declaration, expr::Expr};
 
-pub type Stmt = Box<dyn Statement>;
+pub type Stmt = Box<Statement>;
 
-pub trait Statement {
-    fn execute(&self) -> Result<()>;
+#[derive(AsBox)]
+pub enum Statement {
+    ExprAsStmt(Expr),
+    Print(Expr),
+    Declaration(Declaration)
 }
 
-#[derive(Constructor,Getters,AsBox)]
-pub struct ExprAsStmt {
-    inner: Expr,
-}
-
-impl Statement for ExprAsStmt {
-    fn execute(&self) -> Result<()> {
-        if self.inner.has_side_effect() {
-            self.inner.eval()?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Constructor,Getters,AsBox)]
-pub struct Print {
-    expr: Expr
-}
-
-impl Statement for Print {
-    fn execute(&self) -> Result<()> {
-        match self.expr.eval()? {
-            LitValue::Number(n) => print!("{n}"),
-            LitValue::Str(s) => {
-                let s = s.strip_prefix("\"").ok_or("Can't strip prefix of string literal")?;
-                let s = s.strip_suffix("\"").ok_or("Can't strip suffix of string literal")?;
-                let s = s.replace("\\n", "\n");
-                print!("{s}");
+impl Statement {
+    pub fn execute(&self) -> Result<()> {
+        match self {
+            Statement::ExprAsStmt(e) => {
+                if e.has_side_effect() {
+                    e.eval()?;
+                }
             },
-            LitValue::Bool(b) => print!("{b}"),
-            LitValue::Nil => print!("nil")
+            Statement::Print(e) => e.eval()?.print(),
+            Statement::Declaration(_) => todo!(),
         }
         Ok(())
     }
