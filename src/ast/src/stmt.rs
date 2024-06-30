@@ -1,9 +1,12 @@
+//! Statements
+//!
 use builders::{AsBox, IntoEnum};
 
 use super::{declaration::Declaration, expr::Expr};
 
 pub type Stmt = Box<Statement>;
 
+/// Wraps an [Expression](crate::expr::Expression) as a statement
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Statement, field = Expression)]
 pub struct ExprAsStmt {
@@ -28,12 +31,29 @@ pub struct BlockStmt {
     pub stmts: Vec<Stmt>,
 }
 
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = If)]
+pub struct IfStmt {
+    pub cond: Expr,
+    pub if_true: Stmt,
+    pub if_false: Option<Stmt>,
+}
+
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = While)]
+pub struct WhileStmt {
+    pub cond: Expr,
+    pub stmts: Stmt,
+}
+
 #[derive(Debug,AsBox)]
 pub enum Statement {
     Expression(ExprAsStmt),
     Print(PrintStmt),
     Decl(DeclarationStmt),
-    Block(BlockStmt)
+    Block(BlockStmt),
+    If(IfStmt),
+    While(WhileStmt)
 }
 
 #[doc(hidden)]

@@ -1,0 +1,4 @@
+Abstract Sintax Tree
+====================
+This crate holds the model for the AST.
+It also defines a Visitor trait to traverse the tree.

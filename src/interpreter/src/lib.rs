@@ -1,6 +1,6 @@
 use core::panic;
 
-use ast::{expr::{Expression, LitValue, VariableExpr}, Program, Visitor};
+use ast::{expr::{Expression, LitValue, VariableExpr}, stmt::WhileStmt, Program, Visitor};
 
 use self::enviroment::Enviroment;
 mod enviroment;
@@ -66,6 +66,22 @@ impl Visitor<(),LitValue> for Interpreter {
             "," => num!(right),
             _ => unreachable!("Unknown operator")
         })
+    }
+    fn visit_if(&mut self, i: &ast::stmt::IfStmt, p: ()) -> Option<LitValue> {
+        let cond = self.visit_expression(&i.cond, p).unwrap();
+        if cond.truthy() {
+            self.visit_statement(&i.if_true, p)
+        } else {
+            if let Some(if_false) = &i.if_false {
+                self.visit_statement(if_false, p)
+            } else { None }
+        }
+    }
+    fn visit_while(&mut self, w: &WhileStmt, p: ()) -> Option<LitValue> {
+        while self.visit_expression(&w.cond, p).unwrap().truthy() {
+            self.visit_statement(&w.stmts, p);
+        }
+        None
     }
     fn visit_ternary(&mut self, t: &ast::expr::TernaryExpr, p: ()) -> Option<LitValue> {
         if self.visit_expression(&t.cond, p)?.truthy() {

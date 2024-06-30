@@ -1,4 +1,4 @@
-use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitValue, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, PrintStmt, Statement}, Program};
+use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitValue, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
 pub trait Visitor<P: Copy,R> {
     fn visit_unary(&mut self, u: &UnaryExpr, p: P) -> Option<R> { self.visit_expression(&u.expr, p) }
@@ -50,12 +50,27 @@ pub trait Visitor<P: Copy,R> {
         }
         None
     }
+    fn visit_if(&mut self, i: &IfStmt, p: P) -> Option<R> {
+        self.visit_expression(&i.cond, p);
+        self.visit_statement(&i.if_true, p);
+        if let Some(if_false) = &i.if_false {
+            self.visit_statement(if_false, p);
+        }
+        None
+    }
+    fn visit_while(&mut self, w: &WhileStmt, p: P) -> Option<R> {
+        self.visit_expression(&w.cond, p);
+        self.visit_statement(&w.stmts, p);
+        None
+    }
     fn visit_statement(&mut self, s: &Statement, p: P) -> Option<R> {
         match s {
             Statement::Expression(e) => self.visit_expr_as_stmt(e, p),
             Statement::Print(e) => self.visit_print(e, p),
             Statement::Decl(d) => self.visit_decl_stmt(d, p),
-            Statement::Block(b) => self.visit_block(b, p)
+            Statement::Block(b) => self.visit_block(b, p),
+            Statement::If(i) => self.visit_if(i, p),
+            Statement::While(w) => self.visit_while(w, p),
         }
     }
     fn visit_declaration(&mut self, d: &Declaration, p: P) -> Option<R> {

@@ -4,7 +4,7 @@ use ast::{expr::LitValue, Stmt, Program};
 use lexer::token::{Token, TokenType};
 
 use ast::expr::{expr, AssignmentExpr, BinaryExpr, Expr, Expression, TernaryExpr, UnaryExpr, VariableExpr};
-use ast::stmt::{stmt, DeclarationStmt, ExprAsStmt, PrintStmt};
+use ast::stmt::{stmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, WhileStmt};
 use ast::stmt::{BlockStmt, Statement};
 use ast::declaration::{Declaration, VariableDecl};
 use self::error::ParseError;
@@ -57,6 +57,24 @@ impl Parser {
             self.block()
         }
     }
+    fn if_stmt(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::LeftParen, "Expected '('")?;
+        let cond = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')'")?;
+        let if_true = self.block()?;
+        let mut if_false = None;
+        if self.match_type(TokenType::Else) {
+            if_false = Some(self.block()?);
+        }
+        Ok(stmt!( IfStmt { cond, if_true, if_false } ))
+    }
+    fn while_stmt(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::LeftParen, "Expected '('")?;
+        let cond = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')'")?;
+        let stmts = self.block()?;
+        Ok(stmt!( WhileStmt { cond, stmts } ))
+    }
     fn block(&mut self) -> Result<Stmt> {
         if self.match_type(TokenType::LeftBrace) {
             let mut stmts = Vec::new();
@@ -65,6 +83,10 @@ impl Parser {
             }
             self.consume(TokenType::RightBrace, "Missing '{'")?;
             Ok(stmt!( BlockStmt{stmts} ))
+        } else if self.match_type(TokenType::If) {
+            self.if_stmt()
+        } else if self.match_type(TokenType::While) {
+            self.while_stmt()
         } else {
             self.single_line_stmt()
         }

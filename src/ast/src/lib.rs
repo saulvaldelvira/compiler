@@ -1,3 +1,7 @@
+//! Abstract Syntax Tree
+//!
+//! This crate contains the AST for the language.
+
 pub mod expr;
 pub use expr::Expr;
 pub mod stmt;
