@@ -1,3 +1,5 @@
+use core::panic;
+
 use ast::{declaration::Declaration, expr::{Expression, LitValue}, stmt::Statement, Program, Visitor};
 
 use self::enviroment::Enviroment;
@@ -17,7 +19,7 @@ impl Visitor<(),LitValue> for Interpreter {
         match s {
             Statement::ExprAsStmt(e) => {
                 if e.has_side_effect() {
-                    self.walk_expression(e, _p);
+                    self.visit_expression(e, _p);
                 }
             },
             Statement::Print(e) => {
@@ -103,7 +105,20 @@ impl Visitor<(),LitValue> for Interpreter {
             Expression::Literal(value) => {
                 Some(value.clone())
             },
-            Expression::Variable { .. } => todo!(),
+            Expression::Assignment { left, right } => {
+                if !left.lvalue() {
+                    panic!("Trying to assign to non-lvalue: {:#?}", a);
+                }
+                let right = self.visit_expression(right, p)?;
+                match left.as_ref() {
+                    Expression::Variable { name } => {
+                        self.enviroment.define(name.clone().into_owned(), right.clone());
+                    },
+                    _ => unreachable!(),
+                }
+                Some(right)
+            },
+            Expression::Variable { name } => self.enviroment.get(name).cloned(),
         }
     }
 }

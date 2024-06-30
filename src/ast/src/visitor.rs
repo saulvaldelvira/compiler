@@ -19,6 +19,10 @@ pub trait Visitor<P: Copy,R> {
             },
             Expression::Literal(_) => {},
             Expression::Variable { .. } => {},
+            Expression::Assignment { left, right } => {
+                self.visit_expression(left, p);
+                self.visit_expression(right, p);
+            }
         };
     }
     fn walk_statement(&mut self, s: &Statement, p: P) {

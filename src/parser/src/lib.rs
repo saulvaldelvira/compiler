@@ -75,23 +75,35 @@ impl Parser {
         Ok(ExprAsStmt(expr).as_box())
     }
     fn expression(&mut self) -> Result<Expr> {
+        self.comma()
+    }
+    fn comma(&mut self) -> Result<Expr> {
         let mut left = self.ternary()?;
         if self.match_type(TokenType::Comma) {
             let op = self.previous()?.take();
-            let right = self.expression()?;
+            let right = self.comma()?;
             left = Binary {left, op, right}.as_box();
         }
         Ok(left)
     }
     fn ternary(&mut self) -> Result<Expr> {
-        let mut cond = self.equality()?;
+        let mut cond = self.assignment()?;
         if self.match_type(TokenType::Question) {
-            let if_true = self.equality()?;
+            let if_true = self.assignment()?;
             self.consume(TokenType::Colon, "Expected ':'")?;
-            let if_false = self.equality()?;
+            let if_false = self.assignment()?;
             cond = Ternary {cond, if_true, if_false}.as_box();
         }
         Ok(cond)
+    }
+    fn assignment(&mut self) -> Result<Expr> {
+        let left = self.equality()?;
+        Ok(if self.match_type(TokenType::Equal) {
+            let right = self.assignment()?;
+            Assignment { left, right }.as_box()
+        } else {
+            left
+        })
     }
     fn equality(&mut self) -> Result<Expr> {
         let mut left = self.comparison()?;
@@ -174,6 +186,10 @@ impl Parser {
             let expr = self.expression()?;
             self.consume(TokenType::RightParen, "Expected ')' after expression.")?;
             return Ok(expr);
+        }
+        if self.match_type(TokenType::Identifier) {
+            let expr = self.previous()?.take_lexem();
+            return Ok(Variable { name: expr.into() }.as_box())
         }
         ParseError::from_string(
              format!("Expected literal, found: {}", self.peek()?.get_lexem())).err()

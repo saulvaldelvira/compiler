@@ -20,6 +20,7 @@ pub enum TokenType {
     Print, Return, Super, This, True, Var, While,
 }
 
+#[derive(Debug)]
 pub struct Token {
     lexem: Option<String>,
     token_type: TokenType,

@@ -5,7 +5,7 @@ use lexer::token::Token;
 
 pub type Expr = Box<Expression>;
 
-#[derive(AsBox)]
+#[derive(AsBox,Debug)]
 pub enum Expression {
     Unary {
         op: Token,
@@ -21,24 +21,32 @@ pub enum Expression {
         if_true: Expr,
         if_false: Expr,
     },
+    Assignment { left: Expr, right: Expr },
     Variable{ name: Cow<'static,str> },
     Literal(LitValue),
 }
 
+use Expression::*;
 impl Expression {
     pub fn has_side_effect(&self) -> bool {
-        use Expression::*;
         match self {
-            Expression::Unary { op: _, expr } => expr.has_side_effect(),
-            Expression::Binary { left, op: _, right } => left.has_side_effect() || right.has_side_effect(),
-            Expression::Ternary { cond, if_true, if_false } =>
+            Unary { op: _, expr } => expr.has_side_effect(),
+            Binary { left, op: _, right } => left.has_side_effect() || right.has_side_effect(),
+            Ternary { cond, if_true, if_false } =>
                 cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
+            Assignment { .. } => true,
             Literal(_) | Variable{ .. } => false,
+        }
+    }
+    pub fn lvalue(&self) -> bool {
+        match self {
+            Variable { .. } => true,
+            _ => false,
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum LitValue {
     Number(f64),
     Str(String),
