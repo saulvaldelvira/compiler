@@ -1,46 +1,72 @@
 use std::borrow::Cow;
 
-use builders::AsBox;
+use builders::{AsBox, IntoEnum};
 use lexer::token::Token;
 
 pub type Expr = Box<Expression>;
 
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Unary)]
+pub struct UnaryExpr {
+    pub op: Token,
+    pub expr: Expr
+}
+
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Binary)]
+pub struct BinaryExpr {
+    pub left: Expr,
+    pub op: Token,
+    pub right: Expr,
+}
+
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Ternary)]
+pub struct TernaryExpr {
+    pub cond: Expr,
+    pub if_true: Expr,
+    pub if_false: Expr,
+}
+
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Assignment)]
+pub struct AssignmentExpr {
+    pub left: Expr,
+    pub right: Expr
+}
+
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Variable)]
+pub struct VariableExpr {
+    pub name: Cow<'static,str>,
+}
+
 #[derive(AsBox,Debug)]
 pub enum Expression {
-    Unary {
-        op: Token,
-        expr: Expr
-    },
-    Binary {
-        left: Expr,
-        op: Token,
-        right: Expr,
-    },
-    Ternary {
-        cond: Expr,
-        if_true: Expr,
-        if_false: Expr,
-    },
-    Assignment { left: Expr, right: Expr },
-    Variable{ name: Cow<'static,str> },
+    Unary(UnaryExpr),
+    Binary(BinaryExpr),
+    Ternary(TernaryExpr),
+    Assignment(AssignmentExpr),
+    Variable(VariableExpr),
     Literal(LitValue),
 }
 
 use Expression::*;
+
 impl Expression {
     pub fn has_side_effect(&self) -> bool {
         match self {
-            Unary { op: _, expr } => expr.has_side_effect(),
-            Binary { left, op: _, right } => left.has_side_effect() || right.has_side_effect(),
-            Ternary { cond, if_true, if_false } =>
+            Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
+            Binary(BinaryExpr { left, op: _, right }) => left.has_side_effect() || right.has_side_effect(),
+            Ternary(TernaryExpr { cond, if_true, if_false }) =>
                 cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
-            Assignment { .. } => true,
-            Literal(_) | Variable{ .. } => false,
+            Assignment(_) => true,
+            Literal(_) | Variable(_) => false,
         }
     }
     pub fn lvalue(&self) -> bool {
         match self {
-            Variable { .. } => true,
+            Variable(_) => true,
             _ => false,
         }
     }
@@ -71,3 +97,16 @@ impl LitValue {
         }
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __expr {
+    ($e:expr) => {
+        {
+            let expr: Expression = $e.into();
+            expr.as_box()
+        }
+    };
+}
+
+pub use __expr as expr;

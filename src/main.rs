@@ -14,6 +14,10 @@ fn process(text: &str) {
     let program = parse(tokens);
     let interpreter = Interpreter::new();
     let mut interpreter = interpreter;
+    println!("\
+================================= Executing  ===================================
+{program:#?}
+================================================================================");
     interpreter.interpret(&program);
 }
 

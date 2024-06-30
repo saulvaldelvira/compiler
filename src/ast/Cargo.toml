@@ -9,6 +9,6 @@ edition = "2021"
 lexer = { path = "../lexer" }
 
 [dependencies.builders]
-features = ["constructor","getters","as_box"]
+features = ["constructor","getters","as_box","into_enum"]
 default-features = false
 git = "https://github.com/saulvaldelvira/builders.git"

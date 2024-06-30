@@ -13,7 +13,7 @@ dependencies = [
 [[package]]
 name = "builders"
 version = "0.1.8"
-source = "git+https://github.com/saulvaldelvira/builders.git#2f0cc0d51a6f4ce951b84be931e585b09da39cd2"
+source = "git+https://github.com/saulvaldelvira/builders.git#e31cbe3c8901aa744913850dce5efe78c4062073"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -33,7 +33,7 @@ dependencies = [
 [[package]]
 name = "delay_init"
 version = "0.1.10"
-source = "git+https://github.com/saulvaldelvira/delay-init.git#9fe42bba63d909ea334260343028e11da5a8c0d8"
+source = "git+https://github.com/saulvaldelvira/delay-init.git#3bd6d4ac137c2d863fcb01feb1cf961376978c93"
 
 [[package]]
 name = "interpreter"

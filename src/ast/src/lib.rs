@@ -9,7 +9,7 @@ pub use visitor::Visitor;
 
 use builders::{Constructor, Getters};
 
-#[derive(Constructor,Getters)]
+#[derive(Debug,Constructor,Getters)]
 pub struct Program {
     stmts: Vec<Stmt>,
 }
