@@ -42,14 +42,21 @@ pub struct VariableExpr {
     pub name: Cow<'static,str>,
 }
 
-#[derive(AsBox,Debug)]
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Expression, field = Literal)]
+pub struct LitExpr {
+    pub value: LitValue,
+}
+
+#[derive(AsBox,Debug,IntoEnum)]
+#[into_enum(enum_name = AST)]
 pub enum Expression {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
     Ternary(TernaryExpr),
     Assignment(AssignmentExpr),
     Variable(VariableExpr),
-    Literal(LitValue),
+    Literal(LitExpr),
 }
 
 use Expression::*;
@@ -58,9 +65,9 @@ impl Expression {
     pub fn has_side_effect(&self) -> bool {
         match self {
             Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
-            Binary(BinaryExpr { left, op: _, right }) => left.has_side_effect() || right.has_side_effect(),
-            Ternary(TernaryExpr { cond, if_true, if_false }) =>
-                cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
+            Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
+            Ternary(t) =>
+                t.cond.has_side_effect() || t.if_true.has_side_effect() || t.if_false.has_side_effect(),
             Assignment(_) => true,
             Literal(_) | Variable(_) => false,
         }
@@ -104,12 +111,15 @@ impl LitValue {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __expr {
-    ($e:expr) => {
-        {
-            let expr: Expression = $e.into();
-            expr.as_box()
-        }
+    ($variant:ident { $( $i:ident $( : $val:expr )?  ),*  } ) => {
+        $crate::ast!(Expression : $variant { $( $i $( : $val )?  ),* })
+    };
+    ($variant:ident ( $( $e:expr ),* ) ) => {
+        $crate::ast!(Expression : $variant ( $( $e ),* ))
     };
 }
 
 pub use __expr as expr;
+
+use crate::AST;
+

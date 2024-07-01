@@ -1,4 +1,4 @@
-use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitValue, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
+use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
 pub trait Visitor<P: Copy,R> {
     fn visit_unary(&mut self, u: &UnaryExpr, p: P) -> Option<R> { self.visit_expression(&u.expr, p) }
@@ -19,7 +19,7 @@ pub trait Visitor<P: Copy,R> {
         None
     }
     fn visit_variable_expr(&mut self, _v: &VariableExpr, _p: P) -> Option<R> { None }
-    fn visit_literal(&mut self, _l: &LitValue, _p: P) -> Option<R> { None }
+    fn visit_literal(&mut self, _l: &LitExpr, _p: P) -> Option<R> { None }
 
     fn visit_expression(&mut self, a: &Expression, p: P) -> Option<R> {
         match a {

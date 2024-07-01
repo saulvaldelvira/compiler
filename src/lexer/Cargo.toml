@@ -5,6 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+macros = { path = "src/macros" }
+
 [dependencies.delay_init]
 version = ">=0.1.7"
 git = "https://github.com/saulvaldelvira/delay-init.git"
+
+[dependencies.builders]
+features = ["constructor","getters","setters"]
+default-features = false
+git = "https://github.com/saulvaldelvira/builders.git"

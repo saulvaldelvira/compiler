@@ -1,6 +1,6 @@
 use core::panic;
 
-use ast::{expr::{Expression, LitValue, VariableExpr}, stmt::WhileStmt, Program, Visitor};
+use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::WhileStmt, Program, Visitor};
 
 use self::enviroment::Enviroment;
 mod enviroment;
@@ -96,7 +96,7 @@ impl Visitor<(),LitValue> for Interpreter {
         }
         let right = self.visit_expression(&a.right, p)?;
         match a.left.as_ref() {
-            Expression::Variable(VariableExpr{ name }) => {
+            Expression::Variable(VariableExpr{ name, .. }) => {
                 let variable = self.enviroment.get(name).expect("Assigning to an undefined variable");
                 *variable = right.clone();
             },
@@ -120,7 +120,7 @@ impl Visitor<(),LitValue> for Interpreter {
         expr.print();
         None
     }
-    fn visit_literal(&mut self, _l: &LitValue, _p: ()) -> Option<LitValue> { Some(_l.clone()) }
+    fn visit_literal(&mut self, _l: &LitExpr, _p: ()) -> Option<LitValue> { Some(_l.value.clone()) }
     fn visit_block(&mut self, b: &ast::stmt::BlockStmt, p: ()) -> Option<LitValue> {
         self.enviroment.set();
         for stmt in &b.stmts {

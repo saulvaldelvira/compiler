@@ -1,4 +1,6 @@
 use builders::{AsBox, IntoEnum};
+use crate::AST;
+
 use super::Expr;
 
 #[derive(Debug,IntoEnum)]
@@ -8,7 +10,8 @@ pub struct VariableDecl {
     pub init: Option<Expr>
 }
 
-#[derive(Debug,AsBox)]
+#[derive(Debug,AsBox,IntoEnum)]
+#[into_enum(enum_name = AST)]
 pub enum Declaration {
     Variable(VariableDecl),
 }

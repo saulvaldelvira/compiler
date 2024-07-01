@@ -1,5 +1,11 @@
 mod cursor;
+mod span;
+pub use span::{Span,Spannable};
+
 use std::collections::HashMap;
+
+pub use macros::Spanned;
+pub use macros::spanned;
 
 use cursor::Cursor;
 
@@ -62,7 +68,7 @@ impl<'a> Lexer<'a> {
     fn add_token(&self, token_type: TokenType) -> Option<Token> {
         Some(Token::new(
                 self.c.current_lexem(),
-                token_type, self.c.start(), self.c.current()))
+                token_type, self.c.get_span()))
     }
     fn scan_token(&mut self) -> Option<Token> {
         match self.c.advance() {
@@ -111,11 +117,7 @@ impl<'a> Lexer<'a> {
                     self.add_token(TokenType::Slash)
                 },
             '"' => self.string(),
-            ' ' | '\r' | '\t' => None , // Ignore whitespace.
-            '\n' => {
-                self.c.new_line();
-                None
-            },
+            ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
             c =>
                 if c.is_ascii_digit() {
                     self.number()
@@ -138,9 +140,6 @@ impl<'a> Lexer<'a> {
         while self.c.advance() != '*' || self.c.peek() != '/' {
             if self.c.is_finished() {
                 self.error("Non terminated comment block.");
-            }
-            if self.c.peek() == '\n' {
-                self.c.new_line();
             }
         }
         self.c.advance(); /* Consume the / */
@@ -170,7 +169,7 @@ impl<'a> Lexer<'a> {
         self.add_token(token_type)
     }
     fn error(&mut self, msg: &str) {
-        eprintln!("ERROR [{}]: {}", self.c.line(), msg);
+        eprintln!("[{}:{}] ERROR: {}", self.c.line(), self.c.col(), msg);
         self.n_errors += 1;
     }
 }

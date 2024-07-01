@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::span::Span;
 
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum TokenType {
@@ -24,8 +25,7 @@ pub enum TokenType {
 pub struct Token {
     lexem: Option<String>,
     token_type: TokenType,
-    start: usize,
-    end: usize,
+    span: Span,
 }
 
 impl fmt::Display for TokenType {
@@ -35,9 +35,9 @@ impl fmt::Display for TokenType {
 }
 
 impl Token {
-    pub fn new(lexem: &str, token_type: TokenType, start: usize, end: usize) -> Self {
+    pub fn new(lexem: &str, token_type: TokenType, span: Span) -> Self {
         let lexem = Some(lexem.to_owned());
-        Self{ lexem, token_type, start, end }
+        Self{ lexem, token_type, span }
     }
     pub fn get_type(&self) -> TokenType { self.token_type }
     pub fn get_lexem(&self) -> &str {
@@ -48,8 +48,7 @@ impl Token {
     }
     pub fn take(&mut self) -> Self {
         Self{
-            start: self.start,
-            end: self.end,
+            span: self.span,
             token_type: self.token_type,
             lexem: Some(self.take_lexem()),
         }
@@ -58,10 +57,9 @@ impl Token {
         self.lexem.take()
                   .expect("Cannot take lexem of the token. Lexem is None.")
     }
-    pub fn get_start(&self) -> usize { self.start }
-    pub fn get_end(&self) -> usize { self.end }
+    pub fn span(&self) -> Span { self.span }
     pub fn print(&self) {
-        print!("[{},{}] {}",self.start, self.end, self.token_type);
+        print!("[{}:{}] {}",self.span.start_line(), self.span.start_col(), self.token_type);
          if let Some(l) = &self.lexem {
              print!(" '{}'", l);
          }

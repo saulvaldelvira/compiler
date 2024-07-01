@@ -1,8 +1,10 @@
 use std::str::Chars;
 
+use crate::Span;
+
 pub struct Cursor<'a> {
     chars: Chars<'a>,
-    line: u32,
+    span: Span,
     start: usize,
     start_chars: Chars<'a>,
     current: usize,
@@ -12,7 +14,7 @@ impl<'a> Cursor<'a> {
     pub fn new(text: &'a str) -> Self {
         Self {
             chars: text.chars(),
-            line: 0,
+            span: Span::default(),
             start: 0,
             start_chars: text.chars(),
             current: 0,
@@ -20,6 +22,8 @@ impl<'a> Cursor<'a> {
     }
     pub fn step(&mut self) {
         self.start = self.current;
+        self.span.start_line = self.span.end_line;
+        self.span.start_col = self.span.end_col;
         self.start_chars = self.chars.clone();
     }
     pub fn is_finished(&self) -> bool {
@@ -30,13 +34,21 @@ impl<'a> Cursor<'a> {
         let n = self.start_chars.clone().take(n).map(|c| c.len_utf8()).sum();
         &self.start_chars.as_str()[0..n]
     }
-    pub fn start(&self) -> usize { self.start }
-    pub fn current(&self) -> usize { self.current }
-    pub fn line(&self) -> u32 { self.line }
-    pub fn new_line(&mut self) { self.line += 1; }
+    pub fn get_span(&self) -> Span {
+        let mut span = self.span;
+        span.end_col -= 1;
+        span
+    }
+    pub fn line(&self) -> usize { self.span.end_line }
+    pub fn col(&self) -> usize { self.span.end_col }
     pub fn advance(&mut self) -> char {
         let c = self.chars.next().unwrap_or('\0');
         self.current += 1;
+        self.span.end_col += 1;
+        if c == '\n' {
+            self.span.end_line += 1;
+            self.span.end_col = 1;
+        }
         c
     }
     pub fn advance_while<F>(&mut self, f: F) -> bool
@@ -44,9 +56,7 @@ impl<'a> Cursor<'a> {
         F: Fn(&char) -> bool
     {
         while f(&self.peek()) {
-            if self.advance() == '\n' {
-                self.line += 1;
-            }
+            self.advance();
             if self.is_finished() { return false; }
         }
         true

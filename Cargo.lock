@@ -7,13 +7,12 @@ name = "ast"
 version = "0.1.0"
 dependencies = [
  "builders",
- "lexer",
 ]
 
 [[package]]
 name = "builders"
 version = "0.1.8"
-source = "git+https://github.com/saulvaldelvira/builders.git#e31cbe3c8901aa744913850dce5efe78c4062073"
+source = "git+https://github.com/saulvaldelvira/builders.git#f6064c4bbaf0f7c36e9c59761bfe8fd288866b11"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -46,7 +45,18 @@ dependencies = [
 name = "lexer"
 version = "0.1.0"
 dependencies = [
+ "builders",
  "delay_init",
+ "macros",
+]
+
+[[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

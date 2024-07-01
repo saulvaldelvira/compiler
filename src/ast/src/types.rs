@@ -1,6 +1,11 @@
 use std::borrow::Cow;
 
-#[derive(Clone)]
+use builders::IntoEnum;
+
+use crate::AST;
+
+#[derive(Clone,IntoEnum)]
+#[into_enum(enum_name = AST)]
 pub enum Type {
     Number,
     Bool,

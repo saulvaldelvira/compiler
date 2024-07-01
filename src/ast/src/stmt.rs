@@ -2,6 +2,8 @@
 //!
 use builders::{AsBox, IntoEnum};
 
+use crate::AST;
+
 use super::{declaration::Declaration, expr::Expr};
 
 pub type Stmt = Box<Statement>;
@@ -46,7 +48,8 @@ pub struct WhileStmt {
     pub stmts: Stmt,
 }
 
-#[derive(Debug,AsBox)]
+#[derive(Debug,AsBox,IntoEnum)]
+#[into_enum(enum_name = AST)]
 pub enum Statement {
     Expression(ExprAsStmt),
     Print(PrintStmt),
@@ -59,11 +62,8 @@ pub enum Statement {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __stmt {
-    ($e:expr) => {
-        {
-            let stmt: Statement = $e.into();
-            stmt.as_box()
-        }
+    ($variant:ident { $( $i:ident $( : $val:expr )?  ),*  } ) => {
+        $crate::ast!(Statement : $variant { $( $i $( : $val )?  ),*  })
     };
 }
 

@@ -3,13 +3,13 @@ pub mod error;
 use ast::{expr::LitValue, Stmt, Program};
 use lexer::token::{Token, TokenType};
 
-use ast::expr::{expr, AssignmentExpr, BinaryExpr, Expr, Expression, TernaryExpr, UnaryExpr, VariableExpr};
-use ast::stmt::{stmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, WhileStmt};
+use ast::expr::{AssignmentExpr, BinaryExpr, Expr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
+use ast::stmt::{DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, WhileStmt};
 use ast::stmt::{BlockStmt, Statement};
+use ast::stmt::stmt;
+use ast::expr::expr;
 use ast::declaration::{Declaration, VariableDecl};
 use self::error::ParseError;
-
-use Expression::*;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
@@ -48,7 +48,7 @@ impl Parser {
         }
         self.consume(TokenType::Semicolon, "Expected ';' after variable declaration.")?;
         let inner: Declaration = VariableDecl { name, init }.into();
-        Ok(stmt!( DeclarationStmt { inner } ))
+        Ok(stmt!(DeclarationStmt { inner } ))
     }
     fn statement(&mut self) -> Result<Stmt> {
         if self.match_type(TokenType::Var) {
@@ -66,7 +66,7 @@ impl Parser {
         if self.match_type(TokenType::Else) {
             if_false = Some(self.block()?);
         }
-        Ok(stmt!( IfStmt { cond, if_true, if_false } ))
+        Ok(stmt!(IfStmt { cond, if_true, if_false }))
     }
     fn while_stmt(&mut self) -> Result<Stmt> {
         self.consume(TokenType::LeftParen, "Expected '('")?;
@@ -82,7 +82,7 @@ impl Parser {
                 stmts.push(self.statement()?);
             }
             self.consume(TokenType::RightBrace, "Missing '{'")?;
-            Ok(stmt!( BlockStmt{stmts} ))
+            Ok(stmt!( BlockStmt{ stmts } ))
         } else if self.match_type(TokenType::If) {
             self.if_stmt()
         } else if self.match_type(TokenType::While) {
@@ -116,7 +116,7 @@ impl Parser {
         if self.match_type(TokenType::Comma) {
             let op = self.previous()?.take_lexem();
             let right = self.comma()?;
-            left = expr!( BinaryExpr {left, op, right} );
+            left = expr!( BinaryExpr { left, op, right } );
         }
         Ok(left)
     }
@@ -126,7 +126,7 @@ impl Parser {
             let if_true = self.assignment()?;
             self.consume(TokenType::Colon, "Expected ':'")?;
             let if_false = self.assignment()?;
-            cond = expr!( TernaryExpr {cond, if_true, if_false} );
+            cond = expr!( TernaryExpr {cond, if_true, if_false } );
         }
         Ok(cond)
     }
@@ -186,7 +186,7 @@ impl Parser {
         if self.match_types(&[TokenType::Bang,TokenType::Minus]) {
             let op = self.previous()?.take_lexem();
             let expr = self.unary()?;
-            return Ok(expr!( UnaryExpr {op, expr} ));
+            return Ok(expr!( UnaryExpr {op, expr } ));
         }
         self.primary()
     }
@@ -213,8 +213,8 @@ impl Parser {
         )
     }
     fn primary(&mut self) -> Result<Expr> {
-        if let Ok(lit_value) = self.literal() {
-            return Ok(Literal(lit_value).as_box());
+        if let Ok(value) = self.literal() {
+            return Ok(expr!(LitExpr { value }));
         }
         if self.match_type(TokenType::LeftParen) {
             let expr = self.expression()?;
@@ -284,7 +284,7 @@ impl Parser {
         } else {
             self.peek()
         }.unwrap();
-        eprintln!("Parser: [{},{}] {err}", tok.get_start(), tok.get_end());
+        eprintln!("Parser: [{},{}] {err}", tok.span().start_line(), tok.span().start_col());
         self.n_errors += 1;
     }
 }
