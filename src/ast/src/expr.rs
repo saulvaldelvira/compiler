@@ -3,14 +3,13 @@
 use std::borrow::Cow;
 
 use builders::{AsBox, IntoEnum};
-use lexer::token::Token;
 
 pub type Expr = Box<Expression>;
 
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Unary)]
 pub struct UnaryExpr {
-    pub op: Token,
+    pub op: String,
     pub expr: Expr
 }
 
@@ -18,7 +17,7 @@ pub struct UnaryExpr {
 #[into_enum(enum_name = Expression, field = Binary)]
 pub struct BinaryExpr {
     pub left: Expr,
-    pub op: Token,
+    pub op: String,
     pub right: Expr,
 }
 

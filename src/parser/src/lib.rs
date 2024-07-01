@@ -114,7 +114,7 @@ impl Parser {
     fn comma(&mut self) -> Result<Expr> {
         let mut left = self.ternary()?;
         if self.match_type(TokenType::Comma) {
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let right = self.comma()?;
             left = expr!( BinaryExpr {left, op, right} );
         }
@@ -142,7 +142,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expr> {
         let mut left = self.comparison()?;
         while self.match_types(&[TokenType::BangEqual, TokenType::EqualEqual]) {
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let right = self.comparison()?;
             left = expr!( BinaryExpr { left, op, right } );
         }
@@ -156,7 +156,7 @@ impl Parser {
                                 TokenType::Less,
                                 TokenType::LessEqual]
                              ){
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let right = self.term()?;
             left = expr!( BinaryExpr { left, op, right } );
         }
@@ -166,7 +166,7 @@ impl Parser {
         let mut left = self.factor()?;
 
         while self.match_types(&[TokenType::Minus,TokenType::Plus]){
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let right = self.factor()?;
             left = expr!( BinaryExpr { left, op, right } );
         }
@@ -176,7 +176,7 @@ impl Parser {
         let mut left = self.unary()?;
 
         while self.match_types(&[TokenType::Slash,TokenType::Star]){
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let right = self.unary()?;
             left = expr!( BinaryExpr { left, op, right } );
         }
@@ -184,7 +184,7 @@ impl Parser {
     }
     fn unary(&mut self) -> Result<Expr> {
         if self.match_types(&[TokenType::Bang,TokenType::Minus]) {
-            let op = self.previous()?.take();
+            let op = self.previous()?.take_lexem();
             let expr = self.unary()?;
             return Ok(expr!( UnaryExpr {op, expr} ));
         }

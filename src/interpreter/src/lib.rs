@@ -16,7 +16,7 @@ impl Interpreter {
 
 impl Visitor<(),LitValue> for Interpreter {
     fn visit_unary(&mut self, u: &ast::expr::UnaryExpr, p: ()) -> Option<LitValue> {
-        Some( match u.op.get_lexem() {
+        Some( match u.op.as_str() {
             "!" => match self.visit_expression(&u.expr, p)? {
                 LitValue::Number(n) => LitValue::Bool(n != 0.0),
                 LitValue::Bool(b) => LitValue::Bool(!b),
@@ -52,7 +52,7 @@ impl Visitor<(),LitValue> for Interpreter {
                 LitValue::Number($e)
             };
         }
-        Some(match op.get_lexem() {
+        Some(match op.as_str() {
             "*" => num!(left * right),
             "+" => num!(left + right),
             "-" => num!(left - right),
