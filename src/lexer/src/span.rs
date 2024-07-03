@@ -30,6 +30,6 @@ impl Default for Span {
 
 impl Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}:{}]", self.start_line, self.start_col)
+        write!(f, "[{}:{}] [{}:{}]", self.start_line, self.start_col, self.end_line, self.end_col)
     }
 }

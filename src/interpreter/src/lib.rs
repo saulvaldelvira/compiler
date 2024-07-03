@@ -1,8 +1,7 @@
-use core::panic;
-
 use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::WhileStmt, Program, Visitor};
 
 use self::enviroment::Enviroment;
+use ast::Spannable;
 mod enviroment;
 
 pub struct Interpreter {
@@ -20,6 +19,12 @@ impl Default for Interpreter {
     }
 }
 
+macro_rules! err {
+    ($($arg:expr),* ; $( $ast:expr )? ) => {
+        panic!("{}: {}", $( $ast.get_span().map(|s| s.to_string()).unwrap_or_else(|| "".to_owned()) )?, format!($($arg),*))
+    }
+}
+
 impl Visitor<(),LitValue> for Interpreter {
     fn visit_unary(&mut self, u: &ast::expr::UnaryExpr, p: ()) -> Option<LitValue> {
         Some( match u.op.as_str() {
@@ -27,7 +32,7 @@ impl Visitor<(),LitValue> for Interpreter {
                 LitValue::Number(n) => LitValue::Bool(n != 0.0),
                 LitValue::Bool(b) => LitValue::Bool(!b),
                 LitValue::Nil => LitValue::Nil,
-                LitValue::Str(_) => panic!("Can't use operator on a String"),
+                LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr),
             },
             _ => unreachable!()
         })
@@ -42,13 +47,13 @@ impl Visitor<(),LitValue> for Interpreter {
             };
         }
         let left = match self.visit_expression(left, p)? {
-            LitValue::Str(_) => panic!("Can't use a string in a binary expression"),
+            LitValue::Str(_) => err!("Can't use a string in a binary expression" ; left),
             LitValue::Nil => return Some(LitValue::Nil),
             LitValue::Number(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
         };
         let right = match self.visit_expression(right, p)? {
-            LitValue::Str(_) => panic!("Can't use a string in a binary expression"),
+            LitValue::Str(_) => err!("Can't use a string in a binary expression" ; right),
             LitValue::Nil => return Some(LitValue::Nil),
             LitValue::Number(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
@@ -96,12 +101,12 @@ impl Visitor<(),LitValue> for Interpreter {
     }
     fn visit_assignment(&mut self, a: &ast::expr::AssignmentExpr, p: ()) -> Option<LitValue> {
         if !a.left.lvalue() {
-            panic!("Trying to assign to non-lvalue: {:#?}", a);
+            err!("Trying to assign to non-lvalue: {:#?}", a ; a);
         }
         let right = self.visit_expression(&a.right, p)?;
         match a.left.as_ref() {
             Expression::Variable(VariableExpr{ name, .. }) => {
-                let variable = self.enviroment.get(name).expect("Assigning to an undefined variable");
+                let variable = self.enviroment.get(name).unwrap_or_else(|| err!("Assigning to an undefined variable" ; &a.left));
                 *variable = right.clone();
             },
             _ => unreachable!(),

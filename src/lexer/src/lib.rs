@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub use macros::Spanned;
 pub use macros::spanned;
 
-use cursor::Cursor;
+pub use cursor::Cursor;
 
 use delay_init::delay;
 

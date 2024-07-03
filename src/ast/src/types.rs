@@ -1,39 +1,72 @@
 use std::borrow::Cow;
 
 use builders::IntoEnum;
+use lexer::{spanned, Spanned};
 
 use crate::AST;
 
-#[derive(Clone,IntoEnum)]
+#[spanned]
+#[derive(Debug,IntoEnum,Clone)]
+#[into_enum(enum_name = Type, field = Number)]
+pub struct NumberType;
+impl NumberType {
+    const SIZE: usize = 8;
+}
+
+#[spanned]
+#[derive(Debug,IntoEnum,Clone)]
+#[into_enum(enum_name = Type, field = Bool)]
+pub struct BoolType;
+impl BoolType {
+    const SIZE: usize = 8;
+}
+
+#[spanned]
+#[derive(Debug,IntoEnum,Clone)]
+#[into_enum(enum_name = Type, field = String)]
+pub struct StringType;
+impl StringType {
+    const SIZE: usize = 8;
+}
+
+#[spanned]
+#[derive(Debug,IntoEnum,Clone)]
+#[into_enum(enum_name = Type, field = Error)]
+pub struct ErrorType {
+    msg: Cow<'static,str>,
+}
+impl ErrorType {
+    fn size(&self) -> usize { self.msg.len() }
+}
+
+#[derive(Clone,IntoEnum,Spanned)]
 #[into_enum(enum_name = AST)]
 pub enum Type {
-    Number,
-    Bool,
-    String,
-    Error { msg: Cow<'static,str> }
+    Number(NumberType),
+    Bool(BoolType),
+    String(StringType),
+    Error(ErrorType)
 }
 
 impl Type {
     pub fn size(&self) -> usize {
         match self {
-            Type::Number => 8,
-            Type::Bool => 1,
-            Type::String => 4,
-            Type::Error{ msg } => msg.len(),
+            Type::Number(_) => NumberType::SIZE,
+            Type::Bool(_) => BoolType::SIZE,
+            Type::String(_) => StringType::SIZE,
+            Type::Error(err) => err.size(),
         }
     }
     pub fn arithmetic(&self, other: Type) -> Type {
         match self {
-            Type::Number => todo!(),
-            Type::Bool => {
+            Type::Number(_) => todo!(),
+            Type::Bool(_) => {
                 match other {
-                    Type::Number => Type::Number,
-                    Type::Bool => Type::Number,
-                    Type::String => Type::Error { msg: "Can't operate arithmetically with strings".into() },
-                    Type::Error { .. } => other.clone(),
+                    Type::String(_) => ErrorType::new("Can't operate arithmetically with strings").into(),
+                    _ => other.clone(),
                 }
             },
-            Type::String => Type::Error { msg: "Can't operate arithmetically with strings".into() },
+            Type::String(_) => ErrorType::new("Can't operate arithmetically with strings").into(),
             Type::Error { .. } => self.clone(),
         }
     }

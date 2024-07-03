@@ -6,6 +6,7 @@ use builders::{AsBox, IntoEnum};
 
 pub type Expr = Box<Expression>;
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Unary)]
 pub struct UnaryExpr {
@@ -13,6 +14,7 @@ pub struct UnaryExpr {
     pub expr: Expr
 }
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Binary)]
 pub struct BinaryExpr {
@@ -21,6 +23,7 @@ pub struct BinaryExpr {
     pub right: Expr,
 }
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Ternary)]
 pub struct TernaryExpr {
@@ -29,6 +32,7 @@ pub struct TernaryExpr {
     pub if_false: Expr,
 }
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Assignment)]
 pub struct AssignmentExpr {
@@ -36,19 +40,21 @@ pub struct AssignmentExpr {
     pub right: Expr
 }
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Variable)]
 pub struct VariableExpr {
     pub name: Cow<'static,str>,
 }
 
+#[spanned]
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Literal)]
 pub struct LitExpr {
     pub value: LitValue,
 }
 
-#[derive(AsBox,Debug,IntoEnum)]
+#[derive(AsBox,Debug,IntoEnum,Spanned)]
 #[into_enum(enum_name = AST)]
 pub enum Expression {
     Unary(UnaryExpr),
@@ -59,6 +65,7 @@ pub enum Expression {
     Literal(LitExpr),
 }
 
+use lexer::{spanned, Spanned};
 use Expression::*;
 
 impl Expression {
@@ -109,10 +116,10 @@ impl LitValue {
 #[macro_export]
 macro_rules! __expr {
     ($variant:ident { $( $i:ident $( : $val:expr )?  ),*  } ) => {
-        $crate::ast!(Expression : $variant { $( $i $( : $val )?  ),* })
+        $crate::ast!(Expression : $variant { $( $i $( : $val )? ),* , span: None })
     };
     ($variant:ident ( $( $e:expr ),* ) ) => {
-        $crate::ast!(Expression : $variant ( $( $e ),* ))
+        $crate::ast!(Expression : $variant ( $( $e ),* , None))
     };
 }
 

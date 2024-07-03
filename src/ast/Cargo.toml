@@ -7,6 +7,9 @@ readme = "README"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+lexer = { path = "../lexer" }
+
 [dependencies.builders]
 features = ["constructor","getters","as_box","into_enum"]
 default-features = false

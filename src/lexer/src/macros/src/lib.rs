@@ -18,17 +18,31 @@ fn get_stripped_generics(generics: &Generics) -> proc_macro2::TokenStream {
 #[proc_macro_attribute]
 pub fn spanned(_args: TokenStream, input: TokenStream) -> TokenStream  {
     let mut ast = parse_macro_input!(input as ItemStruct);
-    let Fields::Named(ref mut named) = ast.fields else { panic!() };
-    let f = quote!({ pub span: std::option::Option<lexer::Span> }).into();
+    let vis = &ast.vis;
+    let mut created = false;
+    let named = match ast.fields {
+        Fields::Named(FieldsNamed{ref mut named, ..}) => named,
+        _ => {
+            created = true;
+            let brace = quote!({}).into();
+            let fields = parse_macro_input!(brace as FieldsNamed);
+            ast.fields = Fields::Named(fields);
+            let Fields::Named(FieldsNamed{ref mut named, ..}) = ast.fields else { panic!() };
+            named
+        }
+    };
+    let f = quote!({
+        #[constructor = false]
+        #vis span: std::option::Option<lexer::Span> }).into();
     let f = parse_macro_input!(f as FieldsNamed);
-    if !named.named.trailing_punct() {
+    if !named.trailing_punct() && !created {
         let comma = Comma::default();
-        named.named.push_punct(comma);
+        named.push_punct(comma);
     }
-    named.named.push_value(f.named.last().cloned().unwrap());
+    named.push_value(f.named.last().cloned().unwrap());
 
     quote! {
-        #[derive(lexer::Spanned)]
+        #[derive(lexer::Spanned,builders::Constructor)]
         #ast
     }.into()
 }
@@ -56,7 +70,7 @@ pub fn spanned_derive(input: TokenStream) -> TokenStream {
         Data::Enum(e) => {
             let get_variants = e.variants.iter().map(|v| {
                 let ident = &v.ident;
-                quote!( Self :: #ident (i) => i.get_span()  )
+                quote!( Self :: #ident (i) => i.get_span().clone()  )
             });
             let set_variants = e.variants.iter().map(|v| {
                 let ident = &v.ident;

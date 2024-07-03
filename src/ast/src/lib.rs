@@ -7,6 +7,8 @@ use declaration::Declaration;
 pub use expr::Expr;
 pub mod stmt;
 use expr::Expression;
+use lexer::{spanned, Spanned};
+pub use lexer::Spannable;
 use stmt::Statement;
 pub use stmt::Stmt;
 pub mod types;
@@ -15,8 +17,9 @@ pub mod visitor;
 use types::Type;
 pub use visitor::Visitor;
 
-use builders::{Constructor, Getters, IntoEnum};
+use builders::{Getters, IntoEnum};
 
+#[derive(Spanned)]
 pub enum AST {
     Program(Program),
     Expression(Expression),
@@ -25,7 +28,8 @@ pub enum AST {
     Type(Type),
 }
 
-#[derive(Debug,Constructor,Getters,IntoEnum)]
+#[spanned]
+#[derive(Debug,Getters,IntoEnum)]
 #[into_enum(enum_name = AST, field = Program)]
 pub struct Program {
     stmts: Vec<Stmt>,

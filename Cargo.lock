@@ -7,12 +7,13 @@ name = "ast"
 version = "0.1.0"
 dependencies = [
  "builders",
+ "lexer",
 ]
 
 [[package]]
 name = "builders"
-version = "0.1.8"
-source = "git+https://github.com/saulvaldelvira/builders.git#f6064c4bbaf0f7c36e9c59761bfe8fd288866b11"
+version = "0.1.9"
+source = "git+https://github.com/saulvaldelvira/builders.git#3933b75fbea4bf4ca84c5cda044367342a37953f"
 dependencies = [
  "proc-macro2",
  "quote",
