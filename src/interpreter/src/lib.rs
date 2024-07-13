@@ -14,6 +14,12 @@ impl Interpreter {
     pub fn interpret(&mut self, p: &Program) { self.visit_program(p, ()); }
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Visitor<(),LitValue> for Interpreter {
     fn visit_unary(&mut self, u: &ast::expr::UnaryExpr, p: ()) -> Option<LitValue> {
         Some( match u.op.as_str() {
@@ -27,9 +33,9 @@ impl Visitor<(),LitValue> for Interpreter {
         })
     }
     fn visit_binary(&mut self, b: &ast::expr::BinaryExpr, p: ()) -> Option<LitValue> {
-        let ref left = b.left;
-        let ref op = b.op;
-        let ref right = b.right;
+        let left = &b.left;
+        let op = &b.op;
+        let right = &b.right;
         macro_rules! tern  {
             ($cond:expr) => {
                 LitValue::Bool(if $cond { true } else { false })
@@ -71,11 +77,9 @@ impl Visitor<(),LitValue> for Interpreter {
         let cond = self.visit_expression(&i.cond, p).unwrap();
         if cond.truthy() {
             self.visit_statement(&i.if_true, p)
-        } else {
-            if let Some(if_false) = &i.if_false {
-                self.visit_statement(if_false, p)
-            } else { None }
-        }
+        } else if let Some(if_false) = &i.if_false {
+            self.visit_statement(if_false, p)
+        } else { None }
     }
     fn visit_while(&mut self, w: &WhileStmt, p: ()) -> Option<LitValue> {
         while self.visit_expression(&w.cond, p).unwrap().truthy() {
@@ -109,7 +113,7 @@ impl Visitor<(),LitValue> for Interpreter {
     }
     fn visit_vardecl(&mut self, v: &ast::declaration::VariableDecl, p: ()) -> Option<LitValue> {
         let init = match &v.init {
-            Some(i) => self.visit_expression(&i, p)?,
+            Some(i) => self.visit_expression(i, p)?,
             None => LitValue::Nil,
         };
         self.enviroment.define(&v.name, init);

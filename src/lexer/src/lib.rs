@@ -173,3 +173,9 @@ impl<'a> Lexer<'a> {
         self.n_errors += 1;
     }
 }
+
+impl<'a> Default for Lexer<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

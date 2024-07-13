@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, VecDeque}, usize};
+use std::collections::{HashMap, VecDeque};
 
 use ast::expr::LitValue;
 

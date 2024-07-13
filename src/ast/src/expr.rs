@@ -73,10 +73,7 @@ impl Expression {
         }
     }
     pub fn lvalue(&self) -> bool {
-        match self {
-            Variable(_) => true,
-            _ => false,
-        }
+        matches!(self, Variable(_))
     }
 }
 
@@ -99,8 +96,8 @@ impl LitValue {
     pub fn print(&self) {
         match self {
             LitValue::Number(n) => print!("{n}"),
-            LitValue::Str(s) => print!("{}", s.strip_prefix("\"").unwrap()
-                                              .strip_suffix("\"").unwrap()
+            LitValue::Str(s) => print!("{}", s.strip_prefix('"').unwrap()
+                                              .strip_suffix('"').unwrap()
                                               .replace("\\n", "\n")),
             LitValue::Bool(b) => print!("{b}"),
             LitValue::Nil => print!("nil"),

@@ -12,6 +12,7 @@ impl Config {
         for arg in args.skip(1) {
             match arg.as_str() {
                 /* Parse args */
+                "" => {},
                 _ => conf.files.push(arg),
             }
         }

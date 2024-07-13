@@ -1,6 +1,6 @@
-use proc_macro::{TokenStream};
+use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, punctuated::Punctuated, token::{Comma}, Data, DeriveInput, Fields, FieldsNamed, GenericParam, Generics, ItemStruct};
+use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Data, DeriveInput, Fields, FieldsNamed, GenericParam, Generics, ItemStruct};
 
 fn get_stripped_generics(generics: &Generics) -> proc_macro2::TokenStream {
     let generics = generics.params.iter().map(|param| {

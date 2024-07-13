@@ -55,14 +55,14 @@ impl Token {
     }
     pub fn take_lexem(&mut self) -> String {
         self.lexem.take()
-                  .expect("Cannot take lexem of the token. Lexem is None.")
+            .expect("Cannot take lexem of the token. Lexem is None.")
     }
     pub fn span(&self) -> Span { self.span }
     pub fn print(&self) {
         print!("[{}:{}] {}",self.span.start_line(), self.span.start_col(), self.token_type);
-         if let Some(l) = &self.lexem {
-             print!(" '{}'", l);
-         }
-         println!("");
+        if let Some(l) = &self.lexem {
+            print!(" '{}'", l);
+        }
+        println!();
     }
 }

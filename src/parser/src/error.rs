@@ -6,11 +6,7 @@ pub struct ParseError {
 
 impl ParseError {
     #[inline]
-    pub fn from_str(msg: &'static str) -> Self {
-        Self { msg: msg.into() }
-    }
-    #[inline]
-    pub fn from_string(msg: String) -> Self {
+    pub fn new(msg: impl Into<Cow<'static,str>>) -> Self {
         Self { msg: msg.into() }
     }
     #[inline]
@@ -23,13 +19,13 @@ impl ParseError {
 
 impl From<&'static str> for ParseError {
     fn from(value: &'static str) -> Self {
-        ParseError::from_str(value)
+        ParseError::new(value)
     }
 }
 
 impl From<String> for ParseError {
     fn from(value: String) -> Self {
-        ParseError::from_string(value)
+        ParseError::new(value)
     }
 }
 

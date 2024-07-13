@@ -225,12 +225,12 @@ impl Parser {
             let name = self.previous()?.take_lexem().into();
             return Ok(expr!( VariableExpr { name } ));
         }
-        ParseError::from_string(
+        ParseError::new(
              format!("Expected literal, found: {}", self.peek()?.get_lexem())).err()
     }
     fn consume(&mut self, t: TokenType, msg: &'static str) -> Result<&mut Token> {
-        if self.check(t) { return Ok(self.advance()?); }
-        ParseError::from_str(msg).err()
+        if self.check(t) { return self.advance(); }
+        ParseError::new(msg).err()
     }
     fn match_type(&mut self, t: TokenType) -> bool {
         if self.check(t) {
@@ -257,11 +257,11 @@ impl Parser {
     }
     fn peek(&mut self) -> Result<&mut Token> {
         self.tokens.get_mut(self.current)
-                   .ok_or_else(|| ParseError::from_str("Index should be valid when calling peek"))
+                   .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
     }
     fn previous(&mut self) -> Result<&mut Token> {
         self.tokens.get_mut(self.current - 1)
-                   .ok_or_else(|| ParseError::from_str("Index should be valid when calling peek"))
+                   .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
     }
     fn synchronize(&mut self) -> bool {
         if self.is_finished() { return false; }
