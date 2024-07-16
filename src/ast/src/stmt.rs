@@ -3,7 +3,7 @@
 use builders::{AsBox, IntoEnum};
 use lexer::{spanned, Spanned};
 
-use crate::AST;
+use crate::{declaration::VariableDecl, AST};
 
 use super::{declaration::Declaration, expr::Expr};
 
@@ -55,6 +55,16 @@ pub struct WhileStmt {
     pub stmts: Stmt,
 }
 
+#[spanned]
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = For)]
+pub struct ForStmt {
+    pub init: Option<VariableDecl>,
+    pub cond: Option<Expr>,
+    pub inc: Option<Expr>,
+    pub body: Stmt,
+}
+
 #[derive(Debug,AsBox,IntoEnum,Spanned)]
 #[into_enum(enum_name = AST)]
 pub enum Statement {
@@ -63,7 +73,8 @@ pub enum Statement {
     Decl(DeclarationStmt),
     Block(BlockStmt),
     If(IfStmt),
-    While(WhileStmt)
+    While(WhileStmt),
+    For(ForStmt),
 }
 
 #[doc(hidden)]

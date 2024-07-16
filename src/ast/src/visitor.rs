@@ -1,4 +1,4 @@
-use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
+use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
 pub trait Visitor<P: Copy,R> {
     fn visit_unary(&mut self, u: &UnaryExpr, p: P) -> Option<R> { self.visit_expression(&u.expr, p) }
@@ -63,6 +63,13 @@ pub trait Visitor<P: Copy,R> {
         self.visit_statement(&w.stmts, p);
         None
     }
+    fn visit_for(&mut self, f: &ForStmt, p: P) -> Option<R> {
+        if let Some(init) = &f.init { self.visit_vardecl(init, p); }
+        if let Some(cond) = &f.cond { self.visit_expression(cond, p); }
+        if let Some(inc) = &f.cond { self.visit_expression(inc, p); }
+        self.visit_statement(&f.body, p);
+        None
+    }
     fn visit_statement(&mut self, s: &Statement, p: P) -> Option<R> {
         match s {
             Statement::Expression(e) => self.visit_expr_as_stmt(e, p),
@@ -71,6 +78,7 @@ pub trait Visitor<P: Copy,R> {
             Statement::Block(b) => self.visit_block(b, p),
             Statement::If(i) => self.visit_if(i, p),
             Statement::While(w) => self.visit_while(w, p),
+            Statement::For(f) => self.visit_for(f, p),
         }
     }
     fn visit_declaration(&mut self, d: &Declaration, p: P) -> Option<R> {

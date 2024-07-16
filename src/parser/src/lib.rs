@@ -6,11 +6,11 @@ use cursor::Cursor;
 use lexer::token::{Token, TokenType};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, Expr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
-use ast::stmt::{DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, WhileStmt};
+use ast::stmt::{DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, WhileStmt};
 use ast::stmt::{BlockStmt, Statement};
 use ast::stmt::stmt;
 use ast::expr::expr;
-use ast::declaration::{Declaration, VariableDecl};
+use ast::declaration::VariableDecl;
 use lexer::Spannable;
 use self::error::ParseError;
 
@@ -44,7 +44,7 @@ impl Parser {
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
-    fn pop<T>(&mut self, mut ast: Box<T>) -> Result<Box<T>>
+    fn pop<T>(&mut self, mut ast: T) -> Result<T>
     where
         T: Spannable
     {
@@ -56,20 +56,23 @@ impl Parser {
         let span = self.tokens[self.current].span();
         self.cursor.push(span);
     }
-    fn var_declaration(&mut self) -> Result<Stmt> {
+    fn var_decl(&mut self) -> Result<VariableDecl> {
         self.push();
         let name = self.consume(TokenType::Identifier, "Expected variable name.")?.take_lexem();
         let mut init = None;
         if self.match_type(TokenType::Equal) {
             init = Some(self.expression()?);
         }
+        self.pop(VariableDecl::new(name, init))
+    }
+    fn var_decl_stmt(&mut self) -> Result<Stmt> {
+        let inner = self.var_decl()?.into();
         self.consume(TokenType::Semicolon, "Expected ';' after variable declaration.")?;
-        let inner: Declaration = VariableDecl::new(name, init).into();
-        self.pop(stmt!{ DeclarationStmt { inner } })
+        Ok(stmt!{ DeclarationStmt { inner } })
     }
     fn statement(&mut self) -> Result<Stmt> {
         if self.match_type(TokenType::Var) {
-            self.var_declaration()
+            self.var_decl_stmt()
         } else {
             self.block()
         }
@@ -105,9 +108,28 @@ impl Parser {
             self.if_stmt()
         } else if self.match_type(TokenType::While) {
             self.while_stmt()
+        } else if self.match_type(TokenType::For) {
+            self.for_stmt()
         } else {
             self.single_line_stmt()
         }
+    }
+    fn for_stmt(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::LeftParen, "Expected '(' after 'for'")?;
+        let init = if self.match_type(TokenType::Var) {
+            Some(self.var_decl()?)
+        } else { None };
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+        let cond = if !self.check(TokenType::Semicolon) {
+            Some(self.expression()?)
+        } else { None };
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+        let inc = if !self.check(TokenType::RightParen) {
+            Some(self.expression()?)
+        } else { None };
+        self.consume(TokenType::RightParen, "Expected ')' after for")?;
+        let body = self.statement()?;
+        self.pop(stmt!(ForStmt {init, cond, inc, body} ))
     }
     fn single_line_stmt(&mut self) -> Result<Stmt> {
         let ast =
@@ -213,7 +235,7 @@ impl Parser {
     }
     fn unary(&mut self) -> Result<Expr> {
         self.push();
-        if self.match_types(&[TokenType::Bang,TokenType::Minus]) {
+        if self.match_types(&[TokenType::Bang,TokenType::Minus,TokenType::Plus]) {
             let op = self.previous()?.take_lexem();
             let expr = self.unary()?;
             return self.pop(expr!( UnaryExpr {op, expr } ));

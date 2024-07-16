@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::{Deref, DerefMut}};
 
 use builders::{Constructor, Getters, Setters};
 
@@ -20,6 +20,16 @@ impl Span {
 pub trait Spannable {
     fn set_span(&mut self, span: Span);
     fn get_span(&self) -> Option<Span>;
+}
+
+impl<T: Spannable> Spannable for Box<T> {
+    fn set_span(&mut self, span: Span) {
+        self.deref_mut().set_span(span)
+    }
+
+    fn get_span(&self) -> Option<Span> {
+        self.deref().get_span()
+    }
 }
 
 impl Default for Span {

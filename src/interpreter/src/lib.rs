@@ -1,4 +1,4 @@
-use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::WhileStmt, Program, Visitor};
+use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 
 use self::enviroment::Enviroment;
 use ast::Spannable;
@@ -34,6 +34,13 @@ impl Visitor<(),LitValue> for Interpreter {
                 LitValue::Nil => LitValue::Nil,
                 LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr),
             },
+            "-" => LitValue::Number(match self.visit_expression(&u.expr, p)? {
+                LitValue::Number(n) => -n,
+                LitValue::Bool(b) => (0 - b as u8) as f64,
+                LitValue::Nil => return Some(LitValue::Nil),
+                LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr),
+            }),
+            "+" => self.visit_expression(&u.expr, p)?,
             _ => unreachable!()
         })
     }
@@ -89,6 +96,20 @@ impl Visitor<(),LitValue> for Interpreter {
     fn visit_while(&mut self, w: &WhileStmt, p: ()) -> Option<LitValue> {
         while self.visit_expression(&w.cond, p).unwrap().truthy() {
             self.visit_statement(&w.stmts, p);
+        }
+        None
+    }
+    fn visit_for(&mut self, f: &ForStmt, p: ()) -> Option<LitValue> {
+        if let Some(init) = &f.init { self.visit_vardecl(init, p); }
+        loop {
+            if let Some(cond) = &f.cond {
+                match self.visit_expression(cond, p) {
+                    Some(s) => if !s.truthy() { break },
+                    None => err!("Expression must evaluate" ; cond),
+                }
+            }
+            self.visit_statement(&f.body, p);
+            if let Some(inc) = &f.inc { self.visit_expression(inc, p); }
         }
         None
     }
