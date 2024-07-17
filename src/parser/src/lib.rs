@@ -6,7 +6,7 @@ use cursor::Cursor;
 use lexer::token::{Token, TokenType};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, Expr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
-use ast::stmt::{DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, WhileStmt};
+use ast::stmt::{DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, WhileStmt};
 use ast::stmt::{BlockStmt, Statement};
 use ast::stmt::stmt;
 use ast::expr::expr;
@@ -135,6 +135,8 @@ impl Parser {
         let ast =
         if self.match_type(TokenType::Print) {
             self.print_stmt()?
+        } else if self.match_type(TokenType::Semicolon) {
+            Statement::Empty(EmptyStmt::new()).as_box()
         } else {
             self.expression_as_stmt()?
         };

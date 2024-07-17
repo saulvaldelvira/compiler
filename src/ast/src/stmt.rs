@@ -65,6 +65,11 @@ pub struct ForStmt {
     pub body: Stmt,
 }
 
+#[spanned]
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = Empty)]
+pub struct EmptyStmt;
+
 #[derive(Debug,AsBox,IntoEnum,Spanned)]
 #[into_enum(enum_name = AST)]
 pub enum Statement {
@@ -75,6 +80,7 @@ pub enum Statement {
     If(IfStmt),
     While(WhileStmt),
     For(ForStmt),
+    Empty(EmptyStmt),
 }
 
 #[doc(hidden)]
