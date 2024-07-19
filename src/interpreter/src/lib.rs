@@ -122,12 +122,17 @@ impl Visitor<(),LitValue> for Interpreter {
     }
     fn visit_assignment(&mut self, a: &ast::expr::AssignmentExpr, p: ()) -> Option<LitValue> {
         if !a.left.lvalue() {
-            err!("Trying to assign to non-lvalue: {:#?}", a ; a);
+            err!("Trying to assign to non-lvalue: {:#?}" , a.left ; a);
         }
         let right = self.visit_expression(&a.right, p)?;
         match a.left.as_ref() {
             Expression::Variable(VariableExpr{ name, .. }) => {
-                let variable = self.enviroment.get(name).unwrap_or_else(|| err!("Assigning to an undefined variable" ; &a.left));
+                if self.enviroment.is_const(name) {
+                    err!("Assignment to const variable \"{name}\""; &a.left);
+                }
+                let variable = self.enviroment
+                                   .get_val(name)
+                                   .unwrap_or_else(|| err!("Assignment to an undefined variable \"{name}\"" ; &a.left));
                 *variable = right.clone();
             },
             _ => unreachable!(),
@@ -135,14 +140,17 @@ impl Visitor<(),LitValue> for Interpreter {
         Some(right)
     }
     fn visit_variable_expr(&mut self, _v: &VariableExpr, _p: ()) -> Option<LitValue> {
-        self.enviroment.get(&_v.name).cloned()
+        self.enviroment.get_val(&_v.name).cloned()
     }
     fn visit_vardecl(&mut self, v: &ast::declaration::VariableDecl, p: ()) -> Option<LitValue> {
+        if v.is_const && v.init.is_none() {
+            err!("Const variable declaration needs to be initialized" ; v);
+        }
         let init = match &v.init {
             Some(i) => self.visit_expression(i, p)?,
             None => LitValue::Nil,
         };
-        self.enviroment.define(&v.name, init);
+        self.enviroment.define(&v.name, init, v);
         None
     }
     fn visit_print(&mut self, pr: &ast::stmt::PrintStmt, p: ()) -> Option<LitValue> {

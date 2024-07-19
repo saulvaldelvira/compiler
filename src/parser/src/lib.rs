@@ -16,6 +16,8 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
+const VARIABLE_DECL: [TokenType; 2] = [TokenType::Var, TokenType::Const];
+
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -58,12 +60,13 @@ impl Parser {
     }
     fn var_decl(&mut self) -> Result<VariableDecl> {
         self.push();
+        let is_const = self.previous().unwrap().get_type() == TokenType::Const;
         let name = self.consume(TokenType::Identifier, "Expected variable name.")?.take_lexem();
         let mut init = None;
         if self.match_type(TokenType::Equal) {
             init = Some(self.expression()?);
         }
-        self.pop(VariableDecl::new(name, init))
+        self.pop(VariableDecl::new(is_const, name, init))
     }
     fn var_decl_stmt(&mut self) -> Result<Stmt> {
         let inner = self.var_decl()?.into();
@@ -71,7 +74,7 @@ impl Parser {
         Ok(stmt!{ DeclarationStmt { inner } })
     }
     fn statement(&mut self) -> Result<Stmt> {
-        if self.match_type(TokenType::Var) {
+        if self.match_types(&VARIABLE_DECL) {
             self.var_decl_stmt()
         } else {
             self.block()
@@ -116,7 +119,7 @@ impl Parser {
     }
     fn for_stmt(&mut self) -> Result<Stmt> {
         self.consume(TokenType::LeftParen, "Expected '(' after 'for'")?;
-        let init = if self.match_type(TokenType::Var) {
+        let init = if self.match_types(&VARIABLE_DECL) {
             Some(self.var_decl()?)
         } else { None };
         self.consume(TokenType::Semicolon, "Expected ';'")?;
@@ -276,8 +279,9 @@ impl Parser {
             return self.pop(expr);
         }
         if self.match_type(TokenType::Identifier) {
-            let name = self.previous()?.take_lexem().into();
-            return self.pop(expr!( VariableExpr { name } ));
+            let name = self.previous()?.take_lexem();
+            let expr: Expression = VariableExpr::new(name).into();
+            return self.pop(expr.as_box());
         }
         ParseError::new(
              format!("Expected literal, found: {}", self.peek()?.get_lexem())).err()

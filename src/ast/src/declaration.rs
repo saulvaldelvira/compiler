@@ -8,6 +8,7 @@ use super::Expr;
 #[spanned]
 #[into_enum(enum_name = Declaration, field = Variable)]
 pub struct VariableDecl {
+    pub is_const: bool,
     pub name: String,
     pub init: Option<Expr>
 }

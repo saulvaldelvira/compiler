@@ -1,9 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 
-use ast::expr::LitValue;
+use ast::{declaration::VariableDecl, expr::LitValue};
+
+struct Var {
+    is_const: bool,
+    value: LitValue,
+}
 
 pub struct Enviroment {
-    variables: VecDeque<HashMap<String,LitValue>>,
+    variables: VecDeque<HashMap<String,Var>>,
 }
 
 impl Enviroment {
@@ -12,11 +17,11 @@ impl Enviroment {
         global.push_back(HashMap::new());
         Self { variables: global }
     }
-    pub fn define(&mut self, name: impl Into<String>, value: LitValue) {
-        let current = self.variables.back_mut().unwrap();
-        current.insert(name.into(), value);
+    pub fn define(&mut self, name: impl Into<String>, value: LitValue, decl: &VariableDecl) {
+        let variables = self.variables.back_mut().unwrap();
+        variables.insert(name.into(), Var { is_const: decl.is_const, value });
     }
-    pub fn get(&mut self, name: &str) -> Option<&mut LitValue> {
+    fn get(&mut self, name: &str) -> Option<&mut Var> {
         let mut i = self.variables.len() as i32 - 1;
         while i >= 0 {
             if self.variables[i as usize].contains_key(name) {
@@ -25,6 +30,12 @@ impl Enviroment {
             i -= 1;
         }
         None
+    }
+    pub fn get_val(&mut self, name: &str) -> Option<&mut LitValue> {
+        self.get(name).map(|var| &mut var.value)
+    }
+    pub fn is_const(&mut self, name: &str) -> bool {
+        self.get(name).map(|var| var.is_const).unwrap_or(false)
     }
     pub fn set(&mut self) {
         self.variables.push_back(HashMap::new());

@@ -40,6 +40,7 @@ delay! {
         map.insert("this",TokenType::This);
         map.insert("true",TokenType::True);
         map.insert("var",TokenType::Var);
+        map.insert("const",TokenType::Const);
         map.insert("while",TokenType::While);
         map
     };
