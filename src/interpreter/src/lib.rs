@@ -6,11 +6,17 @@ mod enviroment;
 
 pub struct Interpreter {
     enviroment: Enviroment,
+    ctx: Ctx,
 }
 
 impl Interpreter {
-    pub fn new() -> Self { Self { enviroment: Enviroment::new() } }
-    pub fn interpret(&mut self, p: &Program) { self.visit_program(p, ()); }
+    pub fn new() -> Self {
+        let ctx = Ctx { inside_loop: false, is_break: false, is_continue: false };
+        Self { enviroment: Enviroment::new(), ctx }
+    }
+    pub fn interpret(&mut self, p: &Program) {
+        self.visit_program(p, ());
+    }
 }
 
 impl Default for Interpreter {
@@ -22,6 +28,33 @@ impl Default for Interpreter {
 macro_rules! err {
     ($($arg:expr),* ; $( $ast:expr )? ) => {
         panic!("{}: {}", $( $ast.get_span().map(|s| s.to_string()).unwrap_or_else(|| "".to_owned()) )?, format!($($arg),*))
+    }
+}
+
+#[derive(Clone,Copy)]
+struct Ctx {
+    inside_loop: bool,
+    is_break: bool,
+    is_continue: bool,
+}
+
+impl Ctx {
+    fn enter_loop(&mut self) {
+        self.inside_loop = true;
+        self.is_break = false;
+        self.is_continue = false;
+    }
+    fn exit_loop(&mut self) {
+        self.inside_loop = false;
+        self.is_break = false;
+        self.is_continue = false;
+    }
+    fn loop_iter(&mut self) {
+        self.is_break = false;
+        self.is_continue = false;
+    }
+    fn must_break_block(&self) -> bool {
+        self.is_break || self.is_continue
     }
 }
 
@@ -94,14 +127,23 @@ impl Visitor<(),LitValue> for Interpreter {
         } else { None }
     }
     fn visit_while(&mut self, w: &WhileStmt, p: ()) -> Option<LitValue> {
+        self.ctx.enter_loop();
         while self.visit_expression(&w.cond, p).unwrap().truthy() {
+            self.ctx.loop_iter();
+
             self.visit_statement(&w.stmts, p);
+            if self.ctx.is_break { break }
+            if self.ctx.is_continue { continue }
         }
+        self.ctx.exit_loop();
         None
     }
     fn visit_for(&mut self, f: &ForStmt, p: ()) -> Option<LitValue> {
+        self.ctx.enter_loop();
         if let Some(init) = &f.init { self.visit_vardecl(init, p); }
         loop {
+            self.ctx.loop_iter();
+
             if let Some(cond) = &f.cond {
                 match self.visit_expression(cond, p) {
                     Some(s) => if !s.truthy() { break },
@@ -110,7 +152,24 @@ impl Visitor<(),LitValue> for Interpreter {
             }
             self.visit_statement(&f.body, p);
             if let Some(inc) = &f.inc { self.visit_expression(inc, p); }
+            if self.ctx.is_break { break }
+            if self.ctx.is_continue { continue }
         }
+        self.ctx.exit_loop();
+        None
+    }
+    fn visit_break_stmt(&mut self, b: &ast::stmt::BreakStmt, _p: ()) -> Option<LitValue> {
+        if !self.ctx.inside_loop {
+            err!("Break statement outside loop" ; b);
+        }
+        self.ctx.is_break = true;
+        None
+    }
+    fn visit_continue_stmt(&mut self, c: &ast::stmt::ContinueStmt, _p: ()) -> Option<LitValue> {
+        if !self.ctx.inside_loop {
+            err!("Continue statement outside loop" ; c);
+        }
+        self.ctx.is_continue = true;
         None
     }
     fn visit_ternary(&mut self, t: &ast::expr::TernaryExpr, p: ()) -> Option<LitValue> {
@@ -163,6 +222,7 @@ impl Visitor<(),LitValue> for Interpreter {
         self.enviroment.set();
         for stmt in &b.stmts {
             self.visit_statement(stmt, p);
+            if self.ctx.must_break_block() { break }
         }
         self.enviroment.reset();
         None

@@ -70,6 +70,16 @@ pub struct ForStmt {
 #[into_enum(enum_name = Statement, field = Empty)]
 pub struct EmptyStmt;
 
+#[spanned]
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = Break)]
+pub struct BreakStmt;
+
+#[spanned]
+#[derive(Debug,IntoEnum)]
+#[into_enum(enum_name = Statement, field = Continue)]
+pub struct ContinueStmt;
+
 #[derive(Debug,AsBox,IntoEnum,Spanned)]
 #[into_enum(enum_name = AST)]
 pub enum Statement {
@@ -81,6 +91,8 @@ pub enum Statement {
     While(WhileStmt),
     For(ForStmt),
     Empty(EmptyStmt),
+    Break(BreakStmt),
+    Continue(ContinueStmt),
 }
 
 #[doc(hidden)]

@@ -42,6 +42,8 @@ delay! {
         map.insert("var",TokenType::Var);
         map.insert("const",TokenType::Const);
         map.insert("while",TokenType::While);
+        map.insert("break",TokenType::Break);
+        map.insert("continue",TokenType::Continue);
         map
     };
  }
