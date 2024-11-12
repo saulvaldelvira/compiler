@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 
 use self::enviroment::Enviroment;
@@ -60,7 +62,7 @@ impl Ctx {
 
 impl Visitor<(),LitValue> for Interpreter {
     fn visit_unary(&mut self, u: &ast::expr::UnaryExpr, p: ()) -> Option<LitValue> {
-        Some( match u.op.as_str() {
+        Some( match u.op.as_ref() {
             "!" => match self.visit_expression(&u.expr, p)? {
                 LitValue::Number(n) => LitValue::Bool(n != 0.0),
                 LitValue::Bool(b) => LitValue::Bool(!b),
@@ -103,7 +105,7 @@ impl Visitor<(),LitValue> for Interpreter {
                 LitValue::Number($e)
             };
         }
-        Some(match op.as_str() {
+        Some(match op.as_ref() {
             "*" => num!(left * right),
             "+" => num!(left + right),
             "-" => num!(left - right),

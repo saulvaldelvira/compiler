@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, rc::Rc};
 use crate::span::Span;
 
 #[derive(Clone,Copy,Debug,PartialEq)]
@@ -24,7 +24,7 @@ pub enum TokenType {
 
 #[derive(Debug)]
 pub struct Token {
-    lexem: Option<String>,
+    lexem: Option<Box<str>>,
     token_type: TokenType,
     span: Span,
 }
@@ -37,7 +37,7 @@ impl fmt::Display for TokenType {
 
 impl Token {
     pub fn new(lexem: &str, token_type: TokenType, span: Span) -> Self {
-        let lexem = Some(lexem.to_owned());
+        let lexem = Some(Box::from(lexem));
         Self{ lexem, token_type, span }
     }
     pub fn get_type(&self) -> TokenType { self.token_type }
@@ -54,7 +54,7 @@ impl Token {
             lexem: Some(self.take_lexem()),
         }
     }
-    pub fn take_lexem(&mut self) -> String {
+    pub fn take_lexem(&mut self) -> Box<str> {
         self.lexem.take()
             .expect("Cannot take lexem of the token. Lexem is None.")
     }

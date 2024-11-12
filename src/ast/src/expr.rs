@@ -1,7 +1,5 @@
 //! Expressions
 //!
-use std::borrow::Cow;
-
 use builders::{AsBox, IntoEnum};
 
 pub type Expr = Box<Expression>;
@@ -10,7 +8,7 @@ pub type Expr = Box<Expression>;
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Unary)]
 pub struct UnaryExpr {
-    pub op: String,
+    pub op: Box<str>,
     pub expr: Expr
 }
 
@@ -19,7 +17,7 @@ pub struct UnaryExpr {
 #[into_enum(enum_name = Expression, field = Binary)]
 pub struct BinaryExpr {
     pub left: Expr,
-    pub op: String,
+    pub op: Box<str>,
     pub right: Expr,
 }
 
@@ -44,7 +42,7 @@ pub struct AssignmentExpr {
 #[derive(Debug,IntoEnum)]
 #[into_enum(enum_name = Expression, field = Variable)]
 pub struct VariableExpr {
-    pub name: Cow<'static,str>,
+    pub name: Box<str>,
 }
 
 #[spanned]
@@ -87,7 +85,7 @@ impl Expression {
 #[derive(Clone,Debug)]
 pub enum LitValue {
     Number(f64),
-    Str(String),
+    Str(Box<str>),
     Bool(bool),
     Nil
 }
