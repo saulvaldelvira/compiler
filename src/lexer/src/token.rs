@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{fmt};
 use crate::span::Span;
 
 #[derive(Clone,Copy,Debug,PartialEq)]

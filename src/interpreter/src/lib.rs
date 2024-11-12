@@ -1,4 +1,3 @@
-use std::ops::Deref;
 
 use ast::{expr::{Expression, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 

@@ -122,9 +122,9 @@ impl<'a> Lexer<'a> {
             '"' => self.string(),
             ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
             c =>
-                if c.is_ascii_digit() {
+                if c.is_numeric() {
                     self.number()
-                } else if c.is_ascii_alphabetic() {
+                } else if c.is_alphabetic() {
                     self.identifier()
                 } else{
                     let mut msg = "Unexpected character [".to_string();
@@ -158,15 +158,15 @@ impl<'a> Lexer<'a> {
         self.add_token(TokenType::String)
     }
     fn number(&mut self) -> Option<Token> {
-        self.c.advance_while(char::is_ascii_digit);
-        if self.c.peek() == '.' && self.c.peek_next().is_ascii_digit() {
+        self.c.advance_while(|n| n.is_numeric());
+        if self.c.peek() == '.' && self.c.peek_next().is_numeric() {
             self.c.advance();
             self.c.advance_while(char::is_ascii_digit);
         }
         self.add_token(TokenType::Number)
     }
     fn identifier(&mut self) -> Option<Token> {
-        self.c.advance_while(|c| c.is_ascii_alphanumeric() || *c == '_');
+        self.c.advance_while(|c| c.is_alphabetic() || *c == '_');
         let lexem = self.c.current_lexem();
         let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenType::Identifier);
         self.add_token(token_type)
