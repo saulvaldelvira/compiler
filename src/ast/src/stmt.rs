@@ -1,5 +1,7 @@
 //! Statements
 //!
+use core::fmt;
+
 use crate::Expression;
 use lexer::Span;
 
@@ -72,8 +74,13 @@ pub enum StatementKind {
     Continue(ContinueStmt),
 }
 
-#[derive(Debug)]
 pub struct Statement {
     pub kind: StatementKind,
     pub span: Span,
+}
+
+impl fmt::Debug for Statement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#?}", self.kind)
+    }
 }

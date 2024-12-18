@@ -48,11 +48,18 @@ pub enum ExpressionKind {
     Literal(LitExpr),
 }
 
-#[derive(Debug)]
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
 }
+
+impl fmt::Debug for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#?}", self.kind)
+    }
+}
+
+use std::fmt;
 
 use lexer::Span;
 use ExpressionKind::*;
