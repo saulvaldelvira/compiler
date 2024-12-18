@@ -1,88 +1,65 @@
 //! Statements
 //!
-use builders::{AsBox, IntoEnum};
-use lexer::{spanned, Spanned};
+use crate::Expression;
+use lexer::Span;
 
-use crate::{declaration::VariableDecl, AST};
+use super::declaration::Declaration;
 
-use super::{declaration::Declaration, expr::Expr};
-
-pub type Stmt = Box<Statement>;
+type Stmt = Box<Statement>;
 
 /// Wraps an [Expression](crate::expr::Expression) as a statement
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Expression)]
+#[derive(Debug)]
 pub struct ExprAsStmt {
-    pub expr: Expr,
+    pub expr: Expression,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Print)]
+#[derive(Debug)]
 pub struct PrintStmt {
-    pub expr: Expr,
+    pub expr: Expression,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Decl)]
+#[derive(Debug)]
 pub struct DeclarationStmt {
     pub inner: Declaration,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Block)]
+#[derive(Debug)]
 pub struct BlockStmt {
-    pub stmts: Vec<Stmt>,
+    pub stmts: Vec<Statement>,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = If)]
+#[derive(Debug)]
 pub struct IfStmt {
-    pub cond: Expr,
+    pub cond: Expression,
     pub if_true: Stmt,
     pub if_false: Option<Stmt>,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = While)]
+#[derive(Debug)]
 pub struct WhileStmt {
-    pub cond: Expr,
+    pub cond: Expression,
     pub stmts: Stmt,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = For)]
+#[derive(Debug)]
 pub struct ForStmt {
-    pub init: Option<VariableDecl>,
-    pub cond: Option<Expr>,
-    pub inc: Option<Expr>,
+    pub init: Option<Declaration>,
+    pub cond: Option<Expression>,
+    pub inc: Option<Expression>,
     pub body: Stmt,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Empty)]
+#[derive(Debug)]
 pub struct EmptyStmt;
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Break)]
+#[derive(Debug)]
 pub struct BreakStmt;
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Statement, field = Continue)]
+#[derive(Debug)]
 pub struct ContinueStmt;
 
-#[derive(Debug,AsBox,IntoEnum,Spanned)]
-#[into_enum(enum_name = AST)]
-pub enum Statement {
+#[derive(Debug)]
+pub enum StatementKind {
     Expression(ExprAsStmt),
     Print(PrintStmt),
     Decl(DeclarationStmt),
@@ -95,12 +72,8 @@ pub enum Statement {
     Continue(ContinueStmt),
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __stmt {
-    ($variant:ident { $( $i:ident $( : $val:expr )?  ),*  } ) => {
-        $crate::ast!(Statement : $variant { $( $i $( : $val )?  ),* , span: None })
-    };
+#[derive(Debug)]
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
 }
-
-pub use __stmt as stmt;

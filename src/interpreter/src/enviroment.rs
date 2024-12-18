@@ -8,7 +8,7 @@ struct Var {
 }
 
 pub struct Enviroment {
-    variables: VecDeque<HashMap<String,Var>>,
+    variables: VecDeque<HashMap<Box<str>,Var>>,
 }
 
 impl Enviroment {
@@ -17,7 +17,7 @@ impl Enviroment {
         global.push_back(HashMap::new());
         Self { variables: global }
     }
-    pub fn define(&mut self, name: impl Into<String>, value: LitValue, decl: &VariableDecl) {
+    pub fn define(&mut self, name: impl Into<Box<str>>, value: LitValue, decl: &VariableDecl) {
         let variables = self.variables.back_mut().unwrap();
         variables.insert(name.into(), Var { is_const: decl.is_const, value });
     }

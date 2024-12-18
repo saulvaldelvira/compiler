@@ -1,60 +1,45 @@
 //! Expressions
 //!
-use builders::{AsBox, IntoEnum};
+type Expr = Box<Expression>;
 
-pub type Expr = Box<Expression>;
-
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Unary)]
+#[derive(Debug)]
 pub struct UnaryExpr {
     pub op: Box<str>,
     pub expr: Expr
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Binary)]
+#[derive(Debug)]
 pub struct BinaryExpr {
     pub left: Expr,
     pub op: Box<str>,
     pub right: Expr,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Ternary)]
+#[derive(Debug)]
 pub struct TernaryExpr {
     pub cond: Expr,
     pub if_true: Expr,
     pub if_false: Expr,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Assignment)]
+#[derive(Debug)]
 pub struct AssignmentExpr {
     pub left: Expr,
     pub right: Expr
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Variable)]
+#[derive(Debug)]
 pub struct VariableExpr {
     pub name: Box<str>,
 }
 
-#[spanned]
-#[derive(Debug,IntoEnum)]
-#[into_enum(enum_name = Expression, field = Literal)]
+#[derive(Debug)]
 pub struct LitExpr {
     pub value: LitValue,
 }
 
-#[derive(AsBox,Debug,IntoEnum,Spanned)]
-#[into_enum(enum_name = AST)]
-pub enum Expression {
+#[derive(Debug)]
+pub enum ExpressionKind {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
     Ternary(TernaryExpr),
@@ -63,12 +48,18 @@ pub enum Expression {
     Literal(LitExpr),
 }
 
-use lexer::{spanned, Spanned};
-use Expression::*;
+#[derive(Debug)]
+pub struct Expression {
+    pub kind: ExpressionKind,
+    pub span: Span,
+}
+
+use lexer::Span;
+use ExpressionKind::*;
 
 impl Expression {
     pub fn has_side_effect(&self) -> bool {
-        match self {
+        match &self.kind {
             Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
             Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
             Ternary(t) =>
@@ -78,7 +69,7 @@ impl Expression {
         }
     }
     pub fn lvalue(&self) -> bool {
-        matches!(self, Variable(_))
+        matches!(self.kind, Variable(_))
     }
 }
 
@@ -109,19 +100,3 @@ impl LitValue {
         }
     }
 }
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __expr {
-    ($variant:ident { $( $i:ident $( : $val:expr )?  ),*  } ) => {
-        $crate::ast!(Expression : $variant { $( $i $( : $val )? ),* , span: None })
-    };
-    ($variant:ident ( $( $e:expr ),* ) ) => {
-        $crate::ast!(Expression : $variant ( $( $e ),* , None))
-    };
-}
-
-pub use __expr as expr;
-
-use crate::AST;
-

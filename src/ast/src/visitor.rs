@@ -1,99 +1,149 @@
-use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, Expression, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
+use std::ops::ControlFlow;
 
-pub trait Visitor<P: Copy,R> {
-    fn visit_unary(&mut self, u: &UnaryExpr, p: P) -> Option<R> { self.visit_expression(&u.expr, p) }
-    fn visit_binary(&mut self, b: &BinaryExpr, p: P) -> Option<R> {
-        self.visit_expression(&b.left, p);
-        self.visit_expression(&b.right, p);
-        None
-    }
-    fn visit_ternary(&mut self, t: &TernaryExpr, p: P) -> Option<R> {
-        self.visit_expression(&t.cond, p);
-        self.visit_expression(&t.if_true, p);
-        self.visit_expression(&t.if_false, p);
-        None
-    }
-    fn visit_assignment(&mut self, a: &AssignmentExpr, p: P) -> Option<R> {
-        self.visit_expression(&a.left, p);
-        self.visit_expression(&a.right, p);
-        None
-    }
-    fn visit_variable_expr(&mut self, _v: &VariableExpr, _p: P) -> Option<R> { None }
-    fn visit_literal(&mut self, _l: &LitExpr, _p: P) -> Option<R> { None }
+use crate::declaration::DeclarationKind;
+use crate::stmt::StatementKind;
+use crate::Expression;
+use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
-    fn visit_expression(&mut self, a: &Expression, p: P) -> Option<R> {
-        match a {
-            Expression::Unary(u) => self.visit_unary(u, p),
-            Expression::Binary(b) => self.visit_binary(b, p),
-            Expression::Ternary(t) => self.visit_ternary(t, p),
-            Expression::Assignment(a) => self.visit_assignment(a, p),
-            Expression::Variable(v) => self.visit_variable_expr(v, p),
-            Expression::Literal(l) => self.visit_literal(l, p),
+pub trait Visitor<'ast> {
+    type Result: VisitorResult;
+
+    fn visit_unary(&mut self, u: &'ast UnaryExpr) -> Self::Result { self.visit_expression(&u.expr) }
+    fn visit_binary(&mut self, b: &'ast BinaryExpr) -> Self::Result {
+        self.visit_expression(&b.left);
+        self.visit_expression(&b.right);
+        Self::Result::output()
+    }
+    fn visit_ternary(&mut self, t: &'ast TernaryExpr) -> Self::Result {
+        self.visit_expression(&t.cond);
+        self.visit_expression(&t.if_true);
+        self.visit_expression(&t.if_false);
+        Self::Result::output()
+    }
+    fn visit_assignment(&mut self, a: &'ast AssignmentExpr) -> Self::Result {
+        self.visit_expression(&a.left);
+        self.visit_expression(&a.right);
+        Self::Result::output()
+    }
+    fn visit_variable_expr(&mut self, _v: &'ast VariableExpr) -> Self::Result { Self::Result::output() }
+    fn visit_literal(&mut self, _l: &'ast LitExpr) -> Self::Result { Self::Result::output() }
+
+    fn visit_expression(&mut self, a: &'ast Expression) -> Self::Result {
+        use ExpressionKind as EK;
+        match &a.kind {
+            EK::Unary(u) => self.visit_unary(u),
+            EK::Binary(b) => self.visit_binary(b),
+            EK::Ternary(t) => self.visit_ternary(t),
+            EK::Assignment(a) => self.visit_assignment(a),
+            EK::Variable(v) => self.visit_variable_expr(v),
+            EK::Literal(l) => self.visit_literal(l),
         }
     }
 
-    fn visit_vardecl(&mut self, v: &VariableDecl, p: P) -> Option<R> {
+    fn visit_vardecl(&mut self, v: &'ast VariableDecl) -> Self::Result {
         if let Some(ref init) = v.init {
-            self.visit_expression(init, p);
+            self.visit_expression(init);
         }
-        None
+        Self::Result::output()
     }
-    fn visit_expr_as_stmt(&mut self, s: &ExprAsStmt, p: P) -> Option<R> {
-        self.visit_expression(&s.expr, p);
-        None
+    fn visit_expr_as_stmt(&mut self, s: &'ast ExprAsStmt) -> Self::Result {
+        self.visit_expression(&s.expr);
+        Self::Result::output()
     }
-    fn visit_print(&mut self, pr: &PrintStmt, p: P) -> Option<R> { self.visit_expression(&pr.expr, p); None  }
-    fn visit_decl_stmt(&mut self, d: &DeclarationStmt, p: P) -> Option<R> { self.visit_declaration(&d.inner, p); None  }
-    fn visit_block(&mut self, b: &BlockStmt, p: P) -> Option<R> {
+    fn visit_print(&mut self, pr: &'ast PrintStmt) -> Self::Result { self.visit_expression(&pr.expr); Self::Result::output()  }
+    fn visit_decl_stmt(&mut self, d: &'ast DeclarationStmt) -> Self::Result { self.visit_declaration(&d.inner); Self::Result::output()  }
+    fn visit_block(&mut self, b: &'ast BlockStmt) -> Self::Result {
         for stmt in &b.stmts {
-            self.visit_statement(stmt,p);
+            self.visit_statement(stmt);
         }
-        None
+        Self::Result::output()
     }
-    fn visit_if(&mut self, i: &IfStmt, p: P) -> Option<R> {
-        self.visit_expression(&i.cond, p);
-        self.visit_statement(&i.if_true, p);
+    fn visit_if(&mut self, i: &'ast IfStmt) -> Self::Result {
+        self.visit_expression(&i.cond);
+        self.visit_statement(&i.if_true);
         if let Some(if_false) = &i.if_false {
-            self.visit_statement(if_false, p);
+            self.visit_statement(if_false);
         }
-        None
+        Self::Result::output()
     }
-    fn visit_while(&mut self, w: &WhileStmt, p: P) -> Option<R> {
-        self.visit_expression(&w.cond, p);
-        self.visit_statement(&w.stmts, p);
-        None
+    fn visit_while(&mut self, w: &'ast WhileStmt) -> Self::Result {
+        self.visit_expression(&w.cond);
+        self.visit_statement(&w.stmts);
+        Self::Result::output()
     }
-    fn visit_for(&mut self, f: &ForStmt, p: P) -> Option<R> {
-        if let Some(init) = &f.init { self.visit_vardecl(init, p); }
-        if let Some(cond) = &f.cond { self.visit_expression(cond, p); }
-        if let Some(inc) = &f.cond { self.visit_expression(inc, p); }
-        self.visit_statement(&f.body, p);
-        None
+    fn visit_for(&mut self, f: &'ast ForStmt) -> Self::Result {
+        if let Some(init) = &f.init { self.visit_declaration(init); }
+        if let Some(cond) = &f.cond { self.visit_expression(cond); }
+        if let Some(inc) = &f.cond { self.visit_expression(inc); }
+        self.visit_statement(&f.body);
+        Self::Result::output()
     }
-    fn visit_empty_stmt(&mut self, _e: &EmptyStmt, _p: P) -> Option<R> { None }
-    fn visit_break_stmt(&mut self, _b: &BreakStmt, _p: P) -> Option<R> { None }
-    fn visit_continue_stmt(&mut self, _c: &ContinueStmt, _p: P) -> Option<R> { None }
-    fn visit_statement(&mut self, s: &Statement, p: P) -> Option<R> {
-        match s {
-            Statement::Expression(e) => self.visit_expr_as_stmt(e, p),
-            Statement::Print(e) => self.visit_print(e, p),
-            Statement::Decl(d) => self.visit_decl_stmt(d, p),
-            Statement::Block(b) => self.visit_block(b, p),
-            Statement::If(i) => self.visit_if(i, p),
-            Statement::While(w) => self.visit_while(w, p),
-            Statement::For(f) => self.visit_for(f, p),
-            Statement::Empty(e) => self.visit_empty_stmt(e, p),
-            Statement::Break(b) => self.visit_break_stmt(b, p),
-            Statement::Continue(c) => self.visit_continue_stmt(c, p),
-        }
-    }
-    fn visit_declaration(&mut self, d: &Declaration, p: P) -> Option<R> {
-        match d {
-            Declaration::Variable(v) => self.visit_vardecl(v, p)
+    fn visit_empty_stmt(&mut self, _e: &'ast EmptyStmt) -> Self::Result { Self::Result::output() }
+    fn visit_break_stmt(&mut self, _b: &'ast BreakStmt) -> Self::Result { Self::Result::output() }
+    fn visit_continue_stmt(&mut self, _c: &'ast ContinueStmt) -> Self::Result { Self::Result::output() }
+    fn visit_statement(&mut self, s: &'ast Statement) -> Self::Result {
+        use StatementKind as SK;
+        match &s.kind {
+            SK::Expression(e) => self.visit_expr_as_stmt(e),
+            SK::Print(e) => self.visit_print(e),
+            SK::Decl(d) => self.visit_decl_stmt(d),
+            SK::Block(b) => self.visit_block(b),
+            SK::If(i) => self.visit_if(i),
+            SK::While(w) => self.visit_while(w),
+            SK::For(f) => self.visit_for(f),
+            SK::Empty(e) => self.visit_empty_stmt(e),
+            SK::Break(b) => self.visit_break_stmt(b),
+            SK::Continue(c) => self.visit_continue_stmt(c),
         }
     }
-    fn visit_program(&mut self, prog: &Program, p: P) -> Option<R> {
-        prog.get_stmts().iter().for_each(|stmt| { self.visit_statement(stmt, p); });
-        None
+    fn visit_declaration(&mut self, d: &'ast Declaration) -> Self::Result {
+        use DeclarationKind as DK;
+        match &d.kind {
+            DK::Variable(v) => self.visit_vardecl(v)
+        }
+    }
+    fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
+        prog.stmts.iter().for_each(|stmt| { self.visit_statement(stmt); });
+        Self::Result::output()
+    }
+}
+
+pub trait VisitorResult {
+    type Residual;
+
+    fn output() -> Self;
+    fn from_residual(residual: Self::Residual) -> Self;
+    fn from_branch(b: ControlFlow<Self::Residual>) -> Self;
+    fn branch(self) -> ControlFlow<Self::Residual>;
+}
+
+impl VisitorResult for () {
+    type Residual = core::convert::Infallible;
+
+    fn output() -> Self {}
+    fn from_residual(_residual: Self::Residual) -> Self {}
+    fn from_branch(_b: ControlFlow<Self::Residual>) -> Self {}
+    fn branch(self) -> ControlFlow<Self::Residual> {
+        ControlFlow::Continue(())
+    }
+}
+
+impl<T> VisitorResult for ControlFlow<T> {
+    type Residual = T;
+
+    fn output() -> Self {
+        ControlFlow::Continue(())
+    }
+
+    fn from_residual(residual: Self::Residual) -> Self {
+        ControlFlow::Break(residual)
+    }
+
+    fn from_branch(b: ControlFlow<Self::Residual>) -> Self {
+        b
+    }
+
+    fn branch(self) -> ControlFlow<Self::Residual> {
+        self
     }
 }

@@ -1,33 +1,22 @@
-use builders::{AsBox, IntoEnum};
-use lexer::{spanned, Spanned};
-use crate::AST;
+use lexer::Span;
 
-use super::Expr;
+use crate::Expression;
 
-#[derive(Debug,IntoEnum)]
-#[spanned]
-#[into_enum(enum_name = Declaration, field = Variable)]
+#[derive(Debug)]
 pub struct VariableDecl {
     pub is_const: bool,
-    pub name: String,
-    pub init: Option<Expr>
+    pub name: Box<str>,
+    pub init: Option<Expression>
 }
 
-#[derive(Debug,AsBox,IntoEnum,Spanned)]
-#[into_enum(enum_name = AST)]
-pub enum Declaration {
+#[derive(Debug)]
+pub enum DeclarationKind {
     Variable(VariableDecl),
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __decl {
-    ($e:expr) => {
-        {
-            let d: Declaration = $e.into();
-            d.as_box()
-        }
-    };
+#[derive(Debug)]
+pub struct Declaration {
+    pub kind: DeclarationKind,
+    pub span: Span,
 }
 
-pub use __decl as decl;

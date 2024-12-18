@@ -60,7 +60,7 @@ impl Token {
     }
     pub fn span(&self) -> Span { self.span }
     pub fn print(&self) {
-        print!("[{}:{}] {}",self.span.start_line(), self.span.start_col(), self.token_type);
+        print!("[{}:{}] {}",self.span.start_line, self.span.start_col, self.token_type);
         if let Some(l) = &self.lexem {
             print!(" '{}'", l);
         }

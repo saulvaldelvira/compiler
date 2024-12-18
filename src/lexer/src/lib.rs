@@ -1,11 +1,8 @@
 mod cursor;
 mod span;
-pub use span::{Span,Spannable};
+pub use span::Span;
 
 use std::collections::HashMap;
-
-pub use macros::Spanned;
-pub use macros::spanned;
 
 pub use cursor::Cursor;
 
