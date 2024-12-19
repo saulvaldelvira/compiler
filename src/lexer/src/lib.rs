@@ -47,12 +47,10 @@ delay! {
 
 impl<'a> Lexer<'a> {
     /* PUBLIC */
-    pub fn new() -> Self {
-        Self { c: Cursor::new(""), n_errors:0 }
+    pub fn new(text: &'a str) -> Self {
+        Self { c: Cursor::new(text), n_errors:0 }
     }
-    pub fn tokenize(&mut self, text: &'a str) -> Vec<Token> {
-        self.n_errors= 0;
-        self.c = Cursor::new(text);
+    pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens:Vec<Token> = Vec::new();
         while !self.c.is_finished() {
             self.c.step();
@@ -171,11 +169,5 @@ impl<'a> Lexer<'a> {
     fn error(&mut self, msg: &str) {
         eprintln!("[{}:{}] ERROR: {}", self.c.line(), self.c.col(), msg);
         self.n_errors += 1;
-    }
-}
-
-impl<'a> Default for Lexer<'a> {
-    fn default() -> Self {
-        Self::new()
     }
 }

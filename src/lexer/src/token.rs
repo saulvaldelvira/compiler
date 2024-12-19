@@ -22,7 +22,7 @@ pub enum TokenType {
     Break, Continue
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Token {
     lexem: Option<Box<str>>,
     token_type: TokenType,
