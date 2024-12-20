@@ -18,8 +18,8 @@ fn find_errors(src: &str) -> u32 {
 #[test]
 fn valid() {
     const INPUT: &str = r#"
-var a = 12;
-var b = 23;
+let a = 12;
+let b = 23;
 
 if (a > 5) {
     b = a + b;
@@ -36,10 +36,10 @@ if (a > 5) {
 #[test]
 fn invalid() {
     const INPUT: &str = r#"
-var a = 12;
-var b = 23
+let a = 12;
+let b = 23
 
-var c = 1;
+let c = 1;
 
 if (a > 5) {
     b = a + b;

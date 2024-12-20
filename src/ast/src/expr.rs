@@ -61,6 +61,7 @@ impl fmt::Debug for Expression {
 
 use std::fmt;
 
+use lexer::unescaped::Unescaped;
 use lexer::Span;
 use ExpressionKind::*;
 
@@ -85,6 +86,7 @@ pub enum LitValue {
     Number(f64),
     Str(Box<str>),
     Bool(bool),
+    Char(char),
     Nil
 }
 
@@ -93,17 +95,20 @@ impl LitValue {
         match self {
             LitValue::Number(n) => *n != 0.0,
             LitValue::Bool(b) => *b,
-            LitValue::Nil | LitValue::Str(_) => false,
+            LitValue::Nil | LitValue::Char(_) | LitValue::Str(_) => false,
         }
     }
     pub fn print(&self) {
         match self {
             LitValue::Number(n) => print!("{n}"),
-            LitValue::Str(s) => print!("{}", s.strip_prefix('"').unwrap()
-                                              .strip_suffix('"').unwrap()
-                                              .replace("\\n", "\n")),
+            LitValue::Str(s) => {
+                let s = s.strip_prefix('"').unwrap()
+                         .strip_suffix('"').unwrap();
+                Unescaped::from(s).for_each(|c| print!("{c}"));
+            },
             LitValue::Bool(b) => print!("{b}"),
             LitValue::Nil => print!("nil"),
+            LitValue::Char(c) => print!("{c}"),
         }
     }
 }

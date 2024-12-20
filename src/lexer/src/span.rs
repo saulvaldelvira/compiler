@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str};
 
 #[derive(Clone,Copy,Debug)]
 pub struct Span {
@@ -12,6 +12,9 @@ impl Span {
             offset: self.offset,
             len: (other.offset + other.len) - self.offset,
         }
+    }
+    pub fn slice<'a>(&self, src: &'a str) -> &'a str {
+        &src[self.offset..self.offset + self.len]
     }
     /// Gets the line and column of this span in the
     /// given string slice

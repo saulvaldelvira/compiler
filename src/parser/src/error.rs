@@ -1,3 +1,4 @@
+use std::num::ParseFloatError;
 use std::{borrow::Cow, error::Error, fmt::{Debug, Display}};
 
 pub struct ParseError {
@@ -26,6 +27,12 @@ impl From<&'static str> for ParseError {
 impl From<String> for ParseError {
     fn from(value: String) -> Self {
         ParseError::new(value)
+    }
+}
+
+impl From<ParseFloatError> for ParseError {
+    fn from(value: ParseFloatError) -> Self {
+        ParseError::new(value.to_string())
     }
 }
 

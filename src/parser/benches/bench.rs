@@ -8,8 +8,8 @@ use parser::Parser;
 #[bench]
 fn bench(b: &mut Bencher) {
     const INPUT: &str = r#"
-var a = 12;
-var b = 23;
+let a = 12;
+let b = 23;
 
 if (a > 5) {
     b = a + b;
@@ -17,8 +17,8 @@ if (a > 5) {
     while (a <= 5) {
         b = a * b;
         if (12) {
-            var a = 12;
-            var b = 23;
+            let a = 12;
+            let b = 23;
 
             if (a > 5) {
                 b = a + b;

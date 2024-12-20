@@ -1,8 +1,10 @@
 mod cursor;
 mod span;
 pub use span::Span;
+pub mod unescaped;
 
 use std::collections::HashMap;
+
 
 pub use cursor::Cursor;
 
@@ -26,7 +28,6 @@ delay! {
         map.insert("fun",TokenKind::Fun);
         map.insert("for",TokenKind::For);
         map.insert("if",TokenKind::If);
-        map.insert("nil",TokenKind::Nil);
         map.insert("or",TokenKind::Or);
         map.insert("print",TokenKind::Print);
         map.insert("int",TokenKind::Int);
@@ -36,7 +37,7 @@ delay! {
         map.insert("super",TokenKind::Super);
         map.insert("this",TokenKind::This);
         map.insert("true",TokenKind::True);
-        map.insert("var",TokenKind::Var);
+        map.insert("let",TokenKind::Let);
         map.insert("const",TokenKind::Const);
         map.insert("while",TokenKind::While);
         map.insert("break",TokenKind::Break);
@@ -87,6 +88,7 @@ impl<'lex> Lexer<'lex> {
             ':' => self.add_token(TokenKind::Colon),
             '?' => self.add_token(TokenKind::Question),
             '*' => self.add_token(TokenKind::Star),
+            '\'' => self.char_literal(),
             '!' =>
                 if self.c.match_next('=') {
                     self.add_token(TokenKind::BangEqual)
@@ -135,6 +137,15 @@ impl<'lex> Lexer<'lex> {
                 }
         }
     }
+    fn char_literal(&mut self) -> Option<Token> {
+        if self.c.advance() == '\\' {
+            self.c.advance();
+        };
+        if !self.c.match_next('\'') {
+            self.error("Expected closing ', on char literal");
+        }
+        self.add_token(TokenKind::CharLiteral)
+    }
     fn comment(&mut self) -> Option<Token> {
         self.c.advance_while(|c| *c != '\n');
         None
@@ -149,12 +160,16 @@ impl<'lex> Lexer<'lex> {
         None
     }
     fn string(&mut self) -> Option<Token> {
-        let was_eof = !self.c.advance_while(|c| *c != '"');
-        if was_eof {
-            self.error("Unterminated string");
-            return None;
+        while self.c.advance() != '"' {
+            if self.c.is_finished() {
+                self.error("Unterminated string");
+                return None;
+            }
+            if self.c.peek() == '\\' {
+                self.c.advance();
+                self.c.advance();
+            }
         }
-        self.c.advance();
         self.add_token(TokenKind::String)
     }
     fn number(&mut self) -> Option<Token> {

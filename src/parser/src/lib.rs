@@ -8,12 +8,12 @@ use ast::expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, VariableDecl};
-use lexer::Span;
+use lexer::{Span, unescaped::Unescaped};
 use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
-const VARIABLE_DECL: [TokenKind; 2] = [TokenKind::Var, TokenKind::Const];
+const VARIABLE_DECL: [TokenKind; 2] = [TokenKind::Let, TokenKind::Const];
 
 pub struct Parser<'src> {
     tokens: &'src [Token],
@@ -21,6 +21,7 @@ pub struct Parser<'src> {
     current: usize,
     n_errors: u32,
 }
+
 
 impl<'src> Parser<'src> {
     /* PUBLIC */
@@ -330,34 +331,37 @@ impl<'src> Parser<'src> {
             self.primary()
         }
     }
-    fn literal(&mut self) -> Result<LitValue> {
-        Ok(
-            if self.match_type(TokenKind::False) {
-                LitValue::Bool(false)
-            }
-            else if self.match_type(TokenKind::True) {
-                LitValue::Bool(true)
-            }
-            else if self.match_type(TokenKind::Nil) {
-                LitValue::Nil
-            }
-            else if self.match_type(TokenKind::String) {
-                LitValue::Str(self.previous_lexem()?)
-            }
-            else if self.match_type(TokenKind::Number) {
-                let f: f64 = self.get_lexem(self.previous()?).parse().unwrap();
-                LitValue::Number(f)
-            } else {
-                return Err("".into());
-            }
-        )
+    fn literal(&mut self) -> Result<Option<LitValue>> {
+        Ok(Some(if self.match_type(TokenKind::False) {
+            LitValue::Bool(false)
+        }
+        else if self.match_type(TokenKind::True) {
+            LitValue::Bool(true)
+        }
+        else if self.match_type(TokenKind::String) {
+            LitValue::Str(self.previous_lexem()?)
+        }
+        else if self.match_types(&[TokenKind::IntLiteral, TokenKind::FloatLiteral]) {
+            let f: f64 = self.get_lexem(self.previous()?).parse()?;
+            LitValue::Number(f)
+        } else if self.match_type(TokenKind::CharLiteral) {
+            let prev = self.previous().unwrap();
+            let lit = self.get_lexem(prev)
+                .strip_prefix('\'').unwrap()
+                .strip_suffix('\'').unwrap();
+            let lit = Unescaped::from(lit).next().ok_or_else(|| format!("Invalid escape '{lit}'"))?;
+            LitValue::Char(lit)
+        }
+        else {
+            return Ok(None)
+        }))
     }
     fn primary(&mut self) -> Result<Expression> {
-        if let Ok(value) = self.literal() {
+        if let Some(value) = self.literal()? {
             return Ok(Expression {
                 kind: ExpressionKind::Literal(LitExpr { value }),
                 span: self.previous_span().unwrap()
-            })
+            });
         }
         if self.match_type(TokenKind::LeftParen) {
             let start = self.previous_span().unwrap();
@@ -375,7 +379,7 @@ impl<'src> Parser<'src> {
             })
         }
         ParseError::new(
-             format!("Expected literal, found: {}", self.get_lexem(self.peek()?))).err()
+             format!("Expected expression, found: {}", self.get_lexem(self.peek()?))).err()
     }
     fn owned_lexem(&self, tok: &Token) -> Box<str> {
         Box::from(self.get_lexem(tok))
@@ -395,7 +399,7 @@ impl<'src> Parser<'src> {
         false
     }
     fn match_types(&mut self, types: &[TokenKind]) -> bool {
-        return types.iter().any(|t| self.match_type(*t))
+        types.iter().any(|t| self.match_type(*t))
     }
     fn check(&mut self, t: TokenKind) -> bool {
         if self.is_finished() { return false; }
@@ -436,7 +440,7 @@ impl<'src> Parser<'src> {
             }
             if self.is_finished() { return false; }
             match self.peek().unwrap().kind {
-                TokenKind::Class | TokenKind::Fun | TokenKind::Var   |
+                TokenKind::Class | TokenKind::Fun | TokenKind::Let |
                 TokenKind::For   | TokenKind::If  | TokenKind::While |
                 TokenKind::Print | TokenKind::Return => return true,
                 _ => {},

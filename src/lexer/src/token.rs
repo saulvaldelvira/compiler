@@ -15,11 +15,12 @@ pub enum TokenKind {
     Less, LessEqual,
     /* literals. */
     Identifier, String, Number,
+    CharLiteral,
     /* types */
     Int, Char, Float,
     /* keywords. */
-    And, Class, Else, False, Fun, For, If, Nil, Or,
-    Print, Return, Super, This, True, Var, Const, While,
+    And, Class, Else, False, Fun, For, If, Or,
+    Print, Return, Super, This, True, Let, Const, While,
     Break, Continue
 }
 

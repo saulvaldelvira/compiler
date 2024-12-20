@@ -91,12 +91,14 @@ impl Visitor<'_> for Interpreter {
         let val = match u.op.as_ref() {
             "!" => match val {
                 LitValue::Number(n) => LitValue::Bool(n != 0.0),
+                LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
                 LitValue::Bool(b) => LitValue::Bool(!b),
                 LitValue::Nil => LitValue::Nil,
                 LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
             },
             "-" => match val {
                 LitValue::Number(n) => LitValue::Number(-n),
+                LitValue::Char(c) => LitValue::Number(-(c as i32) as f64),
                 LitValue::Bool(b) => LitValue::Number((0 - b as u8) as f64),
                 LitValue::Nil => LitValue::Nil,
                 LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr.span),
@@ -128,6 +130,7 @@ impl Visitor<'_> for Interpreter {
             },
             LitValue::Number(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
+            LitValue::Char(c) => c as u32 as f64,
         };
         let right = match right_val {
             LitValue::Str(_) => err!("Can't use a string in a binary expression" ; b.right.span),
@@ -137,6 +140,7 @@ impl Visitor<'_> for Interpreter {
             },
             LitValue::Number(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
+            LitValue::Char(c) => c as u32 as f64,
         };
         macro_rules! num {
             ($e:expr) => {
