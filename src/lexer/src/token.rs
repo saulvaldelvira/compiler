@@ -14,7 +14,9 @@ pub enum TokenKind {
     Greater, GreaterEqual,
     Less, LessEqual,
     /* literals. */
-    Identifier, String, Number,
+    Identifier, String,
+    IntLiteral,
+    FloatLiteral,
     CharLiteral,
     /* types */
     Int, Char, Float,

@@ -81,7 +81,14 @@ impl<'lex> Lexer<'lex> {
             '{' => self.add_token(TokenKind::LeftBrace),
             '}' => self.add_token(TokenKind::RightBrace),
             ',' => self.add_token(TokenKind::Comma),
-            '.' => self.add_token(TokenKind::Dot),
+            '.' => {
+                if self.c.peek().is_numeric() {
+                    self.error("Float literal must have an integral part");
+                    None
+                } else {
+                    self.add_token(TokenKind::Dot)
+                }
+            },
             '-' => self.add_token(TokenKind::Minus),
             '+' => self.add_token(TokenKind::Plus),
             ';' => self.add_token(TokenKind::Semicolon),
@@ -172,13 +179,23 @@ impl<'lex> Lexer<'lex> {
         }
         self.add_token(TokenKind::String)
     }
+    fn floating(&mut self) -> Option<Token> {
+        self.c.advance(); /* Consume the . */
+        if !self.c.peek().is_numeric() {
+            self.error("Float literal must have an floating part");
+            None
+        } else {
+            self.c.advance_while(char::is_ascii_digit);
+            self.add_token(TokenKind::FloatLiteral)
+        }
+    }
     fn number(&mut self) -> Option<Token> {
         self.c.advance_while(|n| n.is_numeric());
-        if self.c.peek() == '.' && self.c.peek_next().is_numeric() {
-            self.c.advance();
-            self.c.advance_while(char::is_ascii_digit);
+        if self.c.peek() == '.' {
+            self.floating()
+        } else {
+            self.add_token(TokenKind::IntLiteral)
         }
-        self.add_token(TokenKind::Number)
     }
     fn identifier(&mut self) -> Option<Token> {
         self.c.advance_while(|c| c.is_alphabetic() || *c == '_');
