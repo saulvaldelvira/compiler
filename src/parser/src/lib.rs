@@ -16,17 +16,17 @@ type Result<T> = std::result::Result<T,ParseError>;
 const VARIABLE_DECL: [TokenType; 2] = [TokenType::Var, TokenType::Const];
 
 pub struct Parser {
-    tokens: Vec<Token>,
+    tokens: Box<[Token]>,
     current: usize,
     n_errors: u32,
 }
 
 impl Parser {
     /* PUBLIC */
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Box<[Token]>) -> Self {
         Self { tokens, current:0, n_errors:0 }
     }
-    pub fn parse(&mut self) -> Program {
+    pub fn parse(mut self) -> std::result::Result<Program,u32> {
         let mut stmts = Vec::new();
         while !self.is_finished() {
             match self.statement() {
@@ -37,7 +37,11 @@ impl Parser {
                 }
             }
         }
-        Program { stmts }
+        if self.has_errors() {
+            Err(self.n_errors())
+        } else {
+            Ok( Program { stmts } )
+        }
     }
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }

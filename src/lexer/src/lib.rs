@@ -50,15 +50,19 @@ impl<'a> Lexer<'a> {
     pub fn new(text: &'a str) -> Self {
         Self { c: Cursor::new(text), n_errors:0 }
     }
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens:Vec<Token> = Vec::new();
+    pub fn tokenize(mut self) -> Result<Box<[Token]>,u32> {
+        let mut tokens: Vec<Token> = Vec::new();
         while !self.c.is_finished() {
             self.c.step();
             if let Some(t) = self.scan_token() {
                 tokens.push(t);
             }
         }
-        tokens
+        if self.has_errors() {
+            Err(self.n_errors())
+        } else {
+            Ok(tokens.into_boxed_slice())
+        }
     }
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }

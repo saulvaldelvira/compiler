@@ -5,7 +5,7 @@ use test::Bencher;
 
 #[bench]
 fn lexer(b: &mut Bencher) {
-    let input = "\
+    const INPUT: &str = "\
 /* Hello world program to
    test my compiler! :) */
 
@@ -18,12 +18,7 @@ int main(){
 // UTF8 characters: ɞ
 // Unc@mm3nt this line to trigger an error
 ";
-    let mut text = input.to_string();
-    for _ in 0..10000 {
-        text.push_str(input);
-    }
-    let mut lexer = Lexer::new();
     b.iter(|| {
-        let _tokens = lexer.tokenize(&text);
+        let _tokens = Lexer::new(INPUT).tokenize();
     });
 }

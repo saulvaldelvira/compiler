@@ -1,10 +1,31 @@
+use std::process::exit;
 use std::{env, fs, io::{stdin, Read}, process};
 
-use compiler::{parse, tokenize};
-
 pub mod config;
+use ast::Program;
 use config::Config;
 use interpreter::Interpreter;
+use lexer::token::Token;
+use lexer::Lexer;
+use parser::Parser;
+
+pub fn tokenize(text: &str) -> Box<[Token]> {
+    Lexer::new(text).tokenize().unwrap_or_else(|nerr| {
+        println!("Compilation failed with {nerr} error{}",
+            if nerr > 1 { "s" } else { "" }
+        );
+        exit(1);
+    })
+}
+
+pub fn parse(tokens: Box<[Token]>) -> Program {
+    Parser::new(tokens).parse().unwrap_or_else(|nerr| {
+        println!("Compilation failed with {nerr} error{}",
+            if nerr > 1 { "s" } else { "" }
+        );
+        exit(1);
+    })
+}
 
 fn process(text: &str) {
     /* println!("*** LEXER ***"); */

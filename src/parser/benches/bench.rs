@@ -32,12 +32,10 @@ if (a > 5) {
 }
 "#;
 
-    let mut lexer = Lexer::new(INPUT);
-    let tokens = lexer.tokenize();
+    let tokens = Lexer::new(INPUT).tokenize().unwrap();
     b.iter(move || {
         let tok = tokens.clone();
-        let mut parser = Parser::new(tok);
-        parser.parse();
+        Parser::new(tok).parse().unwrap();
     })
 }
 
