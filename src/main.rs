@@ -18,8 +18,8 @@ pub fn tokenize(text: &str) -> Box<[Token]> {
     })
 }
 
-pub fn parse(tokens: Box<[Token]>) -> Program {
-    Parser::new(tokens).parse().unwrap_or_else(|nerr| {
+pub fn parse(tokens: Box<[Token]>, src: &str) -> Program {
+    Parser::new(&tokens, src).parse().unwrap_or_else(|nerr| {
         println!("Compilation failed with {nerr} error{}",
             if nerr > 1 { "s" } else { "" }
         );
@@ -32,7 +32,7 @@ fn process(text: &str) {
     let tokens = tokenize(text);
     /* tokens.iter().for_each(|t| t.print()); */
     /* println!("\n*** PARSER ***"); */
-    let program = parse(tokens);
+    let program = parse(tokens, text);
     let interpreter = Interpreter::new();
     let mut interpreter = interpreter;
     println!("\

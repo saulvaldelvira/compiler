@@ -1,8 +1,9 @@
-use std::{fmt};
-use crate::span::Span;
+use std::fmt;
+
+use crate::Span;
 
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub enum TokenType {
+pub enum TokenKind {
     /* Single-character tokens. */
     LeftParen, RightParen, LeftBrace, RightBrace,
     Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
@@ -24,46 +25,12 @@ pub enum TokenType {
 
 #[derive(Debug,Clone)]
 pub struct Token {
-    lexem: Option<Box<str>>,
-    token_type: TokenType,
-    span: Span,
+    pub kind: TokenKind,
+    pub span: Span,
 }
 
-impl fmt::Display for TokenType {
+impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-impl Token {
-    pub fn new(lexem: &str, token_type: TokenType, span: Span) -> Self {
-        let lexem = Some(Box::from(lexem));
-        Self{ lexem, token_type, span }
-    }
-    pub fn get_type(&self) -> TokenType { self.token_type }
-    pub fn get_lexem(&self) -> &str {
-        match &self.lexem  {
-            Some(l) => l,
-            None => "",
-        }
-    }
-    pub fn take(&mut self) -> Self {
-        Self{
-            span: self.span,
-            token_type: self.token_type,
-            lexem: Some(self.take_lexem()),
-        }
-    }
-    pub fn take_lexem(&mut self) -> Box<str> {
-        self.lexem.take()
-            .expect("Cannot take lexem of the token. Lexem is None.")
-    }
-    pub fn span(&self) -> Span { self.span }
-    pub fn print(&self) {
-        print!("[{}:{}] {}",self.span.start_line, self.span.start_col, self.token_type);
-        if let Some(l) = &self.lexem {
-            print!(" '{}'", l);
-        }
-        println!();
     }
 }

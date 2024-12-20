@@ -34,8 +34,7 @@ if (a > 5) {
 
     let tokens = Lexer::new(INPUT).tokenize().unwrap();
     b.iter(move || {
-        let tok = tokens.clone();
-        Parser::new(tok).parse().unwrap();
+        Parser::new(&tokens, INPUT).parse().unwrap();
     })
 }
 

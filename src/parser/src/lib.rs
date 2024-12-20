@@ -2,7 +2,7 @@ pub mod error;
 
 use ast::Expression;
 use ast::{expr::LitValue, Statement, Program};
-use lexer::token::{Token, TokenType};
+use lexer::token::{Token, TokenKind};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
@@ -13,18 +13,19 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseError>;
 
-const VARIABLE_DECL: [TokenType; 2] = [TokenType::Var, TokenType::Const];
+const VARIABLE_DECL: [TokenKind; 2] = [TokenKind::Var, TokenKind::Const];
 
-pub struct Parser {
-    tokens: Box<[Token]>,
+pub struct Parser<'src> {
+    tokens: &'src [Token],
+    src: &'src str,
     current: usize,
     n_errors: u32,
 }
 
-impl Parser {
+impl<'src> Parser<'src> {
     /* PUBLIC */
-    pub fn new(tokens: Box<[Token]>) -> Self {
-        Self { tokens, current:0, n_errors:0 }
+    pub fn new(tokens: &'src [Token], src: &'src str) -> Self {
+        Self { tokens, src, current:0, n_errors:0 }
     }
     pub fn parse(mut self) -> std::result::Result<Program,u32> {
         let mut stmts = Vec::new();
@@ -47,21 +48,22 @@ impl Parser {
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
     fn var_decl(&mut self) -> Result<Declaration> {
-        let prev = self.previous_mut().unwrap();
-        let prev_span = prev.span();
-        let is_const = prev.get_type() == TokenType::Const;
+        let prev = self.previous()?;
+        let prev_span = prev.span;
+        let is_const = prev.kind == TokenKind::Const;
 
-        let name_token = self.consume(TokenType::Identifier, "Expected variable name.")?;
-        let name = name_token.take_lexem();
+        let name_token = self.consume(TokenKind::Identifier, "Expected variable name.").cloned()?;
+        let name = self.get_lexem(&name_token).into();
+        let name_token_span = name_token.span;
 
         let start_span = if is_const {
             prev_span
         } else {
-            name_token.span()
+            name_token_span
         };
 
         let mut init = None;
-        if self.match_type(TokenType::Equal) {
+        if self.match_type(TokenKind::Equal) {
             init = Some(self.expression()?);
         }
 
@@ -79,8 +81,8 @@ impl Parser {
     }
     fn var_decl_stmt(&mut self) -> Result<Statement> {
         let inner = self.var_decl()?;
-        let comma = self.consume(TokenType::Semicolon, "Expected ';' after variable declaration.")?;
-        let span = inner.span.join(&comma.span());
+        let comma = self.consume(TokenKind::Semicolon, "Expected ';' after variable declaration.")?;
+        let span = inner.span.join(&comma.span);
 
         let stmt = Statement {
             kind: StatementKind::Decl(
@@ -98,15 +100,15 @@ impl Parser {
         }
     }
     fn if_stmt(&mut self) -> Result<Statement> {
-        let mut span = self.consume(TokenType::LeftParen, "Expected '('")?.span();
+        let mut span = self.consume(TokenKind::LeftParen, "Expected '('")?.span;
         let cond = self.expression()?;
-        self.consume(TokenType::RightParen, "Expected ')'")?;
+        self.consume(TokenKind::RightParen, "Expected ')'")?;
 
         let if_true = Box::new(self.block()?);
         span = span.join(&if_true.span);
 
         let mut if_false = None;
-        if self.match_type(TokenType::Else) {
+        if self.match_type(TokenKind::Else) {
             if_false = Some(Box::new(self.block()?));
             span = span.join(&if_false.as_ref().unwrap().span);
         }
@@ -116,9 +118,9 @@ impl Parser {
         })
     }
     fn while_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.consume(TokenType::LeftParen, "Expected '('")?.span();
+        let start_span = self.consume(TokenKind::LeftParen, "Expected '('")?.span;
         let cond = self.expression()?;
-        self.consume(TokenType::RightParen, "Expected ')'")?;
+        self.consume(TokenKind::RightParen, "Expected ')'")?;
         let stmts = Box::new(self.block()?);
         let span = start_span.join(&stmts.span);
         Ok(Statement {
@@ -127,42 +129,42 @@ impl Parser {
         })
     }
     fn block(&mut self) -> Result<Statement> {
-        if self.match_type(TokenType::LeftBrace) {
-            let start_span = self.previous_mut().unwrap().span();
+        if self.match_type(TokenKind::LeftBrace) {
+            let start_span = self.previous_span()?;
             let mut stmts = Vec::new();
-            while !self.check(TokenType::RightBrace) && !self.is_finished() {
+            while !self.check(TokenKind::RightBrace) && !self.is_finished() {
                 stmts.push(self.statement()?);
             }
-            let end_span = self.consume(TokenType::RightBrace, "Missing '}'")?.span();
+            let end_span = self.consume(TokenKind::RightBrace, "Missing '}'")?.span;
             Ok(Statement {
                 kind: StatementKind::Block(BlockStmt { stmts }),
                 span: start_span.join(&end_span)
             })
-        } else if self.match_type(TokenType::If) {
+        } else if self.match_type(TokenKind::If) {
             self.if_stmt()
-        } else if self.match_type(TokenType::While) {
+        } else if self.match_type(TokenKind::While) {
             self.while_stmt()
-        } else if self.match_type(TokenType::For) {
+        } else if self.match_type(TokenKind::For) {
             self.for_stmt()
         } else {
             self.single_line_stmt()
         }
     }
     fn for_stmt(&mut self) -> Result<Statement> {
-        let span = self.previous_mut().unwrap().span();
-        self.consume(TokenType::LeftParen, "Expected '(' after 'for'")?;
+        let span = self.previous()?.span;
+        self.consume(TokenKind::LeftParen, "Expected '(' after 'for'")?;
         let init = if self.match_types(&VARIABLE_DECL) {
             Some(self.var_decl()?)
         } else { None };
-        self.consume(TokenType::Semicolon, "Expected ';'")?;
-        let cond = if !self.check(TokenType::Semicolon) {
+        self.consume(TokenKind::Semicolon, "Expected ';'")?;
+        let cond = if !self.check(TokenKind::Semicolon) {
             Some(self.expression()?)
         } else { None };
-        self.consume(TokenType::Semicolon, "Expected ';'")?;
-        let inc = if !self.check(TokenType::RightParen) {
+        self.consume(TokenKind::Semicolon, "Expected ';'")?;
+        let inc = if !self.check(TokenKind::RightParen) {
             Some(self.expression()?)
         } else { None };
-        self.consume(TokenType::RightParen, "Expected ')' after for")?;
+        self.consume(TokenKind::RightParen, "Expected ')' after for")?;
         let body = Box::new(self.statement()?);
         let span =  span.join(&body.span);
         Ok(Statement {
@@ -172,19 +174,19 @@ impl Parser {
     }
     fn single_line_stmt(&mut self) -> Result<Statement> {
         let ast =
-        if self.match_type(TokenType::Print) {
+        if self.match_type(TokenKind::Print) {
             self.print_stmt()?
-        } else if self.match_type(TokenType::Semicolon) {
+        } else if self.match_type(TokenKind::Semicolon) {
             Statement {
                 kind: StatementKind::Empty(EmptyStmt),
                 span: self.previous_span().unwrap()
             }
-        } else if self.match_type(TokenType::Break) {
+        } else if self.match_type(TokenKind::Break) {
             Statement {
                 kind: StatementKind::Break(BreakStmt),
                 span: self.previous_span().unwrap()
             }
-        } else if self.match_type(TokenType::Continue) {
+        } else if self.match_type(TokenKind::Continue) {
             Statement {
                 kind: StatementKind::Continue(ContinueStmt),
                 span: self.previous_span().unwrap()
@@ -197,7 +199,7 @@ impl Parser {
     fn print_stmt(&mut self) -> Result<Statement> {
         let start_span = self.previous_span().unwrap();
         let expr = self.expression()?;
-        let end_span = self.consume(TokenType::Semicolon, "Expected ';'")?.span();
+        let end_span = self.consume(TokenKind::Semicolon, "Expected ';'")?.span;
         Ok(Statement {
             kind: StatementKind::Print(PrintStmt { expr }),
             span: start_span.join(&end_span)
@@ -205,7 +207,7 @@ impl Parser {
     }
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
-        let span = self.consume(TokenType::Semicolon, "Expected ';'")?.span();
+        let span = self.consume(TokenKind::Semicolon, "Expected ';'")?.span;
         let span = expr.span.join(&span);
         Ok(Statement {
             kind: StatementKind::Expression(ExprAsStmt { expr }),
@@ -217,8 +219,8 @@ impl Parser {
     }
     fn comma(&mut self) -> Result<Expression> {
         let mut left = self.ternary()?;
-        if self.match_type(TokenType::Comma) {
-            let op = self.previous_mut()?.take_lexem();
+        if self.match_type(TokenKind::Comma) {
+            let op = self.previous_lexem()?;
             let right = Box::new(self.comma()?);
             let span = left.span.join(&right.span);
             left = Expression {
@@ -232,9 +234,9 @@ impl Parser {
     }
     fn ternary(&mut self) -> Result<Expression> {
         let mut cond = self.assignment()?;
-        if self.match_type(TokenType::Question) {
+        if self.match_type(TokenKind::Question) {
             let if_true = Box::new(self.assignment()?);
-            self.consume(TokenType::Colon, "Expected ':'")?;
+            self.consume(TokenKind::Colon, "Expected ':'")?;
             let if_false = Box::new(self.assignment()?);
             let span = cond.span.join(&if_false.span);
             cond = Expression {
@@ -246,7 +248,7 @@ impl Parser {
     }
     fn assignment(&mut self) -> Result<Expression> {
         let left = self.equality()?;
-        let ast = if self.match_type(TokenType::Equal) {
+        let ast = if self.match_type(TokenKind::Equal) {
             let right = Box::new(self.assignment()?);
             let span = left.span.join(&right.span);
             Expression {
@@ -260,8 +262,8 @@ impl Parser {
     }
     fn equality(&mut self) -> Result<Expression> {
         let mut left = self.comparison()?;
-        while self.match_types(&[TokenType::BangEqual, TokenType::EqualEqual]) {
-            let op = self.previous_mut()?.take_lexem();
+        while self.match_types(&[TokenKind::BangEqual, TokenKind::EqualEqual]) {
+            let op = self.previous_lexem()?;
             let right = Box::new(self.comparison()?);
             let span = left.span.join(&right.span);
             left = Expression {
@@ -273,12 +275,12 @@ impl Parser {
     }
     fn comparison(&mut self) -> Result<Expression> {
         let mut left = self.term()?;
-        while self.match_types(&[TokenType::Greater,
-                                TokenType::GreaterEqual,
-                                TokenType::Less,
-                                TokenType::LessEqual]
+        while self.match_types(&[TokenKind::Greater,
+                                TokenKind::GreaterEqual,
+                                TokenKind::Less,
+                                TokenKind::LessEqual]
                              ){
-            let op = self.previous_mut()?.take_lexem();
+            let op = self.previous_lexem()?;
             let right = Box::new(self.term()?);
             let span = left.span.join(&right.span);
             left = Expression {
@@ -290,8 +292,8 @@ impl Parser {
     }
     fn term(&mut self) -> Result<Expression> {
         let mut left = self.factor()?;
-        while self.match_types(&[TokenType::Minus,TokenType::Plus]){
-            let op = self.previous_mut()?.take_lexem();
+        while self.match_types(&[TokenKind::Minus,TokenKind::Plus]){
+            let op = self.previous_lexem()?;
             let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
             left = Expression {
@@ -303,8 +305,8 @@ impl Parser {
     }
     fn factor(&mut self) -> Result<Expression> {
         let mut left = self.unary()?;
-        while self.match_types(&[TokenType::Slash,TokenType::Star]){
-            let op = self.previous_mut()?.take_lexem();
+        while self.match_types(&[TokenKind::Slash,TokenKind::Star]){
+            let op = self.previous_lexem()?;
             let right = Box::new(self.unary()?);
             let span = left.span.join(&right.span);
             left = Expression {
@@ -315,9 +317,9 @@ impl Parser {
         Ok(left)
     }
     fn unary(&mut self) -> Result<Expression> {
-        if self.match_types(&[TokenType::Bang,TokenType::Minus,TokenType::Plus]) {
+        if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus]) {
             let start_span = self.previous_span().unwrap();
-            let op = self.previous_mut()?.take_lexem();
+            let op = self.previous_lexem()?;
             let expr = Box::new(self.unary()?);
             let span = start_span.join(&expr.span);
             Ok(Expression {
@@ -330,20 +332,20 @@ impl Parser {
     }
     fn literal(&mut self) -> Result<LitValue> {
         Ok(
-            if self.match_type(TokenType::False) {
+            if self.match_type(TokenKind::False) {
                 LitValue::Bool(false)
             }
-            else if self.match_type(TokenType::True) {
+            else if self.match_type(TokenKind::True) {
                 LitValue::Bool(true)
             }
-            else if self.match_type(TokenType::Nil) {
+            else if self.match_type(TokenKind::Nil) {
                 LitValue::Nil
             }
-            else if self.match_type(TokenType::String) {
-                LitValue::Str(self.previous_mut()?.take_lexem())
+            else if self.match_type(TokenKind::String) {
+                LitValue::Str(self.previous_lexem()?)
             }
-            else if self.match_type(TokenType::Number) {
-                let f: f64 = self.previous_mut()?.take_lexem().parse().unwrap();
+            else if self.match_type(TokenKind::Number) {
+                let f: f64 = self.get_lexem(self.previous()?).parse().unwrap();
                 LitValue::Number(f)
             } else {
                 return Err("".into());
@@ -357,57 +359,62 @@ impl Parser {
                 span: self.previous_span().unwrap()
             })
         }
-        if self.match_type(TokenType::LeftParen) {
+        if self.match_type(TokenKind::LeftParen) {
             let start = self.previous_span().unwrap();
             let mut expr = self.expression()?;
-            let end = self.consume(TokenType::RightParen, "Expected ')' after expression.")?.span();
+            let end = self.consume(TokenKind::RightParen, "Expected ')' after expression.")?.span;
             expr.span = start.join(&end);
             return Ok(expr)
         }
-        if self.match_type(TokenType::Identifier) {
-            let prev = self.previous_mut()?;
-            let name = prev.take_lexem();
+        if self.match_type(TokenKind::Identifier) {
+            let prev = self.previous()?;
+            let name = self.owned_lexem(prev);
             return Ok(Expression {
                 kind: ExpressionKind::Variable(VariableExpr { name }),
-                span: prev.span()
+                span: prev.span
             })
         }
         ParseError::new(
-             format!("Expected literal, found: {}", self.peek()?.get_lexem())).err()
+             format!("Expected literal, found: {}", self.get_lexem(self.peek()?))).err()
     }
-    fn consume(&mut self, t: TokenType, msg: &'static str) -> Result<&mut Token> {
+    fn owned_lexem(&self, tok: &Token) -> Box<str> {
+        Box::from(self.get_lexem(tok))
+    }
+    fn get_lexem(&self, tok: &Token) -> &str {
+        &self.src[tok.span.offset..tok.span.offset+tok.span.len]
+    }
+    fn consume(&mut self, t: TokenKind, msg: &'static str) -> Result<&Token> {
         if self.check(t) { return self.advance(); }
         ParseError::new(msg).err()
     }
-    fn match_type(&mut self, t: TokenType) -> bool {
+    fn match_type(&mut self, t: TokenKind) -> bool {
         if self.check(t) {
             self.advance().unwrap();
             return true;
         }
         false
     }
-    fn match_types(&mut self, types: &[TokenType]) -> bool {
+    fn match_types(&mut self, types: &[TokenKind]) -> bool {
         return types.iter().any(|t| self.match_type(*t))
     }
-    fn check(&mut self, t: TokenType) -> bool {
+    fn check(&mut self, t: TokenKind) -> bool {
         if self.is_finished() { return false; }
-        self.peek().unwrap().get_type() == t
+        self.peek().unwrap().kind == t
     }
-    fn advance(&mut self) -> Result<&mut Token> {
+    fn bump(&mut self) {
         if !self.is_finished() {
             self.current += 1;
         }
-        self.previous_mut()
+    }
+    fn advance(&mut self) -> Result<&Token> {
+        self.bump();
+        self.previous()
     }
     pub fn is_finished(&self) -> bool {
         self.current >= self.tokens.len()
     }
-    fn peek(&mut self) -> Result<&mut Token> {
-        self.tokens.get_mut(self.current)
-                   .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
-    }
-    fn previous_mut(&mut self) -> Result<&mut Token> {
-        self.tokens.get_mut(self.current - 1)
+    fn peek(&self) -> Result<&Token> {
+        self.tokens.get(self.current)
                    .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
     }
     fn previous(&self) -> Result<&Token> {
@@ -415,30 +422,35 @@ impl Parser {
                    .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
     }
     fn previous_span(&self) -> Result<Span> {
-        self.previous().map(|s| s.span())
+        self.previous().map(|s| s.span)
+    }
+    fn previous_lexem(&self) -> Result<Box<str>> {
+        Ok(self.owned_lexem(self.previous()?))
     }
     fn synchronize(&mut self) -> bool {
         if self.is_finished() { return false; }
+        self.bump();
         loop {
-            if self.advance().unwrap().get_type() == TokenType::Semicolon {
+            if self.advance().unwrap().kind == TokenKind::Semicolon {
                 return true;
             }
             if self.is_finished() { return false; }
-            match self.peek().unwrap().get_type() {
-                TokenType::Class | TokenType::Fun | TokenType::Var   |
-                TokenType::For   | TokenType::If  | TokenType::While |
-                TokenType::Print | TokenType::Return => return true,
+            match self.peek().unwrap().kind {
+                TokenKind::Class | TokenKind::Fun | TokenKind::Var   |
+                TokenKind::For   | TokenKind::If  | TokenKind::While |
+                TokenKind::Print | TokenKind::Return => return true,
                 _ => {},
             }
         }
     }
     fn error(&mut self, err: &str) {
         let tok = if self.is_finished() {
-            self.previous_mut()
+            self.previous()
         } else {
             self.peek()
         }.unwrap();
-        eprintln!("Parser: [{},{}] {err}", tok.span().start_line, tok.span().start_col);
+        let (line,col) = tok.span.line_col(self.src);
+        eprintln!("Parser: [{line},{col}] {err}");
         self.n_errors += 1;
     }
 }

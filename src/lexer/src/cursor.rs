@@ -1,53 +1,54 @@
-use std::str::Chars;
+use std::str::CharIndices;
 
 use crate::Span;
 
-pub struct Cursor<'a> {
-    chars: Chars<'a>,
-    span: Span,
-    start: usize,
-    start_chars: Chars<'a>,
-    current: usize,
+pub struct Cursor<'lex> {
+    chars: CharIndices<'lex>,
+    start_chars: CharIndices<'lex>,
+
+    line: usize,
+    col: usize,
 }
 
-impl<'a> Cursor<'a> {
-    pub fn new(text: &'a str) -> Self {
+impl<'lex> Cursor<'lex> {
+    pub fn new(text: &'lex str) -> Self {
         Self {
-            chars: text.chars(),
-            span: Span::default(),
-            start: 0,
-            start_chars: text.chars(),
-            current: 0,
+            chars: text.char_indices(),
+            start_chars: text.char_indices(),
+            line: 0,
+            col: 0,
         }
     }
     pub fn step(&mut self) {
-        self.start = self.current;
-        self.span.start_line = self.span.end_line;
-        self.span.start_col = self.span.end_col;
         self.start_chars = self.chars.clone();
     }
     pub fn is_finished(&self) -> bool {
         self.chars.as_str().is_empty()
     }
+    pub fn current_offset(&self) -> usize {
+        self.start_chars.offset()
+    }
+    pub fn current_len(&self) -> usize {
+        self.chars.offset() - self.start_chars.offset()
+    }
     pub fn current_lexem(&self) -> &str {
-        let n = self.current - self.start;
-        let n = self.start_chars.clone().take(n).map(|c| c.len_utf8()).sum();
-        &self.start_chars.as_str()[0..n]
+        let n = self.chars.offset() - self.start_chars.offset();
+        &self.start_chars.as_str()[..n]
     }
-    pub fn get_span(&self) -> Span {
-        let mut span = self.span;
-        span.end_col -= 1;
-        span
+    pub fn current_span(&self) -> Span {
+        Span {
+            offset: self.start_chars.offset(),
+            len: self.chars.offset() - self.start_chars.offset()
+        }
     }
-    pub fn line(&self) -> usize { self.span.end_line }
-    pub fn col(&self) -> usize { self.span.end_col }
+    pub fn line(&self) -> usize { self.line }
+    pub fn col(&self) -> usize { self.col }
     pub fn advance(&mut self) -> char {
-        let c = self.chars.next().unwrap_or('\0');
-        self.current += 1;
-        self.span.end_col += 1;
+        let c = self.chars.next().map(|(_,c)| c).unwrap_or('\0');
+        self.col += 1;
         if c == '\n' {
-            self.span.end_line += 1;
-            self.span.end_col = 1;
+            self.line += 1;
+            self.col = 1;
         }
         c
     }
@@ -65,12 +66,15 @@ impl<'a> Cursor<'a> {
         self.chars
             .clone()
             .next()
+            .map(|(_,c)| c)
             .unwrap_or('\0')
     }
     pub fn peek_next(&self) -> char {
         let mut iter = self.chars.clone();
         iter.next();
-        iter.next().unwrap_or('\0')
+        iter.next()
+            .map(|(_,c)| c)
+            .unwrap_or('\0')
     }
     pub fn match_next(&mut self, c: char) -> bool {
         if self.peek() == c {

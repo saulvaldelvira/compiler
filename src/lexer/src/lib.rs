@@ -9,45 +9,45 @@ pub use cursor::Cursor;
 use delay_init::delay;
 
 pub mod token;
-use token::{Token,TokenType};
+use token::{Token,TokenKind};
 
-pub struct Lexer<'a> {
-    c: Cursor<'a>,
+pub struct Lexer<'lex> {
+    c: Cursor<'lex>,
     n_errors: u32,
 }
 
 delay! {
-    static KEYWORDS : HashMap<&str,TokenType> = {
+    static KEYWORDS : HashMap<&str,TokenKind> = {
         let mut map = HashMap::new();
-        map.insert("and",TokenType::And);
-        map.insert("class",TokenType::Class);
-        map.insert("else",TokenType::Else);
-        map.insert("false",TokenType::False);
-        map.insert("fun",TokenType::Fun);
-        map.insert("for",TokenType::For);
-        map.insert("if",TokenType::If);
-        map.insert("nil",TokenType::Nil);
-        map.insert("or",TokenType::Or);
-        map.insert("print",TokenType::Print);
-        map.insert("int",TokenType::Int);
-        map.insert("char",TokenType::Char);
-        map.insert("float",TokenType::Float);
-        map.insert("return",TokenType::Return);
-        map.insert("super",TokenType::Super);
-        map.insert("this",TokenType::This);
-        map.insert("true",TokenType::True);
-        map.insert("var",TokenType::Var);
-        map.insert("const",TokenType::Const);
-        map.insert("while",TokenType::While);
-        map.insert("break",TokenType::Break);
-        map.insert("continue",TokenType::Continue);
+        map.insert("and",TokenKind::And);
+        map.insert("class",TokenKind::Class);
+        map.insert("else",TokenKind::Else);
+        map.insert("false",TokenKind::False);
+        map.insert("fun",TokenKind::Fun);
+        map.insert("for",TokenKind::For);
+        map.insert("if",TokenKind::If);
+        map.insert("nil",TokenKind::Nil);
+        map.insert("or",TokenKind::Or);
+        map.insert("print",TokenKind::Print);
+        map.insert("int",TokenKind::Int);
+        map.insert("char",TokenKind::Char);
+        map.insert("float",TokenKind::Float);
+        map.insert("return",TokenKind::Return);
+        map.insert("super",TokenKind::Super);
+        map.insert("this",TokenKind::This);
+        map.insert("true",TokenKind::True);
+        map.insert("var",TokenKind::Var);
+        map.insert("const",TokenKind::Const);
+        map.insert("while",TokenKind::While);
+        map.insert("break",TokenKind::Break);
+        map.insert("continue",TokenKind::Continue);
         map
     };
  }
 
-impl<'a> Lexer<'a> {
+impl<'lex> Lexer<'lex> {
     /* PUBLIC */
-    pub fn new(text: &'a str) -> Self {
+    pub fn new(text: &'lex str) -> Self {
         Self { c: Cursor::new(text), n_errors:0 }
     }
     pub fn tokenize(mut self) -> Result<Box<[Token]>,u32> {
@@ -67,48 +67,49 @@ impl<'a> Lexer<'a> {
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
-    fn add_token(&self, token_type: TokenType) -> Option<Token> {
-        Some(Token::new(
-                self.c.current_lexem(),
-                token_type, self.c.get_span()))
+    fn add_token(&self, kind: TokenKind) -> Option<Token> {
+        Some(Token {
+            kind,
+            span: self.c.current_span()
+        })
     }
     fn scan_token(&mut self) -> Option<Token> {
         match self.c.advance() {
-            '(' => self.add_token(TokenType::LeftParen),
-            ')' => self.add_token(TokenType::RightParen),
-            '{' => self.add_token(TokenType::LeftBrace),
-            '}' => self.add_token(TokenType::RightBrace),
-            ',' => self.add_token(TokenType::Comma),
-            '.' => self.add_token(TokenType::Dot),
-            '-' => self.add_token(TokenType::Minus),
-            '+' => self.add_token(TokenType::Plus),
-            ';' => self.add_token(TokenType::Semicolon),
-            ':' => self.add_token(TokenType::Colon),
-            '?' => self.add_token(TokenType::Question),
-            '*' => self.add_token(TokenType::Star),
+            '(' => self.add_token(TokenKind::LeftParen),
+            ')' => self.add_token(TokenKind::RightParen),
+            '{' => self.add_token(TokenKind::LeftBrace),
+            '}' => self.add_token(TokenKind::RightBrace),
+            ',' => self.add_token(TokenKind::Comma),
+            '.' => self.add_token(TokenKind::Dot),
+            '-' => self.add_token(TokenKind::Minus),
+            '+' => self.add_token(TokenKind::Plus),
+            ';' => self.add_token(TokenKind::Semicolon),
+            ':' => self.add_token(TokenKind::Colon),
+            '?' => self.add_token(TokenKind::Question),
+            '*' => self.add_token(TokenKind::Star),
             '!' =>
                 if self.c.match_next('=') {
-                    self.add_token(TokenType::BangEqual)
+                    self.add_token(TokenKind::BangEqual)
                 }else {
-                    self.add_token(TokenType::Bang)
+                    self.add_token(TokenKind::Bang)
                 },
             '=' =>
                 if self.c.match_next('=') {
-                    self.add_token(TokenType::EqualEqual)
+                    self.add_token(TokenKind::EqualEqual)
                 }else {
-                    self.add_token(TokenType::Equal)
+                    self.add_token(TokenKind::Equal)
                 },
             '<' =>
                 if self.c.match_next('=') {
-                    self.add_token(TokenType::LessEqual)
+                    self.add_token(TokenKind::LessEqual)
                 }else {
-                    self.add_token(TokenType::Less)
+                    self.add_token(TokenKind::Less)
                 },
             '>' =>
                 if self.c.match_next('=') {
-                    self.add_token(TokenType::GreaterEqual)
+                    self.add_token(TokenKind::GreaterEqual)
                 }else {
-                    self.add_token(TokenType::Greater)
+                    self.add_token(TokenKind::Greater)
                 },
             '/' =>
                 if self.c.match_next('/') {
@@ -116,7 +117,7 @@ impl<'a> Lexer<'a> {
                 } else if self.c.match_next('*') {
                     self.ml_comment()
                 } else {
-                    self.add_token(TokenType::Slash)
+                    self.add_token(TokenKind::Slash)
                 },
             '"' => self.string(),
             ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
@@ -154,7 +155,7 @@ impl<'a> Lexer<'a> {
             return None;
         }
         self.c.advance();
-        self.add_token(TokenType::String)
+        self.add_token(TokenKind::String)
     }
     fn number(&mut self) -> Option<Token> {
         self.c.advance_while(|n| n.is_numeric());
@@ -162,12 +163,12 @@ impl<'a> Lexer<'a> {
             self.c.advance();
             self.c.advance_while(char::is_ascii_digit);
         }
-        self.add_token(TokenType::Number)
+        self.add_token(TokenKind::Number)
     }
     fn identifier(&mut self) -> Option<Token> {
         self.c.advance_while(|c| c.is_alphabetic() || *c == '_');
         let lexem = self.c.current_lexem();
-        let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenType::Identifier);
+        let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenKind::Identifier);
         self.add_token(token_type)
     }
     fn error(&mut self, msg: &str) {
