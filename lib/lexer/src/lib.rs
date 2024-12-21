@@ -1,5 +1,5 @@
 mod cursor;
-mod span;
+pub mod span;
 pub use span::Span;
 pub mod unescaped;
 

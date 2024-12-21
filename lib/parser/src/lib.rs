@@ -448,13 +448,21 @@ impl<'src> Parser<'src> {
         }
     }
     fn error(&mut self, err: &str) {
+        use lexer::span::FilePosition;
+
         let tok = if self.is_finished() {
             self.previous()
         } else {
             self.peek()
         }.unwrap();
-        let (line,col) = tok.span.line_col(self.src);
-        eprintln!("Parser: [{line},{col}] {err}");
+
+        let FilePosition {
+            start_line,
+            start_col,
+            ..
+        } = tok.span.file_position(self.src);
+
+        eprintln!("Parser: [{start_line},{start_col}] {err}");
         self.n_errors += 1;
     }
 }

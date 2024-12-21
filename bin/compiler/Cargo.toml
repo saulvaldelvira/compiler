@@ -1,0 +1,10 @@
+[package]
+name = "compiler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lexer = { path = "../../lib/lexer" }
+parser = { path = "../../lib/parser" }
+ast = { path = "../../lib/ast" }
+interpreter = { path = "../../lib/interpreter" }

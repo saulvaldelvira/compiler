@@ -1,18 +1,7 @@
 [workspace]
-members = [ "src/ast", "src/interpreter",
-    "src/lexer",
-    "src/parser",
+resolver = "2"
+members = [
+    "bin/*",
+    "lib/*",
 ]
 
-[package]
-name = "compiler"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-lexer = { path = "src/lexer" }
-parser = { path = "src/parser" }
-ast = { path = "src/ast" }
-interpreter = { path = "src/interpreter" }
