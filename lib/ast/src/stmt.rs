@@ -9,7 +9,7 @@ use super::declaration::Declaration;
 
 type Stmt = Box<Statement>;
 
-/// Wraps an [Expression](crate::expr::Expression) as a statement
+/// Wraps an [Expression] as a statement
 #[derive(Debug)]
 pub struct ExprAsStmt {
     pub expr: Expression,

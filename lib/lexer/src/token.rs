@@ -1,31 +1,156 @@
+//! Token model
+
 use std::fmt;
 
 use crate::Span;
 
+/// Models all the types of token
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum TokenKind {
-    /* Single-character tokens. */
-    LeftParen, RightParen, LeftBrace, RightBrace,
-    Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
-    Colon, Question,
-    /* One or two character tokens. */
-    Bang, BangEqual,
-    Equal, EqualEqual,
-    Greater, GreaterEqual,
-    Less, LessEqual,
-    /* literals. */
-    Identifier, String,
+    /// "("
+    LeftParen,
+
+    /// ")"
+    RightParen,
+
+    /// "{"
+    LeftBrace,
+
+    /// "}"
+    RightBrace,
+
+    /// ",
+    /// "
+    Comma,
+
+    /// "."
+    Dot,
+
+    /// "-"
+    Minus,
+
+    /// "+"
+    Plus,
+
+    /// ";"
+    Semicolon,
+
+    /// ":"
+    Colon,
+
+    /// "/"
+    Slash,
+
+    /// "*"
+    Star,
+
+    /// "?"
+    Question,
+
+    /// "!"
+    Bang,
+
+    /// "!="
+    BangEqual,
+
+    /// "="
+    Equal,
+
+    /// "=="
+    EqualEqual,
+
+    /// "\>"
+    Greater,
+
+    /// "\>="
+    GreaterEqual,
+
+    /// "<"
+    Less,
+
+    /// "<="
+    LessEqual,
+
+    /// [a-zA-Z_][a-zA-Z_0-9]*
+    Identifier,
+
+    /// "(.|\\\\.)*?"
+    String,
+
+    /// [0-9]+
     IntLiteral,
+
+    /// [0-9]+\.[0-9]+
     FloatLiteral,
+
+    /// '\\?.'
     CharLiteral,
-    /* types */
-    Int, Char, Float,
-    /* keywords. */
-    And, Class, Else, False, Fun, For, If, Or,
-    Print, Return, Super, This, True, Let, Const, While,
-    Break, Continue
+
+    /// "int"
+    Int,
+
+    /// "char"
+    Char,
+
+    /// "float"
+    Float,
+
+    /// "and"
+    And,
+
+    /// "class"
+    Class,
+
+    /// "else"
+    Else,
+
+    /// "false"
+    False,
+
+    /// "fun"
+    Fun,
+
+    /// "for"
+    For,
+
+    /// "if"
+    If,
+
+    /// "or"
+    Or,
+
+    /// "print"
+    Print,
+
+    /// "return"
+    Return,
+
+    /// "super"
+    Super,
+
+    /// "this"
+    This,
+
+    /// "true"
+    True,
+
+    /// "let"
+    Let,
+
+    /// "const"
+    Const,
+
+    /// "while"
+    While,
+
+    /// "break"
+    Break,
+
+    /// "continue"
+    Continue
 }
 
+/// A token consist on a discriminator [TokenKind] and a [Span]
 #[derive(Debug,Clone)]
 pub struct Token {
     pub kind: TokenKind,

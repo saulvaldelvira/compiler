@@ -133,7 +133,7 @@ impl<'lex> Lexer<'lex> {
             c =>
                 if c.is_numeric() {
                     self.number()
-                } else if c.is_alphabetic() {
+                } else if c.is_alphabetic() || c == '_' {
                     self.identifier()
                 } else{
                     let mut msg = "Unexpected character [".to_string();
@@ -198,7 +198,7 @@ impl<'lex> Lexer<'lex> {
         }
     }
     fn identifier(&mut self) -> Option<Token> {
-        self.c.advance_while(|c| c.is_alphabetic() || *c == '_');
+        self.c.advance_while(|c| c.is_alphanumeric() || *c == '_');
         let lexem = self.c.current_lexem();
         let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenKind::Identifier);
         self.add_token(token_type)

@@ -1,7 +1,17 @@
+//! Utilities for unescaping strings
+
 use std::char;
 use std::str::Chars;
 
-pub fn unescape_char(c: char) -> Option<char> {
+/// Escapes the given char.
+///
+/// # Example
+/// ```
+/// assert_eq!(Some('\n'), escape_char('n'));
+/// /* \g is NOT a valid escape character */
+/// assert_eq!(None, escape_char('g'));
+/// ```
+pub fn escape_char(c: char) -> Option<char> {
     let c = match c {
         'n' => '\n',
         'r' => '\r',
@@ -14,6 +24,11 @@ pub fn unescape_char(c: char) -> Option<char> {
     Some(c)
 }
 
+/// Iterator that takes a string and outputs it's characters,
+/// unescaping them if necessary.
+///
+/// This means, if the string contains the characters '\\' 'n',
+/// this iterator would return a single character '\n'
 pub struct Unescaped<'src> {
     chars: Chars<'src>,
 }
@@ -26,7 +41,7 @@ impl Iterator for Unescaped<'_> {
         if c != '\\' {
             Some(c)
         } else {
-            unescape_char(self.chars.next()?)
+            escape_char(self.chars.next()?)
         }
     }
 }
