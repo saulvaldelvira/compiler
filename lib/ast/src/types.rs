@@ -1,20 +1,6 @@
 use std::borrow::Cow;
 
 #[derive(Debug,Clone)]
-pub struct NumberType;
-
-impl NumberType {
-    const SIZE: usize = 8;
-}
-
-#[derive(Debug,Clone)]
-pub struct BoolType;
-
-impl BoolType {
-    const SIZE: usize = 8;
-}
-
-#[derive(Debug,Clone)]
 pub struct StringType;
 impl StringType {
     const SIZE: usize = 8;
@@ -29,11 +15,20 @@ impl ErrorType {
 }
 
 #[derive(Debug,Clone)]
+pub struct CustomType {
+    pub name: Box<str>,
+}
+
+#[derive(Debug,Clone)]
 pub enum TypeKind {
-    Number(NumberType),
-    Bool(BoolType),
+    Int,
+    Float,
+    Bool,
+    Char,
     String(StringType),
-    Error(ErrorType)
+    Error(ErrorType),
+    Custom(CustomType),
+    Empty,
 }
 
 #[derive(Debug,Clone)]
@@ -46,23 +41,38 @@ use TypeKind as TK;
 impl Type {
     pub fn size(&self) -> usize {
         match &self.kind {
-            TK::Number(_) => NumberType::SIZE,
-            TK::Bool(_) => BoolType::SIZE,
+            TK::Bool => 1,
             TK::String(_) => StringType::SIZE,
             TK::Error(err) => err.size(),
+            TK::Empty => 0,
+            TypeKind::Int => 4,
+            TypeKind::Float => 4,
+            TK::Char => 1,
+            _ => todo!()
         }
     }
     pub fn arithmetic(&self, other: Type) -> Type {
         match &self.kind {
-            TK::Number(_) => todo!(),
-            TK::Bool(_) => {
+            TK::Bool => {
                 match &other.kind {
                     TK::String(_) => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }) },
                     _ => other.clone(),
                 }
             },
             TK::String(_) => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }) },
+            TK::Empty => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with the empty type".into() }) },
             TK::Error { .. } => self.clone(),
+            TypeKind::Int => match other.kind {
+                TK::Float => Type { kind: TypeKind::Float },
+                TK::Int => Type { kind: TypeKind::Int },
+                _ => Type { kind: TK::Error(ErrorType{ msg: format!("Can't operate arithmetically with {:?}", other.kind).into() }) },
+            }
+            TypeKind::Float => match other.kind {
+                TK::Int | TK::Float => Type { kind: TypeKind::Float },
+                _ => Type { kind: TK::Error(ErrorType{ msg: format!("Can't operate arithmetically with {:?}", other.kind).into() }) },
+            }
+            TK::Char => Type { kind: TK::Error(ErrorType{ msg: format!("Can't operate arithmetically with chars").into() }) },
+            _ => todo!()
         }
     }
 }

@@ -2,6 +2,7 @@
 use core::panic;
 use std::ops::ControlFlow;
 
+use ast::declaration::FunctionDecl;
 use ast::visitor::VisitorResult;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 
@@ -297,6 +298,9 @@ impl Visitor<'_> for Interpreter {
         }
         self.enviroment.reset();
         Self::Result::output()
+    }
+    fn visit_function_decl(&mut self, _f: &FunctionDecl) -> Self::Result {
+        unimplemented!()
     }
 }
 

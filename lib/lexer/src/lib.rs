@@ -25,7 +25,7 @@ delay! {
         map.insert("class",TokenKind::Class);
         map.insert("else",TokenKind::Else);
         map.insert("false",TokenKind::False);
-        map.insert("fun",TokenKind::Fun);
+        map.insert("fn",TokenKind::Fn);
         map.insert("for",TokenKind::For);
         map.insert("if",TokenKind::If);
         map.insert("or",TokenKind::Or);
@@ -89,7 +89,13 @@ impl<'lex> Lexer<'lex> {
                     self.add_token(TokenKind::Dot)
                 }
             },
-            '-' => self.add_token(TokenKind::Minus),
+            '-' => {
+                if self.c.match_next('>') {
+                    self.add_token(TokenKind::Arrow)
+                } else {
+                    self.add_token(TokenKind::Minus)
+                }
+            },
             '+' => self.add_token(TokenKind::Plus),
             ';' => self.add_token(TokenKind::Semicolon),
             ':' => self.add_token(TokenKind::Colon),

@@ -1,7 +1,8 @@
 use std::ops::ControlFlow;
 
-use crate::declaration::DeclarationKind;
+use crate::declaration::{DeclarationKind, FunctionArgument, FunctionDecl};
 use crate::stmt::StatementKind;
+use crate::types::Type;
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
@@ -96,14 +97,26 @@ pub trait Visitor<'ast> {
             SK::Continue(c) => self.visit_continue_stmt(c),
         }
     }
+    fn visit_type(&mut self, ty: &'ast Type) -> Self::Result {
+        let _todo = ty;
+        Self::Result::output()
+    }
+    fn visit_function_decl(&mut self, f: &'ast FunctionDecl) -> Self::Result {
+        f.args.iter().for_each(|FunctionArgument { ty, .. }| { self.visit_type(ty); } );
+        self.visit_type(&f.return_type);
+        self.visit_block(&f.body);
+
+        Self::Result::output()
+    }
     fn visit_declaration(&mut self, d: &'ast Declaration) -> Self::Result {
         use DeclarationKind as DK;
         match &d.kind {
-            DK::Variable(v) => self.visit_vardecl(v)
+            DK::Variable(v) => self.visit_vardecl(v),
+            DK::Function(function_decl) => self.visit_function_decl(function_decl),
         }
     }
     fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
-        prog.stmts.iter().for_each(|stmt| { self.visit_statement(stmt); });
+        prog.decls.iter().for_each(|decl| { self.visit_declaration(decl); });
         Self::Result::output()
     }
 }

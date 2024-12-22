@@ -68,6 +68,9 @@ pub enum TokenKind {
     /// "<"
     Less,
 
+    /// "->"
+    Arrow,
+
     /// "<="
     LessEqual,
 
@@ -95,6 +98,9 @@ pub enum TokenKind {
     /// "float"
     Float,
 
+    /// "bool"
+    Bool,
+
     /// "and"
     And,
 
@@ -107,8 +113,8 @@ pub enum TokenKind {
     /// "false"
     False,
 
-    /// "fun"
-    Fun,
+    /// "fn"
+    Fn,
 
     /// "for"
     For,
