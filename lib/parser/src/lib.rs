@@ -33,7 +33,9 @@ impl<'src> Parser<'src> {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e.get_message());
-                    self.synchronize();
+                    self.synchronize_with(&[
+                        TokenKind::Let, TokenKind::Const, TokenKind::Fn
+                    ]);
                 }
             }
         }
@@ -203,13 +205,18 @@ impl<'src> Parser<'src> {
             span
         })
     }
+    fn block_inner(&mut self) -> Result<Vec<Statement>> {
+        let mut stmts = Vec::new();
+        while !self.check(TokenKind::RightBrace) && !self.is_finished() {
+            stmts.push(self.statement()?);
+        }
+
+        Ok(stmts)
+    }
     fn block(&mut self) -> Result<Statement> {
         if self.match_type(TokenKind::LeftBrace) {
             let start_span = self.previous_span()?;
-            let mut stmts = Vec::new();
-            while !self.check(TokenKind::RightBrace) && !self.is_finished() {
-                stmts.push(self.statement()?);
-            }
+            let stmts = self.block_inner()?;
             let end_span = self.consume(TokenKind::RightBrace)?.span;
             Ok(Statement {
                 kind: StatementKind::Block(BlockStmt { stmts }),
@@ -528,21 +535,15 @@ impl<'src> Parser<'src> {
     fn previous_lexem(&self) -> Result<Box<str>> {
         Ok(self.owned_lexem(self.previous()?))
     }
-    fn synchronize(&mut self) -> bool {
-        if self.is_finished() { return false; }
+    fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
         self.bump();
-        loop {
-            if self.advance().unwrap().kind == TokenKind::Semicolon {
+        while !self.is_finished() {
+            if safe.contains(&self.peek().unwrap().kind) {
                 return true;
             }
-            if self.is_finished() { return false; }
-            match self.peek().unwrap().kind {
-                TokenKind::Class | TokenKind::Fn | TokenKind::Let |
-                TokenKind::For   | TokenKind::If  | TokenKind::While |
-                TokenKind::Print | TokenKind::Return => return true,
-                _ => {},
-            }
+            self.bump();
         }
+        false
     }
     fn error(&mut self, err: &str) {
         use lexer::span::FilePosition;
@@ -559,7 +560,10 @@ impl<'src> Parser<'src> {
             ..
         } = tok.span.file_position(self.src);
 
-        eprintln!("Parser: [{start_line},{start_col}] {err}");
+        eprintln!("\nParser: [{start_line},{start_col}] {err}");
+        let line = self.src.lines().nth(start_line).unwrap_or("").trim();
+        eprintln!("|-> {line}");
+
         self.n_errors += 1;
     }
 }

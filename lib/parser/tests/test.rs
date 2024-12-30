@@ -38,18 +38,27 @@ fn main() {
 #[test]
 fn invalid() {
     const INPUT: &str = r#"
-let a = 12;
-let b = 23
+fn main() {
+    let a = 12;
+    let c = 1
 
-let c = 1;
-
-if (a > 5) {
-    b = a + b;
-} else
-    while (a <= 5) {
-        b = a * b;
+    if (a > 5) {
+        b = a + b
+    } else {
+        while (a <= 5) {
+            b = a * b;
+        }
     }
 }
+
+fn foo() {
+    let b = 12;
+
+    if (;) {
+
+    }
+}
+
 "#;
 
     assert_eq!(find_errors(INPUT), 2);

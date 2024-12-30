@@ -7,6 +7,7 @@ use std::str::Chars;
 ///
 /// # Example
 /// ```
+/// use lexer::unescaped::escape_char;
 /// assert_eq!(Some('\n'), escape_char('n'));
 /// /* \g is NOT a valid escape character */
 /// assert_eq!(None, escape_char('g'));
