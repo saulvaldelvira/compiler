@@ -40,14 +40,14 @@ fn invalid() {
     const INPUT: &str = r#"
 fn main() {
     let a = 12;
-    let c = 1
+    let b = 23
 
+    let c = 1;
     if (a > 5) {
-        b = a + b
-    } else {
+        b = a + b;
+    } else
         while (a <= 5) {
             b = a * b;
-        }
     }
 }
 

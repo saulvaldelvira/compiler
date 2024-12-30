@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 lexer = { path = "../lexer" }
 ast = { path = "../ast" }
-
+session = { path = "../session" }

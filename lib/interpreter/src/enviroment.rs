@@ -1,46 +1,75 @@
 use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
 
+use ast::declaration::FunctionDecl;
 use ast::{declaration::VariableDecl, expr::LitValue};
+use session::Symbol;
 
 struct Var {
     is_const: bool,
     value: LitValue,
 }
 
+#[derive(Default)]
+struct EnviromentScope {
+    variables: HashMap<Symbol, Var>,
+    functions: HashMap<Symbol, Rc<FunctionDecl>>,
+}
+
+impl EnviromentScope {
+    fn new() -> Self {
+        Self::default()
+    }
+}
+
 pub struct Enviroment {
-    variables: VecDeque<HashMap<Box<str>,Var>>,
+    scopes: VecDeque<EnviromentScope>,
 }
 
 impl Enviroment {
     pub fn new() -> Self {
         let mut global = VecDeque::new();
-        global.push_back(HashMap::new());
-        Self { variables: global }
+        global.push_back(EnviromentScope::new());
+        Self { scopes: global }
     }
-    pub fn define(&mut self, name: impl Into<Box<str>>, value: LitValue, decl: &VariableDecl) {
-        let variables = self.variables.back_mut().unwrap();
-        variables.insert(name.into(), Var { is_const: decl.is_const, value });
+    pub fn define_var(&mut self, name: Symbol, value: LitValue, decl: &VariableDecl) {
+        let scope = self.scopes.back_mut().unwrap();
+        scope.variables.insert(name, Var { is_const: decl.is_const, value });
     }
-    fn get(&mut self, name: &str) -> Option<&mut Var> {
-        let mut i = self.variables.len() as i32 - 1;
+    fn get_var(&mut self, name: &Symbol) -> Option<&mut Var> {
+        let mut i = self.scopes.len() as i32 - 1;
         while i >= 0 {
-            if self.variables[i as usize].contains_key(name) {
-                return self.variables[i as usize].get_mut(name);
+            if self.scopes[i as usize].variables.contains_key(name) {
+                return self.scopes[i as usize].variables.get_mut(name);
             }
             i -= 1;
         }
         None
     }
-    pub fn get_val(&mut self, name: &str) -> Option<&mut LitValue> {
-        self.get(name).map(|var| &mut var.value)
+    pub fn define_func(&mut self, name: Symbol, decl: Rc<FunctionDecl>) {
+        let scope = self.scopes.back_mut().unwrap();
+        scope.functions.insert(name, decl);
     }
-    pub fn is_const(&mut self, name: &str) -> bool {
-        self.get(name).map(|var| var.is_const).unwrap_or(false)
+    pub fn get_func(&mut self, name: &Symbol) -> Option<Rc<FunctionDecl>> {
+        let mut i = self.scopes.len() as i32 - 1;
+        while i >= 0 {
+            if self.scopes[i as usize].functions.contains_key(name) {
+                return self.scopes[i as usize].functions.get_mut(name).map(|v| Rc::clone(v));
+            }
+            i -= 1;
+        }
+        None
+    }
+    pub fn get_val(&mut self, name: &Symbol) -> Option<&mut LitValue> {
+        self.get_var(name).map(|var| &mut var.value)
+    }
+    pub fn is_const(&mut self, name: &Symbol) -> bool {
+        self.get_var(name).map(|var| var.is_const).unwrap_or(false)
     }
     pub fn set(&mut self) {
-        self.variables.push_back(HashMap::new());
+        self.scopes.push_back(EnviromentScope::new());
     }
     pub fn reset(&mut self) {
-        self.variables.pop_back();
+        self.scopes.pop_back();
     }
 }

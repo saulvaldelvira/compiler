@@ -1,8 +1,11 @@
 pub mod error;
 
+use core::str;
+
 use ast::types::{CustomType, Type, TypeKind};
 use ast::Expression;
 use ast::{expr::LitValue, Statement, Program};
+use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
@@ -10,6 +13,7 @@ use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt,
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionArgument, FunctionDecl, VariableDecl};
 use lexer::{Span, unescaped::Unescaped};
+use session::{with_session, with_session_interner};
 use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseError>;
@@ -58,9 +62,11 @@ impl<'src> Parser<'src> {
             Err("Expected declaration".into())
         }
     }
-    fn consume_ident(&mut self) -> Result<Box<str>> {
+    fn consume_ident(&mut self) -> Result<Symbol> {
         let span = self.consume(TokenKind::Identifier)?.span;
-        Ok(Box::from(span.slice(self.src)))
+        Ok(with_session_interner(|i| {
+            i.get_or_intern(span.slice(self.src))
+        }))
     }
     fn function(&mut self) -> Result<Declaration> {
         let start_span = self.previous_span()?;
@@ -100,7 +106,7 @@ impl<'src> Parser<'src> {
         };
         let span = start_span.join(&span);
         Ok(Declaration {
-            kind: DeclarationKind::Function(fun),
+            kind: DeclarationKind::Function(fun.into()),
             span
         })
     }
@@ -130,7 +136,7 @@ impl<'src> Parser<'src> {
         let is_const = prev.kind == TokenKind::Const;
 
         let name_token = self.consume(TokenKind::Identifier).cloned()?;
-        let name = self.get_lexem(&name_token).into();
+        let name = self.owned_lexem(name_token.span);
         let name_token_span = name_token.span;
 
         let start_span = if is_const {
@@ -150,7 +156,7 @@ impl<'src> Parser<'src> {
         };
         let decl = Declaration {
             kind: DeclarationKind::Variable(
-                      VariableDecl { is_const, name, init }
+                      VariableDecl { is_const, name, init }.into()
                   ),
             span
         };
@@ -423,11 +429,11 @@ impl<'src> Parser<'src> {
             LitValue::Str(self.previous_lexem()?)
         }
         else if self.match_types(&[TokenKind::IntLiteral, TokenKind::FloatLiteral]) {
-            let f: f64 = self.get_lexem(self.previous()?).parse()?;
+            let f: f64 = self.previous()?.span.slice(self.src).parse()?;
             LitValue::Number(f)
         } else if self.match_type(TokenKind::CharLiteral) {
             let prev = self.previous().unwrap();
-            let lit = self.get_lexem(prev)
+            let lit = prev.span.slice(self.src)
                 .strip_prefix('\'').unwrap()
                 .strip_suffix('\'').unwrap();
             let lit = Unescaped::from(lit).next().ok_or_else(|| format!("Invalid escape '{lit}'"))?;
@@ -452,9 +458,8 @@ impl<'src> Parser<'src> {
             return Ok(expr)
         }
         if self.match_type(TokenKind::Identifier) {
-            let prev = self.previous()?;
-            let name = self.owned_lexem(prev);
-            let prev_span = prev.span;
+            let prev_span = self.previous()?.span;
+            let name = self.owned_lexem(prev_span);
             if self.match_type(TokenKind::LeftParen) {
                 let mut args = Vec::new();
                 let mut first = true;
@@ -483,13 +488,13 @@ impl<'src> Parser<'src> {
             }
         }
         ParseError::new(
-             format!("Expected expression, found: {}", self.get_lexem(self.peek()?))).err()
+             format!("Expected expression, found: {}", self.peek()?.span.slice(self.src))).err()
     }
-    fn owned_lexem(&self, tok: &Token) -> Box<str> {
-        Box::from(self.get_lexem(tok))
-    }
-    fn get_lexem(&self, tok: &Token) -> &str {
-        &self.src[tok.span.offset..tok.span.offset+tok.span.len]
+    fn owned_lexem(&mut self, span: Span) -> Symbol {
+        let slice = span.slice(self.src);
+        with_session(|sess| {
+            sess.string_interner.get_or_intern(slice)
+        })
     }
     fn consume(&mut self, t: TokenKind) -> Result<&Token> {
         if self.check(t) { return self.advance(); }
@@ -532,8 +537,8 @@ impl<'src> Parser<'src> {
     fn previous_span(&self) -> Result<Span> {
         self.previous().map(|s| s.span)
     }
-    fn previous_lexem(&self) -> Result<Box<str>> {
-        Ok(self.owned_lexem(self.previous()?))
+    fn previous_lexem(&mut self) -> Result<Symbol> {
+        Ok(self.owned_lexem(self.previous()?.span))
     }
     fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
         self.bump();

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use session::Symbol;
 
 #[derive(Debug,Clone)]
 pub struct StringType;
@@ -16,7 +17,7 @@ impl ErrorType {
 
 #[derive(Debug,Clone)]
 pub struct CustomType {
-    pub name: Box<str>,
+    pub name: Symbol,
 }
 
 #[derive(Debug,Clone)]

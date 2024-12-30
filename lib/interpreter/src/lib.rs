@@ -1,10 +1,12 @@
 
 use core::panic;
 use std::ops::ControlFlow;
+use std::rc::Rc;
 
-use ast::declaration::FunctionDecl;
-use ast::visitor::VisitorResult;
+use ast::declaration::{FunctionDecl, VariableDecl};
+use ast::visitor::{walk_function_decl, VisitorResult};
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
+use session::{get_symbol_str, with_session_interner};
 
 use self::enviroment::Enviroment;
 mod enviroment;
@@ -89,7 +91,8 @@ impl Visitor<'_> for Interpreter {
         self.visit_expression(&u.expr)?;
         let val = self.ctx.pop_val();
 
-        let val = match u.op.as_ref() {
+        let op = get_symbol_str(u.op).unwrap();
+        let val = match op {
             "!" => match val {
                 LitValue::Number(n) => LitValue::Bool(n != 0.0),
                 LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
@@ -148,7 +151,7 @@ impl Visitor<'_> for Interpreter {
                 LitValue::Number($e)
             };
         }
-        let res = match b.op.as_ref() {
+        let res = match get_symbol_str(b.op).unwrap() {
             "*" => num!(left * right),
             "+" => num!(left + right),
             "-" => num!(left - right),
@@ -246,11 +249,19 @@ impl Visitor<'_> for Interpreter {
         match &a.left.as_ref().kind {
             ExpressionKind::Variable(VariableExpr{ name, .. }) => {
                 if self.enviroment.is_const(name) {
-                    err!("Assignment to const variable \"{name}\""; a.left.span);
+                    with_session_interner(|interner| {
+                        let name = interner.get_str(*name).unwrap();
+                        err!("Assignment to const variable \"{name}\""; a.left.span);
+                    })
                 }
                 let variable = self.enviroment
                                    .get_val(name)
-                                   .unwrap_or_else(|| err!("Assignment to an undefined variable \"{name}\"" ; a.left.span));
+                                   .unwrap_or_else(|| {
+                                       with_session_interner(|interner| {
+                                           let name = interner.get_str(*name).unwrap();
+                                           err!("Assignment to an undefined variable \"{name}\"" ; a.left.span)
+                                       })
+                                    });
                 *variable = right.clone();
             },
             _ => unreachable!(),
@@ -266,7 +277,7 @@ impl Visitor<'_> for Interpreter {
 
         Self::Result::output()
     }
-    fn visit_vardecl(&mut self, v: &ast::declaration::VariableDecl) -> Self::Result {
+    fn visit_vardecl(&mut self, v: &Rc<VariableDecl>) -> Self::Result {
         if v.is_const && v.init.is_none() {
             err!("Const variable declaration needs to be initialized");
         }
@@ -277,7 +288,7 @@ impl Visitor<'_> for Interpreter {
             },
             None => LitValue::Nil,
         };
-        self.enviroment.define(v.name.clone(), init, v);
+        self.enviroment.define_var(v.name, init, v);
         Self::Result::output()
     }
     fn visit_print(&mut self, pr: &ast::stmt::PrintStmt) -> Self::Result {
@@ -299,8 +310,10 @@ impl Visitor<'_> for Interpreter {
         self.enviroment.reset();
         Self::Result::output()
     }
-    fn visit_function_decl(&mut self, _f: &FunctionDecl) -> Self::Result {
-        unimplemented!()
+    fn visit_function_decl(&mut self, f: &Rc<FunctionDecl>) -> Self::Result {
+        walk_function_decl(self, f);
+        self.enviroment.define_func(f.name, Rc::clone(f));
+        Self::Result::output()
     }
 }
 

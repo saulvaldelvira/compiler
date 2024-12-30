@@ -1,4 +1,5 @@
 use std::ops::ControlFlow;
+use std::rc::Rc;
 
 use crate::declaration::{DeclarationKind, FunctionArgument, FunctionDecl};
 use crate::expr::CallExpr;
@@ -7,7 +8,7 @@ use crate::types::Type;
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
-pub trait Visitor<'ast> {
+pub trait Visitor<'ast> : Sized {
     type Result: VisitorResult;
 
     fn visit_unary(&mut self, u: &'ast UnaryExpr) -> Self::Result { self.visit_expression(&u.expr) }
@@ -42,14 +43,7 @@ pub trait Visitor<'ast> {
             EK::Call(c) => self.visit_call(c),
         }
     }
-
-    fn visit_call(&mut self, c: &'ast CallExpr) -> Self::Result {
-        for arg in &c.args {
-            self.visit_expression(arg);
-        }
-        Self::Result::output()
-    }
-    fn visit_vardecl(&mut self, v: &'ast VariableDecl) -> Self::Result {
+    fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) -> Self::Result {
         if let Some(ref init) = v.init {
             self.visit_expression(init);
         }
@@ -109,12 +103,8 @@ pub trait Visitor<'ast> {
         let _todo = ty;
         Self::Result::output()
     }
-    fn visit_function_decl(&mut self, f: &'ast FunctionDecl) -> Self::Result {
-        f.args.iter().for_each(|FunctionArgument { ty, .. }| { self.visit_type(ty); } );
-        self.visit_type(&f.return_type);
-        self.visit_block(&f.body);
-
-        Self::Result::output()
+    fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) -> Self::Result {
+        walk_function_decl(self, f)
     }
     fn visit_declaration(&mut self, d: &'ast Declaration) -> Self::Result {
         use DeclarationKind as DK;
@@ -127,6 +117,20 @@ pub trait Visitor<'ast> {
         prog.decls.iter().for_each(|decl| { self.visit_declaration(decl); });
         Self::Result::output()
     }
+    fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
+        for arg in &call.args {
+            self.visit_expression(arg);
+        }
+        Self::Result::output()
+    }
+}
+
+pub fn walk_function_decl<'ast, V: Visitor<'ast>>(v: &mut V, f: &'ast FunctionDecl) -> V::Result {
+    f.args.iter().for_each(|FunctionArgument { ty, .. }| { v.visit_type(ty); } );
+    v.visit_type(&f.return_type);
+    v.visit_block(&f.body);
+
+    V::Result::output()
 }
 
 pub trait VisitorResult {

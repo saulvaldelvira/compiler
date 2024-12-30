@@ -1,5 +1,7 @@
 use core::fmt;
+use std::rc::Rc;
 
+use session::Symbol;
 use lexer::Span;
 
 use crate::stmt::BlockStmt;
@@ -9,19 +11,19 @@ use crate::types::Type;
 #[derive(Debug)]
 pub struct VariableDecl {
     pub is_const: bool,
-    pub name: Box<str>,
+    pub name: Symbol,
     pub init: Option<Expression>
 }
 
 #[derive(Debug)]
 pub struct FunctionArgument {
-    pub name: Box<str>,
+    pub name: Symbol,
     pub ty: Type,
 }
 
 #[derive(Debug)]
 pub struct FunctionDecl {
-    pub name: Box<str>,
+    pub name: Symbol,
     pub args: Box<[FunctionArgument]>,
     pub return_type: Type,
     pub body: BlockStmt,
@@ -29,8 +31,8 @@ pub struct FunctionDecl {
 
 #[derive(Debug)]
 pub enum DeclarationKind {
-    Variable(VariableDecl),
-    Function(FunctionDecl),
+    Variable(Rc<VariableDecl>),
+    Function(Rc<FunctionDecl>),
 }
 
 pub struct Declaration {

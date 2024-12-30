@@ -4,14 +4,14 @@ type Expr = Box<Expression>;
 
 #[derive(Debug)]
 pub struct UnaryExpr {
-    pub op: Box<str>,
+    pub op: Symbol,
     pub expr: Expr
 }
 
 #[derive(Debug)]
 pub struct BinaryExpr {
     pub left: Expr,
-    pub op: Box<str>,
+    pub op: Symbol,
     pub right: Expr,
 }
 
@@ -30,12 +30,12 @@ pub struct AssignmentExpr {
 
 #[derive(Debug)]
 pub struct VariableExpr {
-    pub name: Box<str>,
+    pub name: Symbol,
 }
 
 #[derive(Debug)]
 pub struct CallExpr {
-    pub callee: Box<str>,
+    pub callee: Symbol,
     pub args: Box<[Expression]>,
 }
 
@@ -47,12 +47,12 @@ pub struct LitExpr {
 #[derive(Debug)]
 pub enum ExpressionKind {
     Unary(UnaryExpr),
-    Call(CallExpr),
     Binary(BinaryExpr),
     Ternary(TernaryExpr),
     Assignment(AssignmentExpr),
     Variable(VariableExpr),
     Literal(LitExpr),
+    Call(CallExpr),
 }
 
 pub struct Expression {
@@ -68,8 +68,10 @@ impl fmt::Debug for Expression {
 
 use std::fmt;
 
+use session;
 use lexer::unescaped::Unescaped;
 use lexer::Span;
+use session::Symbol;
 use ExpressionKind::*;
 
 impl Expression {
@@ -91,7 +93,7 @@ impl Expression {
 #[derive(Clone,Debug)]
 pub enum LitValue {
     Number(f64),
-    Str(Box<str>),
+    Str(Symbol),
     Bool(bool),
     Char(char),
     Nil
@@ -109,8 +111,9 @@ impl LitValue {
         match self {
             LitValue::Number(n) => print!("{n}"),
             LitValue::Str(s) => {
+                let s = session::get_symbol_str(*s).unwrap();
                 let s = s.strip_prefix('"').unwrap()
-                         .strip_suffix('"').unwrap();
+                    .strip_suffix('"').unwrap();
                 Unescaped::from(s).for_each(|c| print!("{c}"));
             },
             LitValue::Bool(b) => print!("{b}"),
