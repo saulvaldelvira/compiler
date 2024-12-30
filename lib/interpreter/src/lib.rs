@@ -120,8 +120,8 @@ impl Visitor<'_> for Interpreter {
                 LitValue::Bool(if $cond { true } else { false })
             };
         }
-        let right_val = self.ctx.pop_val();
         let left_val = self.ctx.pop_val();
+        let right_val = self.ctx.pop_val();
 
         let left = match left_val {
             LitValue::Str(_) => err!("Can't use a string in a binary expression" ; b.left.span),
