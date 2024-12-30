@@ -34,6 +34,12 @@ pub struct VariableExpr {
 }
 
 #[derive(Debug)]
+pub struct CallExpr {
+    pub callee: Box<str>,
+    pub args: Box<[Expression]>,
+}
+
+#[derive(Debug)]
 pub struct LitExpr {
     pub value: LitValue,
 }
@@ -41,6 +47,7 @@ pub struct LitExpr {
 #[derive(Debug)]
 pub enum ExpressionKind {
     Unary(UnaryExpr),
+    Call(CallExpr),
     Binary(BinaryExpr),
     Ternary(TernaryExpr),
     Assignment(AssignmentExpr),
@@ -72,7 +79,7 @@ impl Expression {
             Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
             Ternary(t) =>
                 t.cond.has_side_effect() || t.if_true.has_side_effect() || t.if_false.has_side_effect(),
-            Assignment(_) => true,
+            Assignment(_) | Call(_) => true,
             Literal(_) | Variable(_) => false,
         }
     }

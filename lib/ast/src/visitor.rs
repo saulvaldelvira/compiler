@@ -1,6 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::declaration::{DeclarationKind, FunctionArgument, FunctionDecl};
+use crate::expr::CallExpr;
 use crate::stmt::StatementKind;
 use crate::types::Type;
 use crate::Expression;
@@ -38,9 +39,16 @@ pub trait Visitor<'ast> {
             EK::Assignment(a) => self.visit_assignment(a),
             EK::Variable(v) => self.visit_variable_expr(v),
             EK::Literal(l) => self.visit_literal(l),
+            EK::Call(c) => self.visit_call(c),
         }
     }
 
+    fn visit_call(&mut self, c: &'ast CallExpr) -> Self::Result {
+        for arg in &c.args {
+            self.visit_expression(arg);
+        }
+        Self::Result::output()
+    }
     fn visit_vardecl(&mut self, v: &'ast VariableDecl) -> Self::Result {
         if let Some(ref init) = v.init {
             self.visit_expression(init);

@@ -5,7 +5,7 @@ use ast::Expression;
 use ast::{expr::LitValue, Statement, Program};
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
+use ast::expr::{AssignmentExpr, BinaryExpr, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionArgument, FunctionDecl, VariableDecl};
@@ -67,7 +67,7 @@ impl<'src> Parser<'src> {
 
         let mut args = Vec::new();
 
-        loop {
+        while !self.match_type(TokenKind::RightParen) {
             let arg_name = self.consume_ident()?;
             self.consume(TokenKind::Colon)?;
             let ty = self.ty()?;
@@ -81,11 +81,8 @@ impl<'src> Parser<'src> {
             });
         }
 
-        self.consume(TokenKind::RightBrace)?;
-
         let return_type = if self.match_type(TokenKind::Arrow) {
-            let ty = self.ty()?;
-            ty
+            self.ty()?
         } else { Type { kind: TypeKind::Empty } };
 
         let Statement {
@@ -450,10 +447,33 @@ impl<'src> Parser<'src> {
         if self.match_type(TokenKind::Identifier) {
             let prev = self.previous()?;
             let name = self.owned_lexem(prev);
-            return Ok(Expression {
-                kind: ExpressionKind::Variable(VariableExpr { name }),
-                span: prev.span
-            })
+            let prev_span = prev.span;
+            if self.match_type(TokenKind::LeftParen) {
+                let mut args = Vec::new();
+                let mut first = true;
+                while !self.match_type(TokenKind::RightParen) {
+                    if !first {
+                        self.consume(TokenKind::Comma)?;
+                    }
+                    first = false;
+                    args.push(self.expression()?);
+
+                }
+                let span = prev_span.join(&self.previous_span()?);
+                return Ok(Expression{
+                    kind: ExpressionKind::Call(
+                        CallExpr {
+                            callee: name,
+                            args: args.into_boxed_slice()
+                        }),
+                    span
+                })
+            } else {
+                return Ok(Expression {
+                    kind: ExpressionKind::Variable(VariableExpr { name }),
+                    span: prev_span
+                })
+            }
         }
         ParseError::new(
              format!("Expected expression, found: {}", self.get_lexem(self.peek()?))).err()

@@ -18,14 +18,16 @@ fn find_errors(src: &str) -> u32 {
 #[test]
 fn valid() {
     const INPUT: &str = r#"
-let a = 12;
-let b = 23;
+fn main() {
+    let a = 12;
+    let b = 23;
 
-if (a > 5) {
-    b = a + b;
-} else {
-    while (a <= 5) {
-        b = a * b;
+    if (a > 5) {
+        b = a + b;
+    } else {
+        while (a <= 5) {
+            b = a * b;
+        }
     }
 }
 "#;
