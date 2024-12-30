@@ -3,8 +3,10 @@ use core::panic;
 use std::ops::ControlFlow;
 use std::rc::Rc;
 
-use ast::declaration::{FunctionDecl, VariableDecl};
-use ast::visitor::{walk_function_decl, VisitorResult};
+use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
+use ast::expr::CallExpr;
+use ast::visitor::{walk_call, walk_function_decl, VisitorResult};
+use ast::{Declaration, Expression};
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 use session::{get_symbol_str, with_session_interner};
 
@@ -86,6 +88,22 @@ impl Ctx {
 
 impl Visitor<'_> for Interpreter {
     type Result = ControlFlow<()>;
+
+    fn visit_program(&mut self, prog: &'_ Program) -> Self::Result {
+        for decl in &prog.decls {
+            self.visit_declaration(decl)?;
+        }
+
+        let main = CallExpr {
+            callee: with_session_interner(|i| i.get_or_intern("main")),
+            args: Vec::<Expression>::new().into_boxed_slice(),
+        };
+
+
+        self.visit_call(&main)?;
+
+        Self::Result::output()
+    }
 
     fn visit_unary(&mut self, u: &ast::expr::UnaryExpr) -> Self::Result {
         self.visit_expression(&u.expr)?;
@@ -311,8 +329,20 @@ impl Visitor<'_> for Interpreter {
         Self::Result::output()
     }
     fn visit_function_decl(&mut self, f: &Rc<FunctionDecl>) -> Self::Result {
-        walk_function_decl(self, f);
         self.enviroment.define_func(f.name, Rc::clone(f));
+        Self::Result::output()
+    }
+    fn visit_call(&mut self, call: &CallExpr) -> Self::Result {
+        self.enviroment.set();
+
+        walk_call(self, call);
+        let func = self.enviroment.get_func(&call.callee).unwrap_or_else(|| {
+            err!("Unknown function: {:?}", call.callee);
+        });
+
+        self.visit_block(&func.body);
+
+        self.enviroment.reset();
         Self::Result::output()
     }
 }

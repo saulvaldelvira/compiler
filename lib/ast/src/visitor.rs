@@ -118,11 +118,15 @@ pub trait Visitor<'ast> : Sized {
         Self::Result::output()
     }
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
-        for arg in &call.args {
-            self.visit_expression(arg);
-        }
-        Self::Result::output()
+        walk_call(self, call)
     }
+}
+
+pub fn walk_call<'ast, V: Visitor<'ast>>(v: &mut V, call: &'ast CallExpr) -> V::Result {
+        for arg in &call.args {
+            v.visit_expression(arg);
+        }
+        V::Result::output()
 }
 
 pub fn walk_function_decl<'ast, V: Visitor<'ast>>(v: &mut V, f: &'ast FunctionDecl) -> V::Result {
