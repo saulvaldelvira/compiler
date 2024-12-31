@@ -1,48 +1,54 @@
 use std::collections::HashMap;
 
-use arena::{Span,Arena};
-
-mod arena;
-
 #[derive(Clone,Copy,Debug,Hash,Eq,PartialEq)]
-#[repr(transparent)]
-pub struct Symbol(Span);
+pub struct Symbol {
+    pub offset: usize,
+    pub len: usize,
+}
 
 pub struct Interner {
-    arena: Arena,
-    set: HashMap<&'static str, Span>,
+    arena: String,
+    set: HashMap<&'static str, Symbol>,
 }
 
 impl Interner {
     pub fn new() -> Self {
         Self {
-            arena: Arena::new(),
+            arena: String::new(),
             set: HashMap::new(),
         }
     }
 
     fn intern(&mut self, src: &str) -> Symbol {
-        let span = self.arena.alloc(src);
+        let offset = self.arena.len();
+        let len = src.len();
+        self.arena.push_str(src);
 
         /* SAFETY: we can extend the arena allocation to `'static` because we
            only access these while the arena is still alive. */
         let src: &'static str = unsafe { &*(src as *const str) };
 
-        self.set.insert(src, span);
-        Symbol(span)
+        let sym = Symbol {
+            offset,
+            len
+        };
+        self.set.insert(src, sym);
+        sym
     }
 
     pub fn get_or_intern(&mut self, src: &str) -> Symbol {
         /* SAFETY: we can extend the arena allocation to `'static` because we
            only access these while the arena is still alive. */
         let src: &'static str = unsafe { &*(src as *const str) };
-        self.set.get(src).map(|sp| Symbol(*sp)).unwrap_or_else(|| {
+        self.set.get(src).cloned().unwrap_or_else(|| {
             self.intern(src)
         })
     }
 
     pub fn get_str(&self, sym: Symbol) -> Option<&'static str> {
-        self.arena.get(sym.0)
+        let src = &self.arena[sym.offset..sym.offset + sym.len];
+        let src: &'static str = unsafe { &*(src as *const str) };
+        Some(src)
     }
 }
 

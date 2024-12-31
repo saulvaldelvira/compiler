@@ -3,10 +3,10 @@ use core::panic;
 use std::ops::ControlFlow;
 use std::rc::Rc;
 
-use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
+use ast::declaration::{FunctionDecl, VariableDecl};
 use ast::expr::CallExpr;
-use ast::visitor::{walk_call, walk_function_decl, VisitorResult};
-use ast::{Declaration, Expression};
+use ast::visitor::{walk_call, VisitorResult};
+use ast::Expression;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 use session::{get_symbol_str, with_session_interner};
 
