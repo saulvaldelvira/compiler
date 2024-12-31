@@ -1,12 +1,11 @@
-
 use core::panic;
 use std::ops::ControlFlow;
 use std::rc::Rc;
 
-use ast::declaration::{FunctionDecl, VariableDecl};
+use ast::declaration::{DeclarationKind, VariableDecl};
 use ast::expr::CallExpr;
 use ast::visitor::{walk_call, VisitorResult};
-use ast::Expression;
+use ast::AstRef;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
 use session::{get_symbol_str, with_session_interner};
 
@@ -90,17 +89,20 @@ impl Visitor<'_> for Interpreter {
     type Result = ControlFlow<()>;
 
     fn visit_program(&mut self, prog: &'_ Program) -> Self::Result {
+
         for decl in &prog.decls {
-            self.visit_declaration(decl)?;
+            if let DeclarationKind::Function(f) = &decl.kind {
+                if get_symbol_str(f.name).is_some_and(|n| n == "main") {
+                    let callee = f.name;
+                    let main = CallExpr {
+                        decl: AstRef::from(Rc::clone(f)),
+                        args: Vec::new().into_boxed_slice(),
+                        callee
+                    };
+                    self.visit_call(&main)?;
+                }
+            }
         }
-
-        let main = CallExpr {
-            callee: with_session_interner(|i| i.get_or_intern("main")),
-            args: Vec::<Expression>::new().into_boxed_slice(),
-        };
-
-
-        self.visit_call(&main)?;
 
         Self::Result::output()
     }
@@ -328,19 +330,14 @@ impl Visitor<'_> for Interpreter {
         self.enviroment.reset();
         Self::Result::output()
     }
-    fn visit_function_decl(&mut self, f: &Rc<FunctionDecl>) -> Self::Result {
-        self.enviroment.define_func(f.name, Rc::clone(f));
-        Self::Result::output()
-    }
     fn visit_call(&mut self, call: &CallExpr) -> Self::Result {
         self.enviroment.set();
 
         walk_call(self, call);
-        let func = self.enviroment.get_func(&call.callee).unwrap_or_else(|| {
-            err!("Unknown function: {:?}", call.callee);
-        });
 
-        self.visit_block(&func.body);
+        call.decl.with(|func| {
+            self.visit_block(&func.body);
+        });
 
         self.enviroment.reset();
         Self::Result::output()

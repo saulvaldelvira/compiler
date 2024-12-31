@@ -1,7 +1,5 @@
 use std::collections::{HashMap, VecDeque};
-use std::rc::Rc;
 
-use ast::declaration::FunctionDecl;
 use ast::{declaration::VariableDecl, expr::LitValue};
 use session::Symbol;
 
@@ -13,7 +11,6 @@ struct Var {
 #[derive(Default)]
 struct EnviromentScope {
     variables: HashMap<Symbol, Var>,
-    functions: HashMap<Symbol, Rc<FunctionDecl>>,
 }
 
 impl EnviromentScope {
@@ -41,20 +38,6 @@ impl Enviroment {
         while i >= 0 {
             if self.scopes[i as usize].variables.contains_key(name) {
                 return self.scopes[i as usize].variables.get_mut(name);
-            }
-            i -= 1;
-        }
-        None
-    }
-    pub fn define_func(&mut self, name: Symbol, decl: Rc<FunctionDecl>) {
-        let scope = self.scopes.back_mut().unwrap();
-        scope.functions.insert(name, decl);
-    }
-    pub fn get_func(&mut self, name: &Symbol) -> Option<Rc<FunctionDecl>> {
-        let mut i = self.scopes.len() as i32 - 1;
-        while i >= 0 {
-            if self.scopes[i as usize].functions.contains_key(name) {
-                return self.scopes[i as usize].functions.get_mut(name).map(|v| Rc::clone(v));
             }
             i -= 1;
         }

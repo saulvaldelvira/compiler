@@ -3,6 +3,7 @@ use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
 use ast::Program;
+use ast_passes::perform_identification;
 use config::Config;
 use interpreter::Interpreter;
 use lexer::token::Token;
@@ -33,6 +34,11 @@ fn process(text: &str) {
     /* tokens.iter().for_each(|t| println!("{t:#?}")); */
     /* println!("\n*** PARSER ***"); */
     let program = parse(tokens, text);
+
+    if perform_identification(&program).is_err() {
+        return
+    }
+
     let interpreter = Interpreter::new();
     let mut interpreter = interpreter;
     #[cfg(debug_assertions)]

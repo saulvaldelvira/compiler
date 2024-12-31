@@ -114,8 +114,7 @@ pub trait Visitor<'ast> : Sized {
         }
     }
     fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
-        prog.decls.iter().for_each(|decl| { self.visit_declaration(decl); });
-        Self::Result::output()
+        walk_program(self, prog)
     }
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
         walk_call(self, call)
@@ -126,6 +125,11 @@ pub fn walk_call<'ast, V: Visitor<'ast>>(v: &mut V, call: &'ast CallExpr) -> V::
         for arg in &call.args {
             v.visit_expression(arg);
         }
+        V::Result::output()
+}
+
+pub fn walk_program<'ast, V: Visitor<'ast>>(v: &mut V, program: &'ast Program) -> V::Result {
+        program.decls.iter().for_each(|decl| { v.visit_declaration(decl); });
         V::Result::output()
 }
 
@@ -174,5 +178,31 @@ impl<T> VisitorResult for ControlFlow<T> {
 
     fn branch(self) -> ControlFlow<Self::Residual> {
         self
+    }
+}
+
+impl<T> VisitorResult for Result<(),T> {
+    type Residual = T;
+
+    fn output() -> Self {
+        Result::Ok(())
+    }
+
+    fn from_residual(residual: Self::Residual) -> Self {
+        Self::Err(residual)
+    }
+
+    fn from_branch(b: ControlFlow<Self::Residual>) -> Self {
+        match b{
+            ControlFlow::Continue(c) => Ok(c),
+            ControlFlow::Break(b) => Err(b)
+        }
+    }
+
+    fn branch(self) -> ControlFlow<Self::Residual> {
+        match self {
+            Ok(_) => ControlFlow::Continue(()),
+            Err(err) => ControlFlow::Break(err)
+        }
     }
 }

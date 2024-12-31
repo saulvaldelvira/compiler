@@ -3,7 +3,7 @@ pub mod error;
 use core::str;
 
 use ast::types::{CustomType, Type, TypeKind};
-use ast::Expression;
+use ast::{AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
@@ -476,13 +476,18 @@ impl<'src> Parser<'src> {
                     kind: ExpressionKind::Call(
                         CallExpr {
                             callee: name,
-                            args: args.into_boxed_slice()
+                            args: args.into_boxed_slice(),
+                            decl: AstRef::new()
                         }),
                     span
                 })
             } else {
                 return Ok(Expression {
-                    kind: ExpressionKind::Variable(VariableExpr { name }),
+                    kind: ExpressionKind::Variable(
+                              VariableExpr {
+                                  name,
+                                  decl: AstRef::new()
+                              }),
                     span: prev_span
                 })
             }

@@ -31,12 +31,14 @@ pub struct AssignmentExpr {
 #[derive(Debug)]
 pub struct VariableExpr {
     pub name: Symbol,
+    pub decl: AstRef<VariableDecl>,
 }
 
 #[derive(Debug)]
 pub struct CallExpr {
     pub callee: Symbol,
     pub args: Box<[Expression]>,
+    pub decl: AstRef<FunctionDecl>,
 }
 
 #[derive(Debug)]
@@ -73,6 +75,9 @@ use lexer::unescaped::Unescaped;
 use lexer::Span;
 use session::Symbol;
 use ExpressionKind::*;
+
+use crate::declaration::{FunctionDecl, VariableDecl};
+use crate::AstRef;
 
 impl Expression {
     pub fn has_side_effect(&self) -> bool {
