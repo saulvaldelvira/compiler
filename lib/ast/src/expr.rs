@@ -128,10 +128,11 @@ impl LitValue {
         match self {
             LitValue::Number(n) => print!("{n}"),
             LitValue::Str(s) => {
-                let s = session::get_symbol_str(*s).unwrap();
-                let s = s.strip_prefix('"').unwrap()
-                    .strip_suffix('"').unwrap();
-                Unescaped::from(s).for_each(|c| print!("{c}"));
+                session::with_symbol(*s, |s| {
+                    let s = s.strip_prefix('"').unwrap()
+                        .strip_suffix('"').unwrap();
+                    Unescaped::from(s).for_each(|c| print!("{c}"));
+                });
             },
             LitValue::Bool(b) => print!("{b}"),
             LitValue::Nil => print!("nil"),

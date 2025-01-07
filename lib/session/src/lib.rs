@@ -7,10 +7,12 @@ pub struct Symbol(interner::Symbol);
 
 impl Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match get_symbol_str(*self) {
-            Some(s) => write!(f, "{s}"),
-            None => write!(f, "{:?}", self.0)
-        }
+        try_with_symbol(*self, |sym| {
+            match sym {
+                Some(s) => write!(f, "{s}"),
+                None => write!(f, "{:?}", self.0)
+            }
+        })
     }
 }
 
@@ -21,8 +23,19 @@ impl Interner {
         Symbol(self.0.write().unwrap().get_or_intern(src))
     }
 
-    pub fn get_str(&self, sym: Symbol) -> Option<&'static str> {
-        self.0.read().unwrap().get_str(sym.0)
+    pub fn resolve<R>(&self, sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
+        f(self.0.read().unwrap().resolve(sym.0))
+    }
+
+    pub fn resolve_unchecked<R>(&self, sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
+        let i = self.0.read().unwrap();
+        let s = i.resolve(sym.0).unwrap_or_else(|| {
+            /* It's VERY unlikely that we ask the interner for a
+             * symbol it hasn't generated.  */
+            cold();
+            panic!("Attemp to get unexisting symbol: {sym:?}")
+        });
+        f(s)
     }
 }
 
@@ -54,23 +67,18 @@ pub fn with_session_interner<R>(f: impl FnOnce(&Interner) -> R) -> R {
     })
 }
 
-pub fn get_symbol_str<'a>(sym: Symbol) -> Option<&'a str> {
+pub fn try_with_symbol<R>(sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
     with_session_interner(|i| {
-        i.get_str(sym)
+        i.resolve(sym,f)
+    })
+}
+
+pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
+    with_session_interner(|i| {
+        i.resolve_unchecked(sym, f)
     })
 }
 
 #[inline(always)]
 #[cold]
 fn cold() {}
-
-pub fn unwrap_symbol<'a>(sym: Symbol) -> &'a str {
-    with_session_interner(|i| {
-        i.get_str(sym).unwrap_or_else(|| {
-            /* It's VERY unlikely that we ask the interner for a
-             * symbol it hasn't generated.  */
-            cold();
-            panic!("Attemp to get unexisting symbol: {sym:?}")
-        })
-    })
-}

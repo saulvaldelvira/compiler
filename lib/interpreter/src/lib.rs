@@ -7,7 +7,7 @@ use ast::expr::CallExpr;
 use ast::visitor::{walk_call, VisitorResult};
 use ast::AstRef;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
-use session::{get_symbol_str, with_session_interner};
+use session::with_symbol;
 
 use self::enviroment::Enviroment;
 mod enviroment;
@@ -92,7 +92,7 @@ impl Visitor<'_> for Interpreter {
 
         for decl in &prog.decls {
             if let DeclarationKind::Function(f) = &decl.kind {
-                if get_symbol_str(f.name).is_some_and(|n| n == "main") {
+                if with_symbol(f.name, |name| { name == "main" }) {
                     let callee = f.name;
                     let main = CallExpr {
                         decl: AstRef::from(Rc::clone(f)),
@@ -111,25 +111,26 @@ impl Visitor<'_> for Interpreter {
         self.visit_expression(&u.expr)?;
         let val = self.ctx.pop_val();
 
-        let op = get_symbol_str(u.op).unwrap();
-        let val = match op {
-            "!" => match val {
-                LitValue::Number(n) => LitValue::Bool(n != 0.0),
-                LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
-                LitValue::Bool(b) => LitValue::Bool(!b),
-                LitValue::Nil => LitValue::Nil,
-                LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
-            },
-            "-" => match val {
-                LitValue::Number(n) => LitValue::Number(-n),
-                LitValue::Char(c) => LitValue::Number(-(c as i32) as f64),
-                LitValue::Bool(b) => LitValue::Number((0 - b as u8) as f64),
-                LitValue::Nil => LitValue::Nil,
-                LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr.span),
-            },
-            "+" => val,
-            _ => unreachable!()
-        };
+        let val = with_symbol(u.op, |op| {
+            match op {
+                "!" => match val {
+                    LitValue::Number(n) => LitValue::Bool(n != 0.0),
+                    LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
+                    LitValue::Bool(b) => LitValue::Bool(!b),
+                    LitValue::Nil => LitValue::Nil,
+                    LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
+                },
+                "-" => match val {
+                    LitValue::Number(n) => LitValue::Number(-n),
+                    LitValue::Char(c) => LitValue::Number(-(c as i32) as f64),
+                    LitValue::Bool(b) => LitValue::Number((0 - b as u8) as f64),
+                    LitValue::Nil => LitValue::Nil,
+                    LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr.span),
+                },
+                "+" => val,
+                _ => unreachable!()
+            }
+        });
 
         self.ctx.values.push(val);
 
@@ -171,20 +172,22 @@ impl Visitor<'_> for Interpreter {
                 LitValue::Number($e)
             };
         }
-        let res = match get_symbol_str(b.op).unwrap() {
-            "*" => num!(left * right),
-            "+" => num!(left + right),
-            "-" => num!(left - right),
-            "/" => num!(left / right),
-            ">" => tern!(left > right),
-            "<" => tern!(left < right),
-            ">=" => tern!(left >= right),
-            "<=" => tern!(left <= right),
-            "==" => tern!(left == right),
-            "!=" => tern!(left != right),
-            "," => num!(right),
-            _ => unreachable!("Unknown operator")
-        };
+        let res = with_symbol(b.op, |op| {
+            match op {
+                "*" => num!(left * right),
+                "+" => num!(left + right),
+                "-" => num!(left - right),
+                "/" => num!(left / right),
+                ">" => tern!(left > right),
+                "<" => tern!(left < right),
+                ">=" => tern!(left >= right),
+                "<=" => tern!(left <= right),
+                "==" => tern!(left == right),
+                "!=" => tern!(left != right),
+                "," => num!(right),
+                _ => unreachable!("Unknown operator")
+            }
+        });
 
         self.ctx.values.push(res);
 
@@ -269,18 +272,16 @@ impl Visitor<'_> for Interpreter {
         match &a.left.as_ref().kind {
             ExpressionKind::Variable(VariableExpr{ name, .. }) => {
                 if self.enviroment.is_const(name) {
-                    with_session_interner(|interner| {
-                        let name = interner.get_str(*name).unwrap();
+                    with_symbol(*name, |name| {
                         err!("Assignment to const variable \"{name}\""; a.left.span);
-                    })
+                    });
                 }
                 let variable = self.enviroment
                                    .get_val(name)
                                    .unwrap_or_else(|| {
-                                       with_session_interner(|interner| {
-                                           let name = interner.get_str(*name).unwrap();
-                                           err!("Assignment to an undefined variable \"{name}\"" ; a.left.span)
-                                       })
+                                        with_symbol(*name, |name| {
+                                            err!("Assignment to an undefined variable \"{name}\"" ; a.left.span)
+                                        })
                                     });
                 *variable = right.clone();
             },
