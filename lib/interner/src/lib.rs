@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 
-#[derive(Clone,Copy,Debug,Hash,Eq,PartialEq)]
-pub struct Symbol {
+pub struct Span {
     pub offset: usize,
     pub len: usize,
 }
 
+#[derive(Clone,Copy,Debug,Hash,Eq,PartialEq)]
+#[repr(transparent)]
+pub struct Symbol(usize);
+
 pub struct Interner {
     arena: String,
     set: HashMap<&'static str, Symbol>,
+    spans: Vec<Span>,
 }
 
 impl Interner {
@@ -16,6 +20,7 @@ impl Interner {
         Self {
             arena: String::new(),
             set: HashMap::new(),
+            spans: Vec::new()
         }
     }
 
@@ -28,11 +33,13 @@ impl Interner {
            only access these while the arena is still alive. */
         let src: &'static str = unsafe { &*(src as *const str) };
 
-        let sym = Symbol {
+        let span = Span {
             offset,
             len
         };
+        let sym = Symbol(self.spans.len());
         self.set.insert(src, sym);
+        self.spans.push(span);
         sym
     }
 
@@ -46,7 +53,8 @@ impl Interner {
     }
 
     pub fn get_str(&self, sym: Symbol) -> Option<&'static str> {
-        let src = &self.arena[sym.offset..sym.offset + sym.len];
+        let span = self.spans.get(sym.0)?;
+        let src = &self.arena[span.offset..span.offset + span.len];
         let src: &'static str = unsafe { &*(src as *const str) };
         Some(src)
     }

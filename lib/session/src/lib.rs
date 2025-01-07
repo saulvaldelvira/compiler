@@ -59,3 +59,18 @@ pub fn get_symbol_str<'a>(sym: Symbol) -> Option<&'a str> {
         i.get_str(sym)
     })
 }
+
+#[inline(always)]
+#[cold]
+fn cold() {}
+
+pub fn unwrap_symbol<'a>(sym: Symbol) -> &'a str {
+    with_session_interner(|i| {
+        i.get_str(sym).unwrap_or_else(|| {
+            /* It's VERY unlikely that we ask the interner for a
+             * symbol it hasn't generated.  */
+            cold();
+            panic!("Attemp to get unexisting symbol: {sym:?}")
+        })
+    })
+}
