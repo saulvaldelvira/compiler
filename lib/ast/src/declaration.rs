@@ -5,14 +5,15 @@ use session::Symbol;
 use lexer::Span;
 
 use crate::stmt::BlockStmt;
-use crate::Expression;
+use crate::{AstDecorated, Expression};
 use crate::types::Type;
 
 #[derive(Debug)]
 pub struct VariableDecl {
     pub is_const: bool,
     pub name: Symbol,
-    pub init: Option<Expression>
+    pub init: Option<Expression>,
+    pub ty: AstDecorated<Type>,
 }
 
 #[derive(Debug)]

@@ -3,7 +3,7 @@
 use std::{fmt, str};
 
 /// Represents a span in a buffer, bounded by an offset and a len
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Default)]
 pub struct Span {
     /// Offset of the span inside the buffer
     pub offset: usize,

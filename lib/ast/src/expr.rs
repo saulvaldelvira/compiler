@@ -60,6 +60,17 @@ pub enum ExpressionKind {
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
+    pub ty: AstDecorated<Type>,
+}
+
+impl Expression {
+    pub fn new(kind: ExpressionKind, span: Span) -> Self {
+        Expression {
+            kind,
+            span,
+            ty: Default::default()
+        }
+    }
 }
 
 impl fmt::Debug for Expression {
@@ -77,7 +88,8 @@ use session::Symbol;
 use ExpressionKind::*;
 
 use crate::declaration::{FunctionDecl, VariableDecl};
-use crate::AstRef;
+use crate::types::Type;
+use crate::{AstDecorated, AstRef};
 
 impl Expression {
     pub fn has_side_effect(&self) -> bool {

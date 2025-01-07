@@ -3,7 +3,7 @@ pub mod error;
 use core::str;
 
 use ast::types::{CustomType, Type, TypeKind};
-use ast::{AstRef, Expression};
+use ast::{AstDecorated, AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
@@ -91,7 +91,7 @@ impl<'src> Parser<'src> {
 
         let return_type = if self.match_type(TokenKind::Arrow) {
             self.ty()?
-        } else { Type { kind: TypeKind::Empty } };
+        } else { Type::empty_implicit() };
 
         let Statement {
             kind: StatementKind::Block(block),
@@ -111,21 +111,29 @@ impl<'src> Parser<'src> {
         })
     }
     fn ty(&mut self) -> Result<Type> {
+        macro_rules! ty {
+            ($tk:expr) => {
+                Ok(Type{
+                    kind: $tk,
+                    span: self.previous_span()?
+                })
+            };
+        }
         if self.match_type(TokenKind::Int) {
-            Ok(Type{kind: TypeKind::Int})
+            ty!(TypeKind::Int)
         }
         else if self.match_type(TokenKind::Float) {
-            Ok(Type{kind: TypeKind::Float})
+            ty!(TypeKind::Float)
         }
         else if self.match_type(TokenKind::Char) {
-            Ok(Type{kind: TypeKind::Char})
+            ty!(TypeKind::Char)
         }
         else if self.match_type(TokenKind::Bool) {
-            Ok(Type{kind: TypeKind::Bool})
+            ty!(TypeKind::Bool)
         }
         else if self.match_type(TokenKind::Identifier) {
             let name = self.previous_lexem()?;
-            Ok(Type{kind: TypeKind::Custom(CustomType { name })})
+            ty!(TypeKind::Custom(CustomType { name }))
         } else {
             Err("Expected type".into())
         }
@@ -139,11 +147,18 @@ impl<'src> Parser<'src> {
         let name = self.owned_lexem(name_token.span);
         let name_token_span = name_token.span;
 
-        let start_span = if is_const {
+        let mut span = if is_const {
             prev_span
         } else {
             name_token_span
         };
+
+        let ty =
+        if self.match_type(TokenKind::Colon) {
+            let ty = self.ty()?;
+            span = span.join(&ty.span);
+            Some(ty)
+        } else { None };
 
         let mut init = None;
         if self.match_type(TokenKind::Equal) {
@@ -151,12 +166,17 @@ impl<'src> Parser<'src> {
         }
 
         let span = match &init {
-            Some(i) => start_span.join(&i.span),
-            None => start_span
+            Some(i) => span.join(&i.span),
+            None => span
         };
         let decl = Declaration {
             kind: DeclarationKind::Variable(
-                      VariableDecl { is_const, name, init }.into()
+                      VariableDecl {
+                          is_const,
+                          name,
+                          init,
+                          ty: AstDecorated::from(ty)
+                      }.into()
                   ),
             span
         };
@@ -311,12 +331,12 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let right = Box::new(self.comma()?);
             let span = left.span.join(&right.span);
-            left = Expression {
-                kind: ExpressionKind::Binary(
+            left = Expression::new(
+                ExpressionKind::Binary(
                     BinaryExpr { left: Box::new(left), op, right }
                 ),
                 span
-            };
+            );
         }
         Ok(left)
     }
@@ -327,10 +347,10 @@ impl<'src> Parser<'src> {
             self.consume(TokenKind::Colon)?;
             let if_false = Box::new(self.assignment()?);
             let span = cond.span.join(&if_false.span);
-            cond = Expression {
-                kind: ExpressionKind::Ternary(TernaryExpr { cond: Box::new(cond), if_true, if_false }),
+            cond = Expression::new(
+                ExpressionKind::Ternary(TernaryExpr { cond: Box::new(cond), if_true, if_false }),
                 span
-            }
+            )
         }
         Ok(cond)
     }
@@ -339,10 +359,10 @@ impl<'src> Parser<'src> {
         let ast = if self.match_type(TokenKind::Equal) {
             let right = Box::new(self.assignment()?);
             let span = left.span.join(&right.span);
-            Expression {
-                kind: ExpressionKind::Assignment(AssignmentExpr { left: Box::new(left), right }),
+            Expression::new(
+                ExpressionKind::Assignment(AssignmentExpr { left: Box::new(left), right }),
                 span
-            }
+            )
         } else {
             left
         };
@@ -354,10 +374,10 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let right = Box::new(self.comparison()?);
             let span = left.span.join(&right.span);
-            left = Expression {
-                kind: ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+            left = Expression::new(
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
                 span
-            }
+            )
         }
         Ok(left)
     }
@@ -371,10 +391,10 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let right = Box::new(self.term()?);
             let span = left.span.join(&right.span);
-            left = Expression {
-                kind: ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+            left = Expression::new(
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
                 span
-            }
+            )
         }
         Ok(left)
     }
@@ -384,10 +404,10 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression {
-                kind: ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+            left = Expression::new(
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
                 span
-            }
+            )
         }
         Ok(left)
     }
@@ -397,10 +417,10 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let right = Box::new(self.unary()?);
             let span = left.span.join(&right.span);
-            left = Expression {
-                kind: ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+            left = Expression::new(
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
                 span
-            }
+            )
         }
         Ok(left)
     }
@@ -410,10 +430,10 @@ impl<'src> Parser<'src> {
             let op = self.previous_lexem()?;
             let expr = Box::new(self.unary()?);
             let span = start_span.join(&expr.span);
-            Ok(Expression {
-                kind: ExpressionKind::Unary(UnaryExpr { op, expr }),
+            Ok(Expression::new(
+                ExpressionKind::Unary(UnaryExpr { op, expr }),
                 span
-            })
+            ))
         } else {
             self.primary()
         }
@@ -445,10 +465,10 @@ impl<'src> Parser<'src> {
     }
     fn primary(&mut self) -> Result<Expression> {
         if let Some(value) = self.literal()? {
-            return Ok(Expression {
-                kind: ExpressionKind::Literal(LitExpr { value }),
-                span: self.previous_span().unwrap()
-            });
+            return Ok(Expression::new(
+                ExpressionKind::Literal(LitExpr { value }),
+                self.previous_span().unwrap()
+            ));
         }
         if self.match_type(TokenKind::LeftParen) {
             let start = self.previous_span().unwrap();
@@ -472,24 +492,24 @@ impl<'src> Parser<'src> {
 
                 }
                 let span = prev_span.join(&self.previous_span()?);
-                return Ok(Expression{
-                    kind: ExpressionKind::Call(
+                return Ok(Expression::new(
+                    ExpressionKind::Call(
                         CallExpr {
                             callee: name,
                             args: args.into_boxed_slice(),
                             decl: AstRef::new()
                         }),
                     span
-                })
+                ))
             } else {
-                return Ok(Expression {
-                    kind: ExpressionKind::Variable(
+                return Ok(Expression::new(
+                    ExpressionKind::Variable(
                               VariableExpr {
                                   name,
                                   decl: AstRef::new()
                               }),
-                    span: prev_span
-                })
+                    prev_span,
+                ))
             }
         }
         ParseError::new(
