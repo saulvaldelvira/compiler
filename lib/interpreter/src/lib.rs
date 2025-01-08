@@ -7,7 +7,7 @@ use ast::expr::CallExpr;
 use ast::visitor::{walk_call, VisitorResult};
 use ast::AstRef;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
-use session::with_symbol;
+use session::{symbol_equals, with_symbol};
 
 use self::enviroment::Enviroment;
 mod enviroment;
@@ -92,7 +92,7 @@ impl Visitor<'_> for Interpreter {
 
         for decl in &prog.decls {
             if let DeclarationKind::Function(f) = &decl.kind {
-                if with_symbol(f.name, |name| { name == "main" }) {
+                if f.name == "main" {
                     let callee = f.name;
                     let main = CallExpr {
                         decl: AstRef::from(Rc::clone(f)),

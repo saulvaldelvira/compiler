@@ -5,6 +5,19 @@ use std::sync::RwLock;
 #[repr(transparent)]
 pub struct Symbol(interner::Symbol);
 
+impl PartialEq<&str> for Symbol {
+    /// Attemps to resolve the symbol, and compares it
+    /// with the given string
+    ///
+    /// NOTE: If the symbol doesn't exist in the session
+    /// storage, it returns false.
+    fn eq(&self, other: &&str) -> bool {
+        try_with_symbol(*self, |s| {
+            s.is_some_and(|s| s == *other)
+        })
+    }
+}
+
 impl Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         try_with_symbol(*self, |sym| {
@@ -77,6 +90,10 @@ pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
     with_session_interner(|i| {
         i.resolve_unchecked(sym, f)
     })
+}
+
+pub fn symbol_equals(sym: Symbol, o: &str) -> bool {
+    with_symbol(sym, |s| s == o)
 }
 
 #[inline(always)]
