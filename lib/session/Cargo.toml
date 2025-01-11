@@ -3,5 +3,7 @@ name = "session"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-interner = { path = "../interner" }
+[dependencies.interner]
+package = "interns"
+git = "https://github.com/saulvaldelvira/interner"
+version = ">=0.1.0"

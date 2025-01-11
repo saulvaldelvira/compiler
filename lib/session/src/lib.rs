@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 use std::sync::RwLock;
 
+use interner::StringInterner;
+
 #[derive(Clone,Copy,Hash,Eq,PartialEq)]
 #[repr(transparent)]
-pub struct Symbol(interner::Symbol);
+pub struct Symbol(interner::Symbol<str>);
 
 impl PartialEq<&str> for Symbol {
     /// Attemps to resolve the symbol, and compares it
@@ -29,7 +31,7 @@ impl Debug for Symbol {
     }
 }
 
-pub struct Interner(RwLock<interner::Interner>);
+pub struct Interner(RwLock<StringInterner>);
 
 impl Interner {
     pub fn get_or_intern(&self, src: &str) -> Symbol {
