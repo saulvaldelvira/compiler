@@ -5,7 +5,7 @@
 pub mod expr;
 pub mod stmt;
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -59,15 +59,31 @@ impl<T> AstDecorated<T> {
     }
 }
 
-impl<T: Clone> AstDecorated<T> {
-    pub fn get(&self) -> Option<T> {
-        self.0.borrow().deref().clone()
-    }
-}
-
 impl<T> Default for AstDecorated<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: Clone> AstDecorated<T> {
+    pub fn cloned(&self) -> Option<T> {
+        self.0.borrow().clone()
+    }
+}
+
+impl<T> AstDecorated<T> {
+    pub fn get(&self) -> Option<Ref<'_, T>> {
+        let inner = self.0.borrow();
+        if inner.is_some() {
+            Some(Ref::map(inner, |opt| opt.as_ref().unwrap()))
+        } else {
+            None
+        }
+    }
+
+    pub fn unwrap(&self) -> Ref<'_, T> {
+        let inner = self.0.borrow();
+        Ref::map(inner, |opt| opt.as_ref().unwrap())
     }
 }
 
