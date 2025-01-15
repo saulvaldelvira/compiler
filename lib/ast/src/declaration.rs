@@ -17,15 +17,9 @@ pub struct VariableDecl {
 }
 
 #[derive(Debug)]
-pub struct FunctionArgument {
-    pub name: Symbol,
-    pub ty: Type,
-}
-
-#[derive(Debug)]
 pub struct FunctionDecl {
     pub name: Symbol,
-    pub args: Box<[FunctionArgument]>,
+    pub args: Box<[Rc<VariableDecl>]>,
     pub return_type: Type,
     pub body: BlockStmt,
 }

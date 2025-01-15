@@ -10,12 +10,13 @@ use session::Symbol;
 
 enum Pass {
     Discover,
+    Global,
     Link,
     Unset
 }
 
 pub struct Identification {
-    scopes: Scope,
+    scopes: Scopes,
     n_errors: usize,
     pass: Pass,
 }
@@ -23,7 +24,7 @@ pub struct Identification {
 impl Identification {
     pub fn new() -> Self {
         Identification {
-            scopes: Scope::new(),
+            scopes: Scopes::new(),
             n_errors: 0,
             pass: Pass::Unset
         }
@@ -39,9 +40,14 @@ impl Identification {
     }
 
     pub fn process(&mut self, program: &Program) {
+        self.pass = Pass::Global;
+        self.visit_program(program);
+        if self.n_errors > 0 { return }
+
         self.pass = Pass::Discover;
         self.visit_program(program);
         if self.n_errors > 0 { return }
+
         self.pass = Pass::Link;
         self.visit_program(program);
     }
@@ -77,6 +83,7 @@ impl<'ast> Visitor<'ast> for Identification {
 
     fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) {
         self.scopes.def_fn(f.name, Rc::clone(f));
+        if matches!(self.pass, Pass::Global) { return }
         self.scopes.set();
         walk_function_decl(self, f);
         self.scopes.reset();
@@ -102,9 +109,9 @@ pub struct ScopeLevel {
     functions: HashMap<Symbol,Rc<FunctionDecl>>,
 }
 
-pub struct Scope(Vec<ScopeLevel>);
+pub struct Scopes(Vec<ScopeLevel>);
 
-impl Scope {
+impl Scopes {
     pub fn new() -> Self {
         let mut slf = Self(Vec::new());
         slf.set();

@@ -1,6 +1,7 @@
 pub mod error;
 
 use core::str;
+use std::rc::Rc;
 
 use ast::types::{CustomType, Type, TypeKind};
 use ast::{AstDecorated, AstRef, Expression};
@@ -11,7 +12,7 @@ use lexer::token::{Token, TokenKind};
 use ast::expr::{AssignmentExpr, BinaryExpr, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
-use ast::declaration::{Declaration, DeclarationKind, FunctionArgument, FunctionDecl, VariableDecl};
+use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
 use lexer::{Span, unescaped::Unescaped};
 use session::{with_session, with_session_interner};
 use self::error::ParseError;
@@ -75,18 +76,24 @@ impl<'src> Parser<'src> {
 
         let mut args = Vec::new();
 
+        let mut first = true;
         while !self.match_type(TokenKind::RightParen) {
+            if !first {
+                self.consume(TokenKind::Comma)?;
+            }
+            first = false;
             let arg_name = self.consume_ident()?;
             self.consume(TokenKind::Colon)?;
             let ty = self.ty()?;
-            if !self.match_type(TokenKind::Comma) {
-                break;
-            }
 
-            args.push(FunctionArgument {
-                ty,
-                name: arg_name
-            });
+            let vardecl = VariableDecl {
+                name: arg_name,
+                ty: AstDecorated::from(ty),
+                is_const: false,
+                init: None,
+            };
+
+            args.push(Rc::new(vardecl));
         }
 
         let return_type = if self.match_type(TokenKind::Arrow) {

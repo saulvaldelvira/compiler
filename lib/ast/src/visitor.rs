@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 use std::rc::Rc;
 
-use crate::declaration::{DeclarationKind, FunctionArgument, FunctionDecl};
+use crate::declaration::{DeclarationKind, FunctionDecl};
 use crate::expr::CallExpr;
 use crate::stmt::StatementKind;
 use crate::types::Type;
@@ -134,7 +134,7 @@ pub fn walk_program<'ast, V: Visitor<'ast>>(v: &mut V, program: &'ast Program) -
 }
 
 pub fn walk_function_decl<'ast, V: Visitor<'ast>>(v: &mut V, f: &'ast FunctionDecl) -> V::Result {
-    f.args.iter().for_each(|FunctionArgument { ty, .. }| { v.visit_type(ty); } );
+    f.args.iter().for_each(|vardecl| { v.visit_vardecl(vardecl); } );
     v.visit_type(&f.return_type);
     v.visit_block(&f.body);
 
