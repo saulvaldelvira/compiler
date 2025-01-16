@@ -5,12 +5,13 @@ use crate::declaration::{DeclarationKind, FunctionDecl};
 use crate::expr::CallExpr;
 use crate::stmt::StatementKind;
 use crate::types::Type;
-use crate::Expression;
+use crate::{Expression, AST};
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
 pub trait Visitor<'ast> : Sized {
     type Result: VisitorResult;
 
+    fn visit_ast(&mut self, a: &'ast AST) -> Self::Result { walk_ast(self, a) }
     fn visit_unary(&mut self, u: &'ast UnaryExpr) -> Self::Result { self.visit_expression(&u.expr) }
     fn visit_binary(&mut self, b: &'ast BinaryExpr) -> Self::Result {
         self.visit_expression(&b.left);
@@ -118,6 +119,16 @@ pub trait Visitor<'ast> : Sized {
     }
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
         walk_call(self, call)
+    }
+}
+
+pub fn walk_ast<'ast, V: Visitor<'ast>>(v: &mut V, ast: &'ast AST) -> V::Result {
+    match ast {
+        AST::Program(program) => v.visit_program(program),
+        AST::Expression(expression) => v.visit_expression(expression),
+        AST::Declaration(declaration) => v.visit_declaration(declaration),
+        AST::Statement(statement) => v.visit_statement(statement),
+        AST::Type(t) => v.visit_type(t),
     }
 }
 

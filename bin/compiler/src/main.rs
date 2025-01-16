@@ -1,9 +1,10 @@
+use std::io::{stdout, Write};
 use std::process::exit;
 use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
-use ast::Program;
-use ast_passes::perform_identification;
+use ast::{Program, AST};
+use ast_passes::{perform_identification, print_ast};
 use config::Config;
 use interpreter::Interpreter;
 use lexer::token::Token;
@@ -28,16 +29,17 @@ pub fn parse(tokens: Box<[Token]>, src: &str) -> Program {
     })
 }
 
-fn process(text: &str) {
-    /* println!("*** LEXER ***"); */
+fn make_ast(text: &str) -> Program {
     let tokens = tokenize(text);
-    /* tokens.iter().for_each(|t| println!("{t:#?}")); */
-    /* println!("\n*** PARSER ***"); */
-    let program = parse(tokens, text);
+    parse(tokens, text)
+}
 
-    if perform_identification(&program).is_err() {
-        return
-    }
+fn compile(text: &str, _conf: &Config) -> utils::Result<()> {
+    let program = make_ast(text);
+
+    perform_identification(&program).map_err(|err| {
+        format!("Identification: {err} errors")
+    })?;
 
     let interpreter = Interpreter::new();
     let mut interpreter = interpreter;
@@ -47,24 +49,44 @@ fn process(text: &str) {
 {program:#?}
 ================================================================================");
     interpreter.interpret(&program);
+    Ok(())
+}
+
+fn print(text: &str, _conf: &Config) -> utils::Result<()> {
+    let program = make_ast(text);
+    let mut buf = String::new();
+    print_ast(&AST::Program(program), &mut buf)?;
+    stdout().write_all(buf.as_bytes())?;
+    Ok(())
+}
+
+fn process(text: &str, conf: &Config) {
+    match conf.op() {
+        config::Op::Compile => compile(text, conf),
+        config::Op::Print => print(text, conf),
+    }.unwrap_or_else(|err| {
+        eprint!("ERROR: {err}");
+        process::exit(1)
+    })
 }
 
 fn main() {
     let conf = Config::parse(env::args());
-    for file in conf.files() {
-        let text = fs::read_to_string(file).unwrap_or_else(|err| {
-            eprintln!("Error reading \"{file}\": {err}");
-            process::exit(1);
-        });
-        process(&text);
-    }
     if conf.files().is_empty() {
         let mut text = String::new();
         stdin().read_to_string(&mut text).unwrap_or_else(|err| {
             eprintln!("Error reading stdin: {err}");
             exit(1)
         });
-        process(&text);
+        process(&text, &conf);
+    } else {
+        for file in conf.files() {
+            let text = fs::read_to_string(file).unwrap_or_else(|err| {
+                eprintln!("Error reading \"{file}\": {err}");
+                process::exit(1);
+            });
+            process(&text, &conf);
+        }
     }
 }
 

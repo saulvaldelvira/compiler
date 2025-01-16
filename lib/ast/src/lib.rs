@@ -16,7 +16,16 @@ pub mod types;
 pub mod declaration;
 pub use declaration::Declaration;
 pub mod visitor;
+use types::Type;
 pub use visitor::Visitor;
+
+pub enum AST {
+    Program(Program),
+    Expression(Expression),
+    Declaration(Declaration),
+    Statement(Statement),
+    Type(Type),
+}
 
 #[derive(Debug)]
 pub struct Program {
