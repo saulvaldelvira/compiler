@@ -8,6 +8,10 @@ use crate::types::Type;
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
+pub mod prelude {
+    pub use super::{Visitor,VisitorResult};
+}
+
 pub trait Visitor<'ast> : Sized {
     type Result: VisitorResult;
 
