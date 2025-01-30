@@ -77,8 +77,6 @@ impl<'ast> Visitor<'ast> for Identification {
             Some(decl) => v.decl.set(Rc::clone(decl)),
             None => self.error_fmt(format_args!("Undefined variable \"{:?}\"", v.name)),
         }
-
-
     }
 
     fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) {
@@ -98,8 +96,6 @@ impl<'ast> Visitor<'ast> for Identification {
             },
             None => self.error_fmt(format_args!("Undefined function \"{:?}\"", call.callee)),
         }
-
-
     }
 }
 

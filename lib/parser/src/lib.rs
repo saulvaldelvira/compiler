@@ -52,22 +52,29 @@ impl<'src> Parser<'src> {
     }
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
-    /* PRIVATE */
-    fn declaration(&mut self) -> Result<Declaration> {
-        if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
-            self.var_decl()
-        }
-        else if self.match_type(TokenKind::Fn) {
-            self.function()
-        } else {
-            Err("Expected declaration".into())
-        }
-    }
+
     fn consume_ident(&mut self) -> Result<Symbol> {
         let span = self.consume(TokenKind::Identifier)?.span;
         Ok(with_session_interner(|i| {
             i.get_or_intern(span.slice(self.src))
         }))
+    }
+
+    /* ===== DECLARATION ===== */
+    fn declaration(&mut self) -> Result<Declaration> {
+        if let Some(vdecl) = self.try_var_decl() {
+            vdecl
+        }
+        else if let Some(func) = self.try_function() {
+            func
+        } else {
+            Err("Expected declaration".into())
+        }
+    }
+    fn try_function(&mut self) -> Option<Result<Declaration>> {
+        if self.match_type(TokenKind::Fn) {
+            Some(self.function())
+        } else { None }
     }
     fn function(&mut self) -> Result<Declaration> {
         let start_span = self.previous_span()?;
@@ -117,33 +124,10 @@ impl<'src> Parser<'src> {
             span
         })
     }
-    fn ty(&mut self) -> Result<Type> {
-        macro_rules! ty {
-            ($tk:expr) => {
-                Ok(Type{
-                    kind: $tk,
-                    span: self.previous_span()?
-                })
-            };
-        }
-        if self.match_type(TokenKind::Int) {
-            ty!(TypeKind::Int)
-        }
-        else if self.match_type(TokenKind::Float) {
-            ty!(TypeKind::Float)
-        }
-        else if self.match_type(TokenKind::Char) {
-            ty!(TypeKind::Char)
-        }
-        else if self.match_type(TokenKind::Bool) {
-            ty!(TypeKind::Bool)
-        }
-        else if self.match_type(TokenKind::Identifier) {
-            let name = self.previous_lexem()?;
-            ty!(TypeKind::Custom(CustomType { name }))
-        } else {
-            Err("Expected type".into())
-        }
+    fn try_var_decl(&mut self) -> Option<Result<Declaration>> {
+        if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
+            Some(self.var_decl())
+        } else { None }
     }
     fn var_decl(&mut self) -> Result<Declaration> {
         let prev = self.previous()?;
@@ -172,10 +156,9 @@ impl<'src> Parser<'src> {
             init = Some(self.expression()?);
         }
 
-        let span = match &init {
-            Some(i) => span.join(&i.span),
-            None => span
-        };
+        let semicolon = self.consume(TokenKind::Semicolon)?.span;
+        let span = span.join(&semicolon);
+
         let decl = Declaration {
             kind: DeclarationKind::Variable(
                       VariableDecl {
@@ -189,24 +172,60 @@ impl<'src> Parser<'src> {
         };
         Ok(decl)
     }
-    fn var_decl_stmt(&mut self) -> Result<Statement> {
-        let inner = self.var_decl()?;
-        let comma = self.consume(TokenKind::Semicolon)?;
-        let span = inner.span.join(&comma.span);
-
-        let stmt = Statement {
-            kind: StatementKind::Decl(
-                      DeclarationStmt { inner }
-                  ),
-            span
-        };
-        Ok(stmt)
+    fn ty(&mut self) -> Result<Type> {
+        macro_rules! ty {
+            ($tk:expr) => {
+                Ok(Type{
+                    kind: $tk,
+                    span: self.previous_span()?
+                })
+            };
+        }
+        if self.match_type(TokenKind::Int) {
+            ty!(TypeKind::Int)
+        }
+        else if self.match_type(TokenKind::Float) {
+            ty!(TypeKind::Float)
+        }
+        else if self.match_type(TokenKind::Char) {
+            ty!(TypeKind::Char)
+        }
+        else if self.match_type(TokenKind::Bool) {
+            ty!(TypeKind::Bool)
+        }
+        else if self.match_type(TokenKind::Identifier) {
+            let name = self.previous_lexem()?;
+            ty!(TypeKind::Custom(CustomType { name }))
+        } else {
+            Err("Expected type".into())
+        }
     }
     fn statement(&mut self) -> Result<Statement> {
-        if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
-            self.var_decl_stmt()
-        } else {
-            self.block()
+        if let Some(vdecl) = self.try_var_decl() {
+            let vdecl = vdecl?;
+            let span = vdecl.span;
+            let stmt = Statement {
+                kind: StatementKind::Decl(
+                          DeclarationStmt { inner: vdecl }
+                      ),
+                span
+            };
+            Ok(stmt)
+        }
+        else if let Some(block) = self.try_block() {
+            block
+        }
+        else if self.match_type(TokenKind::If) {
+            self.if_stmt()
+        }
+        else if self.match_type(TokenKind::While) {
+            self.while_stmt()
+        }
+        else if self.match_type(TokenKind::For) {
+            self.for_stmt()
+        }
+        else {
+            self.single_line_stmt()
         }
     }
     fn if_stmt(&mut self) -> Result<Statement> {
@@ -243,27 +262,22 @@ impl<'src> Parser<'src> {
         while !self.check(TokenKind::RightBrace) && !self.is_finished() {
             stmts.push(self.statement()?);
         }
-
         Ok(stmts)
     }
-    fn block(&mut self) -> Result<Statement> {
+    fn try_block(&mut self) -> Option<Result<Statement>> {
         if self.match_type(TokenKind::LeftBrace) {
-            let start_span = self.previous_span()?;
-            let stmts = self.block_inner()?;
-            let end_span = self.consume(TokenKind::RightBrace)?.span;
-            Ok(Statement {
-                kind: StatementKind::Block(BlockStmt { stmts }),
-                span: start_span.join(&end_span)
-            })
-        } else if self.match_type(TokenKind::If) {
-            self.if_stmt()
-        } else if self.match_type(TokenKind::While) {
-            self.while_stmt()
-        } else if self.match_type(TokenKind::For) {
-            self.for_stmt()
-        } else {
-            self.single_line_stmt()
-        }
+           Some(self.block())
+        } else { None }
+    }
+    fn block(&mut self) -> Result<Statement> {
+        self.consume(TokenKind::LeftBrace)?;
+        let start_span = self.previous_span()?;
+        let stmts = self.block_inner()?;
+        let end_span = self.consume(TokenKind::RightBrace).unwrap().span;
+        Ok(Statement {
+            kind: StatementKind::Block(BlockStmt { stmts }),
+            span: start_span.join(&end_span)
+        })
     }
     fn for_stmt(&mut self) -> Result<Statement> {
         let span = self.previous()?.span;
