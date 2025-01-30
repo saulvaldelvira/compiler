@@ -29,10 +29,13 @@ impl fmt::Display for FilePosition {
 }
 
 impl Span {
+    pub const fn new() -> Span {
+        Span { offset: 0, len: 0 }
+    }
     /// Joins two spans together.
     /// Returns the smallest Span that covers both.
     #[must_use]
-    pub fn join(&self, other: &Span) -> Span {
+    pub const fn join(&self, other: &Span) -> Span {
         let (left,right) =
             if self.offset < other.offset {
                 (self,other)
@@ -87,7 +90,7 @@ impl Span {
     /// offset of the span plus it's length
     #[must_use]
     #[inline(always)]
-    pub fn end_offset(&self) -> usize {
+    pub const fn end_offset(&self) -> usize {
         self.offset + self.len
     }
 }

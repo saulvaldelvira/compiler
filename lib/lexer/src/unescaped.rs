@@ -12,7 +12,7 @@ use std::str::Chars;
 /// /* \g is NOT a valid escape character */
 /// assert_eq!(None, escape_char('g'));
 /// ```
-pub fn escape_char(c: char) -> Option<char> {
+pub const fn escape_char(c: char) -> Option<char> {
     let c = match c {
         'n' => '\n',
         'r' => '\r',

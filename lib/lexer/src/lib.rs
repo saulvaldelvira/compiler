@@ -65,8 +65,8 @@ impl<'lex> Lexer<'lex> {
             Ok(tokens.into_boxed_slice())
         }
     }
-    pub fn has_errors(&self) -> bool { self.n_errors > 0 }
-    pub fn n_errors(&self) -> u32 { self.n_errors }
+    pub const fn has_errors(&self) -> bool { self.n_errors > 0 }
+    pub const fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
     fn add_token(&self, kind: TokenKind) -> Option<Token> {
         Some(Token {

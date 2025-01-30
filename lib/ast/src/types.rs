@@ -40,10 +40,10 @@ pub struct Type {
 }
 
 impl Type {
-    pub fn empty_implicit() -> Self {
+    pub const fn empty_implicit() -> Self {
         Self {
             kind: TypeKind::Empty,
-            span: Span::default()
+            span: Span::new()
         }
     }
 }
