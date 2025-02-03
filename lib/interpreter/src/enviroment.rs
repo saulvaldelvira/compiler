@@ -5,7 +5,7 @@ use session::Symbol;
 
 struct Var {
     is_const: bool,
-    value: LitValue,
+    value: Option<LitValue>,
 }
 
 #[derive(Default)]
@@ -29,7 +29,7 @@ impl Enviroment {
         global.push_back(EnviromentScope::new());
         Self { scopes: global }
     }
-    pub fn define_var(&mut self, name: Symbol, value: LitValue, decl: &VariableDecl) {
+    pub fn define_var(&mut self, name: Symbol, value: Option<LitValue>, decl: &VariableDecl) {
         let scope = self.scopes.back_mut().unwrap();
         scope.variables.insert(name, Var { is_const: decl.is_const, value });
     }
@@ -43,8 +43,15 @@ impl Enviroment {
         }
         None
     }
-    pub fn get_val(&mut self, name: &Symbol) -> Option<&mut LitValue> {
-        self.get_var(name).map(|var| &mut var.value)
+    pub fn get_val(&mut self, name: &Symbol) -> Option<&LitValue> {
+        self.get_var(name).map(|var| &var.value).unwrap().as_ref()
+    }
+    pub fn set_val(&mut self, name: &Symbol, val: LitValue) -> Option<()> {
+        match self.get_var(name) {
+            Some(v) => v.value = Some(val),
+            None => return None
+        };
+        Some(())
     }
     pub fn is_const(&mut self, name: &Symbol) -> bool {
         self.get_var(name).map(|var| var.is_const).unwrap_or(false)

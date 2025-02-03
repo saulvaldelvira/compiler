@@ -13,6 +13,15 @@ pub struct BinaryExpr {
     pub left: Expr,
     pub op: Symbol,
     pub right: Expr,
+    pub kind: BinaryExprKind,
+}
+
+#[derive(Debug)]
+pub enum BinaryExprKind {
+    Logical,
+    Arithmetic,
+    Comparison,
+    Comma,
 }
 
 #[derive(Debug)]
@@ -109,24 +118,26 @@ impl Expression {
 
 #[derive(Clone,Debug)]
 pub enum LitValue {
-    Number(f64),
+    Int(i32),
+    Float(f64),
     Str(Symbol),
     Bool(bool),
     Char(char),
-    Nil
 }
 
 impl LitValue {
     pub fn truthy(&self) -> bool {
         match self {
-            LitValue::Number(n) => *n != 0.0,
+            LitValue::Int(n) => *n != 0,
+            LitValue::Float(n) => *n != 0.0,
             LitValue::Bool(b) => *b,
-            LitValue::Nil | LitValue::Char(_) | LitValue::Str(_) => false,
+            LitValue::Char(_) | LitValue::Str(_) => false,
         }
     }
     pub fn print(&self) {
         match self {
-            LitValue::Number(n) => print!("{n}"),
+            LitValue::Int(n) => print!("{n}"),
+            LitValue::Float(n) => print!("{n}"),
             LitValue::Str(s) => {
                 session::with_symbol(*s, |s| {
                     let s = s.strip_prefix('"').unwrap()
@@ -135,7 +146,6 @@ impl LitValue {
                 });
             },
             LitValue::Bool(b) => print!("{b}"),
-            LitValue::Nil => print!("nil"),
             LitValue::Char(c) => print!("{c}"),
         }
     }

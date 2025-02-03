@@ -3,12 +3,6 @@ use lexer::Span;
 use session::Symbol;
 
 #[derive(Debug,Clone)]
-pub struct StringType;
-impl StringType {
-    const SIZE: usize = 8;
-}
-
-#[derive(Debug,Clone)]
 pub struct ErrorType {
     msg: Cow<'static,str>,
 }
@@ -27,7 +21,7 @@ pub enum TypeKind {
     Float,
     Bool,
     Char,
-    String(StringType),
+    String,
     Error(ErrorType),
     Custom(CustomType),
     Empty,
@@ -39,6 +33,17 @@ pub struct Type {
     pub span: Span,
 }
 
+macro_rules! impl_ty {
+    ($n:ident, $v:ident) => {
+        pub fn $n() -> Self {
+            Self {
+                kind: TypeKind:: $v,
+                span: Span::default(),
+            }
+        }
+    };
+}
+
 impl Type {
     pub const fn empty_implicit() -> Self {
         Self {
@@ -46,6 +51,11 @@ impl Type {
             span: Span::new()
         }
     }
+    impl_ty!(int, Int);
+    impl_ty!(float, Float);
+    impl_ty!(string, String);
+    impl_ty!(bool, Bool);
+    impl_ty!(char, Char);
 }
 
 use TypeKind as TK;
@@ -63,7 +73,7 @@ impl Type {
     pub fn size(&self) -> usize {
         match &self.kind {
             TK::Bool => 1,
-            TK::String(_) => StringType::SIZE,
+            TK::String => 8,
             TK::Error(err) => err.size(),
             TK::Empty => 0,
             TypeKind::Int => 4,
@@ -77,11 +87,11 @@ impl Type {
         match &self.kind {
             TK::Bool => {
                 match &other.kind {
-                    TK::String(_) => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }), span },
+                    TK::String => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }), span },
                     _ => other.clone(),
                 }
             },
-            TK::String(_) => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }), span },
+            TK::String => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }), span },
             TK::Empty => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with the empty type".into() }), span},
             TK::Error { .. } => self.clone(),
             TypeKind::Int => match other.kind {

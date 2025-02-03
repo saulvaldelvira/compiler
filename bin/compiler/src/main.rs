@@ -3,7 +3,7 @@ use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
 use ast::Program;
-use ast_passes::perform_identification;
+use ast_passes::{perform_identification, perform_typechecking};
 use config::Config;
 use interpreter::Interpreter;
 use lexer::token::Token;
@@ -36,6 +36,10 @@ fn process(text: &str) {
     let program = parse(tokens, text);
 
     if perform_identification(&program).is_err() {
+        return
+    }
+
+    if perform_typechecking(&program).is_err() {
         return
     }
 

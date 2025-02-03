@@ -114,17 +114,17 @@ impl Visitor<'_> for Interpreter {
         let val = with_symbol(u.op, |op| {
             match op {
                 "!" => match val {
-                    LitValue::Number(n) => LitValue::Bool(n != 0.0),
+                    LitValue::Int(n) => LitValue::Bool(n != 0),
+                    LitValue::Float(n) => LitValue::Bool(n != 0.0),
                     LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
                     LitValue::Bool(b) => LitValue::Bool(!b),
-                    LitValue::Nil => LitValue::Nil,
                     LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
                 },
                 "-" => match val {
-                    LitValue::Number(n) => LitValue::Number(-n),
-                    LitValue::Char(c) => LitValue::Number(-(c as i32) as f64),
-                    LitValue::Bool(b) => LitValue::Number((0 - b as u8) as f64),
-                    LitValue::Nil => LitValue::Nil,
+                    LitValue::Int(n) => LitValue::Int(-n),
+                    LitValue::Float(n) => LitValue::Float(-n),
+                    LitValue::Char(c) => LitValue::Int(-(c as i32)),
+                    LitValue::Bool(b) => LitValue::Int((0 - b as u8) as i32),
                     LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr.span),
                 },
                 "+" => val,
@@ -149,27 +149,21 @@ impl Visitor<'_> for Interpreter {
 
         let left = match left_val {
             LitValue::Str(_) => err!("Can't use a string in a binary expression" ; b.left.span),
-            LitValue::Nil => {
-                self.ctx.values.push(LitValue::Nil);
-                return Self::Result::output()
-            },
-            LitValue::Number(n) => n,
+            LitValue::Int(n) => n as f64,
+            LitValue::Float(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
             LitValue::Char(c) => c as u32 as f64,
         };
         let right = match right_val {
             LitValue::Str(_) => err!("Can't use a string in a binary expression" ; b.right.span),
-            LitValue::Nil => {
-                self.ctx.values.push(LitValue::Nil);
-                return Self::Result::output()
-            },
-            LitValue::Number(n) => n,
+            LitValue::Int(n) => n as f64,
+            LitValue::Float(n) => n,
             LitValue::Bool(b) => b as u8 as f64,
             LitValue::Char(c) => c as u32 as f64,
         };
         macro_rules! num {
             ($e:expr) => {
-                LitValue::Number($e)
+                LitValue::Float($e)
             };
         }
         let res = with_symbol(b.op, |op| {
@@ -276,14 +270,12 @@ impl Visitor<'_> for Interpreter {
                         err!("Assignment to const variable \"{name}\""; a.left.span);
                     });
                 }
-                let variable = self.enviroment
-                                   .get_val(name)
+                self.enviroment.set_val(name, right.clone())
                                    .unwrap_or_else(|| {
                                         with_symbol(*name, |name| {
                                             err!("Assignment to an undefined variable \"{name}\"" ; a.left.span)
                                         })
                                     });
-                *variable = right.clone();
             },
             _ => unreachable!(),
         };
@@ -305,9 +297,9 @@ impl Visitor<'_> for Interpreter {
         let init = match &v.init {
             Some(i) => {
                 self.visit_expression(i)?;
-                self.ctx.pop_val()
+                Some(self.ctx.pop_val())
             },
-            None => LitValue::Nil,
+            None => None,
         };
         self.enviroment.define_var(v.name, init, v);
         Self::Result::output()

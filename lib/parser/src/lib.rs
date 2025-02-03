@@ -9,7 +9,7 @@ use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{AssignmentExpr, BinaryExpr, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
+use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
@@ -354,7 +354,7 @@ impl<'src> Parser<'src> {
             let span = left.span.join(&right.span);
             left = Expression::new(
                 ExpressionKind::Binary(
-                    BinaryExpr { left: Box::new(left), op, right }
+                    BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comma }
                 ),
                 span
             );
@@ -396,7 +396,7 @@ impl<'src> Parser<'src> {
             let right = Box::new(self.comparison()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comparison }),
                 span
             )
         }
@@ -413,7 +413,7 @@ impl<'src> Parser<'src> {
             let right = Box::new(self.term()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comparison }),
                 span
             )
         }
@@ -426,7 +426,7 @@ impl<'src> Parser<'src> {
             let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Arithmetic }),
                 span
             )
         }
@@ -439,7 +439,7 @@ impl<'src> Parser<'src> {
             let right = Box::new(self.unary()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right }),
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Arithmetic }),
                 span
             )
         }
@@ -469,10 +469,15 @@ impl<'src> Parser<'src> {
         else if self.match_type(TokenKind::String) {
             LitValue::Str(self.previous_lexem()?)
         }
-        else if self.match_types(&[TokenKind::IntLiteral, TokenKind::FloatLiteral]) {
+        else if self.match_type(TokenKind::IntLiteral) {
+            let f: i32 = self.previous()?.span.slice(self.src).parse()?;
+            LitValue::Int(f)
+        }
+        else if self.match_type(TokenKind::FloatLiteral) {
             let f: f64 = self.previous()?.span.slice(self.src).parse()?;
-            LitValue::Number(f)
-        } else if self.match_type(TokenKind::CharLiteral) {
+            LitValue::Float(f)
+        }
+        else if self.match_type(TokenKind::CharLiteral) {
             let prev = self.previous().unwrap();
             let lit = prev.span.slice(self.src)
                 .strip_prefix('\'').unwrap()

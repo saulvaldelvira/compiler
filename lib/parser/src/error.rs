@@ -1,4 +1,4 @@
-use std::num::ParseFloatError;
+use std::num::{ParseFloatError, ParseIntError};
 use std::{borrow::Cow, error::Error, fmt::{Debug, Display}};
 
 pub struct ParseError {
@@ -32,6 +32,12 @@ impl From<String> for ParseError {
 
 impl From<ParseFloatError> for ParseError {
     fn from(value: ParseFloatError) -> Self {
+        ParseError::new(value.to_string())
+    }
+}
+
+impl From<ParseIntError> for ParseError {
+    fn from(value: ParseIntError) -> Self {
         ParseError::new(value.to_string())
     }
 }
