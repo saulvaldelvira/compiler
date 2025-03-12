@@ -3,7 +3,7 @@ use session::Symbol;
 
 #[derive(Debug,Clone)]
 pub struct ErrorType {
-    msg: Cow<'static,str>,
+    pub msg: Cow<'static,str>,
 }
 
 impl PartialEq for ErrorType {
@@ -84,29 +84,38 @@ impl Type {
             _ => todo!()
         }
     }
-    pub fn arithmetic(&self, other: Type) -> Type {
-        match &self.kind {
-            TK::Bool => {
-                match &other.kind {
-                    TK::String => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }) },
-                    _ => other.clone(),
-                }
-            },
-            TK::String => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with strings".into() }) },
-            TK::Empty => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with the empty type".into() })},
-            TK::Error { .. } => self.clone(),
-            TypeKind::Int => match other.kind {
-                TK::Float => Type { kind: TypeKind::Float },
-                TK::Int => Type { kind: TypeKind::Int },
-                _ => Type { kind: TK::Error(ErrorType{ msg: format!("Can't operate arithmetically with {:?}", other.kind).into() })},
-            }
-            TypeKind::Float => match other.kind {
-                TK::Int | TK::Float => Type { kind: TypeKind::Float },
-                _ => error(format!("Can't operate arithmetically with {:?}", other.kind))
-            }
-            TK::Char => Type { kind: TK::Error(ErrorType{ msg: "Can't operate arithmetically with chars".into() }) },
-            _ => todo!()
+
+    pub fn arithmetic(&self, other: &Type) -> Type {
+        if !matches!(self.kind, TK::Int | TK::Float) {
+            return error(format!("Can't operate arithmetically with {:#?}", self.kind))
         }
+        if self.kind != other.kind {
+            return error(format!("Can't operate arithmetically on types {:#?} and {:#?}", self.kind, other.kind))
+        }
+
+        self.clone()
+    }
+
+    pub fn comparison(&self, other: &Type) -> Type {
+        if !matches!(self.kind, TK::Int | TK::Float) {
+            return error(format!("Can't compare {:#?}", self.kind))
+        }
+        if self.kind != other.kind {
+            return error(format!("Can't compare types {:#?} and {:#?}", self.kind, other.kind))
+        }
+
+        Type::bool()
+    }
+
+    pub fn logical(&self, other: &Type) -> Type {
+        if !matches!(self.kind, TK::Bool) {
+            return error(format!("Can't operate logically on {:#?}", self.kind))
+        }
+        if !matches!(other.kind, TK::Bool) {
+            return error(format!("Can't operate logically on {:#?}", other.kind))
+        }
+
+        Type::bool()
     }
 }
 

@@ -1,10 +1,13 @@
-use ast::types::{Type, TypeKind};
+use std::borrow::Cow;
+
+use ast::types::{ErrorType, Type, TypeKind};
 use ast::visitor::{walk_binary, walk_if_statement};
+use ast::Span;
 use ast::{Program, Visitor, visitor::VisitorResult};
 use error_manager::ErrorManager;
 
 pub struct TypeCheking {
-    error_manager: ErrorManager,
+    pub (super) error_manager: ErrorManager,
 }
 
 impl TypeCheking {
@@ -14,7 +17,14 @@ impl TypeCheking {
     pub fn process(&mut self, prog: &Program) {
         self.visit_program(prog);
     }
-    pub fn get_error_manager(&self) -> &ErrorManager { &self.error_manager }
+
+    pub fn error(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) -> Type {
+        let msg = msg.into();
+        self.error_manager.error(msg.clone(), span);
+        Type {
+            kind: TypeKind::Error(ErrorType { msg })
+        }
+    }
 }
 
 impl Visitor<'_> for TypeCheking {
@@ -25,12 +35,12 @@ impl Visitor<'_> for TypeCheking {
     fn visit_binary(&mut self, b: &'_ ast::expr::BinaryExpr) -> Self::Result {
         use ast::expr::BinaryExprKind;
 
-        walk_binary(self, b)?;
+        walk_binary(self, b);
 
         let ty = match b.kind {
-            BinaryExprKind::Logical => Type::bool(),
-            BinaryExprKind::Arithmetic => Type::float(),
-            BinaryExprKind::Comparison => Type::bool(),
+            BinaryExprKind::Logical => b.left.ty.unwrap().logical(&b.right.ty.unwrap()),
+            BinaryExprKind::Arithmetic => b.left.ty.unwrap().arithmetic(&b.right.ty.unwrap()),
+            BinaryExprKind::Comparison => b.left.ty.unwrap().comparison(&b.right.ty.unwrap()),
             BinaryExprKind::Comma => b.left.ty.cloned().unwrap(),
         };
 
@@ -53,7 +63,7 @@ impl Visitor<'_> for TypeCheking {
         let rt = a.right.ty.unwrap();
 
         if lt.kind != rt.kind {
-            self.error_manager.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
+            self.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
         }
 
         Some(a.left.ty.cloned().unwrap())
@@ -88,7 +98,12 @@ impl Visitor<'_> for TypeCheking {
             EK::Call(c) => self.visit_call(c),
         };
         match ty.clone() {
-            Some(ty) => { a.ty.set(ty); },
+            Some(ty) => {
+                if let TypeKind::Error(err) = &ty.kind {
+                    self.error_manager.error(err.msg.clone(), a.span);
+                }
+                a.ty.set(ty);
+            },
             None => {
                 self.error_manager.error("Unknown type", a.span);
             },

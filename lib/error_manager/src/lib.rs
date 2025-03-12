@@ -1,14 +1,16 @@
 use core::fmt;
+use std::borrow::Cow;
+use std::io;
 
 use lexer::Span;
 
-struct Error {
-    msg: String,
+pub struct Error {
+    msg: Cow<'static, str>,
     span: Option<Span>,
 }
 
 impl Error {
-    pub fn new(msg: impl Into<String>, span: impl Into<Option<Span>>) -> Self {
+    pub fn new(msg: impl Into<Cow<'static,str>>, span: impl Into<Option<Span>>) -> Self {
         Self {
             msg: msg.into(),
             span: span.into()
@@ -32,15 +34,20 @@ impl ErrorManager {
         Self { errors: Vec::new() }
     }
 
-    pub fn error(&mut self, msg: impl Into<String>, span: impl Into<Option<Span>>) {
+    pub fn error(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) {
        self.errors.push(Error::new(msg, span));
     }
 
     pub fn n_errors(&self) -> usize { self.errors.len() }
 
-    pub fn print_errors(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+    pub fn errors(&self) -> &[Error] { &self.errors }
+
+    pub fn print_errors(&self, out: &mut dyn io::Write) -> fmt::Result {
+        let mut buf = String::new();
         for err in &self.errors {
-            err.print(out)?;
+            err.print(&mut buf)?;
+            out.write_all(buf.as_bytes()).unwrap();
+            buf.clear();
         }
         Ok(())
     }

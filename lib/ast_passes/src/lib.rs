@@ -1,6 +1,5 @@
-use std::io::{stdout, Write};
-
 use ast::Program;
+use error_manager::ErrorManager;
 use identification::Identification;
 use type_checking::TypeCheking;
 
@@ -16,17 +15,12 @@ pub fn perform_identification(program: &Program) -> Result<(),usize> {
     }
 }
 
-pub fn perform_typechecking(program: &Program) -> Result<(),usize> {
-    let mut ident = TypeCheking::new();
-    ident.process(program);
-    match ident.get_error_manager().n_errors() {
+pub fn perform_typechecking(program: &Program) -> Result<(),ErrorManager> {
+    let mut tcheck = TypeCheking::new();
+    tcheck.process(program);
+    let TypeCheking { error_manager } = tcheck;
+    match error_manager.n_errors() {
         0 => Ok(()),
-        n => {
-            let mut s = String::new();
-            ident.get_error_manager().print_errors(&mut s).unwrap();
-            eprint!("{s}");
-            stdout().flush().unwrap();
-            Err(n)
-        }
+        _ => Err(error_manager)
     }
 }

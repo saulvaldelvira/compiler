@@ -21,14 +21,12 @@ pub struct Lexer<'lex> {
 delay! {
     static KEYWORDS : HashMap<&str,TokenKind> = {
         let mut map = HashMap::new();
-        map.insert("and",TokenKind::And);
         map.insert("class",TokenKind::Class);
         map.insert("else",TokenKind::Else);
         map.insert("false",TokenKind::False);
         map.insert("fn",TokenKind::Fn);
         map.insert("for",TokenKind::For);
         map.insert("if",TokenKind::If);
-        map.insert("or",TokenKind::Or);
         map.insert("print",TokenKind::Print);
         map.insert("int",TokenKind::Int);
         map.insert("char",TokenKind::Char);
@@ -134,6 +132,20 @@ impl<'lex> Lexer<'lex> {
                 } else {
                     self.add_token(TokenKind::Slash)
                 },
+            '&' => {
+                if self.c.match_next('&') {
+                    self.add_token(TokenKind::And)
+                } else {
+                    self.add_token(TokenKind::BitWiseAnd)
+                }
+            },
+            '|' => {
+                if self.c.match_next('|') {
+                    self.add_token(TokenKind::Or)
+                } else {
+                    self.add_token(TokenKind::BitWiseOr)
+                }
+            },
             '"' => self.string(),
             ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
             c =>

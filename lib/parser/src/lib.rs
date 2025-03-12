@@ -375,7 +375,7 @@ impl<'src> Parser<'src> {
         Ok(cond)
     }
     fn assignment(&mut self) -> Result<Expression> {
-        let left = self.equality()?;
+        let left = self.logical()?;
         let ast = if self.match_type(TokenKind::Equal) {
             let right = Box::new(self.assignment()?);
             let span = left.span.join(&right.span);
@@ -387,6 +387,19 @@ impl<'src> Parser<'src> {
             left
         };
         Ok(ast)
+    }
+    fn logical(&mut self) -> Result<Expression> {
+        let mut left = self.equality()?;
+        while self.match_types(&[TokenKind::Or, TokenKind::And]) {
+            let op = self.previous_lexem()?;
+            let right = Box::new(self.logical()?);
+            let span = left.span.join(&right.span);
+            left = Expression::new(
+                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Logical }),
+                span
+            )
+        }
+        Ok(left)
     }
     fn equality(&mut self) -> Result<Expression> {
         let mut left = self.comparison()?;

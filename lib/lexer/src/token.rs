@@ -101,9 +101,6 @@ pub enum TokenKind {
     /// "bool"
     Bool,
 
-    /// "and"
-    And,
-
     /// "class"
     Class,
 
@@ -121,9 +118,6 @@ pub enum TokenKind {
 
     /// "if"
     If,
-
-    /// "or"
-    Or,
 
     /// "print"
     Print,
@@ -153,7 +147,19 @@ pub enum TokenKind {
     Break,
 
     /// "continue"
-    Continue
+    Continue,
+
+    /// "&"
+    BitWiseAnd,
+
+    /// "|"
+    BitWiseOr,
+
+    /// "&&"
+    And,
+
+    /// "||"
+    Or,
 }
 
 /// A token consist on a discriminator [TokenKind] and a [Span]

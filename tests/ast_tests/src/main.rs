@@ -1,3 +1,4 @@
+use std::io::stdout;
 use std::process::exit;
 use std::{env, fs, process};
 
@@ -36,11 +37,13 @@ fn process(text: &str) {
         return
     }
 
-    if perform_typechecking(&program).is_err() {
-        return
+    println!("{program:#?}");
+
+    if let Err(em) = perform_typechecking(&program) {
+        em.print_errors(&mut stdout().lock()).unwrap();
+        /* return; */
     }
 
-    println!("{program:#?}")
 }
 
 fn main() {
