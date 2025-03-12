@@ -98,6 +98,10 @@ pub fn symbol_equals(sym: Symbol, o: &str) -> bool {
     with_symbol(sym, |s| s == o)
 }
 
+pub fn intern_str(src: &str) -> Symbol {
+    with_session_interner(|i| i.get_or_intern(src))
+}
+
 #[inline(always)]
 #[cold]
 fn cold() {}

@@ -1,20 +1,20 @@
 use ast::types::{Type, TypeKind};
 use ast::visitor::{walk_binary, walk_if_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
-
+use error_manager::ErrorManager;
 
 pub struct TypeCheking {
-    n_errors: usize,
+    error_manager: ErrorManager,
 }
 
 impl TypeCheking {
     pub fn new() -> Self {
-        Self { n_errors: 0 }
+        Self { error_manager: ErrorManager::new() }
     }
     pub fn process(&mut self, prog: &Program) {
         self.visit_program(prog);
     }
-    pub fn n_errors(&self) -> usize { self.n_errors }
+    pub fn get_error_manager(&self) -> &ErrorManager { &self.error_manager }
 }
 
 impl Visitor<'_> for TypeCheking {
@@ -48,6 +48,13 @@ impl Visitor<'_> for TypeCheking {
     fn visit_assignment(&mut self, a: &'_ ast::expr::AssignmentExpr) -> Self::Result {
         self.visit_expression(&a.left);
         self.visit_expression(&a.right);
+
+        let lt = a.left.ty.unwrap();
+        let rt = a.right.ty.unwrap();
+
+        if lt.kind != rt.kind {
+            self.error_manager.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
+        }
 
         Some(a.left.ty.cloned().unwrap())
     }
@@ -83,8 +90,7 @@ impl Visitor<'_> for TypeCheking {
         match ty.clone() {
             Some(ty) => { a.ty.set(ty); },
             None => {
-                eprintln!("TYPECHEKCKING: Unknown type");
-                self.n_errors += 1;
+                self.error_manager.error("Unknown type", a.span);
             },
         };
         ty
@@ -120,11 +126,10 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_if(&mut self, i: &'_ ast::stmt::IfStmt) -> Self::Result {
-        walk_if_statement(self, i)?;
+        walk_if_statement(self, i);
         let ty = i.cond.ty.unwrap();
         if !matches!(ty.kind, TypeKind::Bool) {
-            self.n_errors += 1;
-            eprint!("If condition must be bool type");
+            self.error_manager.error("If condition must be bool", i.cond.span);
         }
         None
     }

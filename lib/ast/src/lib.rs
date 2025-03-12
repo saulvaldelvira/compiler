@@ -18,6 +18,8 @@ pub use declaration::Declaration;
 pub mod visitor;
 pub use visitor::Visitor;
 
+pub use lexer::Span;
+
 #[derive(Debug)]
 pub struct Program {
     pub decls: Box<[Declaration]>,

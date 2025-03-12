@@ -16,6 +16,12 @@ pub struct VariableDecl {
     pub ty: AstDecorated<Type>,
 }
 
+impl VariableDecl {
+    pub fn new(name: Symbol, init: Option<Expression>, is_const: bool) -> Self {
+        Self { name, init, is_const, ty: AstDecorated::new() }
+    }
+}
+
 #[derive(Debug)]
 pub struct FunctionDecl {
     pub name: Symbol,

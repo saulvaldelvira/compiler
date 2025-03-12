@@ -2,6 +2,6 @@
 resolver = "2"
 members = [
     "bin/*",
-    "lib/*",
+    "lib/*", "tests/ast_tests",
 ]
 

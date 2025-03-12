@@ -43,6 +43,18 @@ pub struct VariableExpr {
     pub decl: AstRef<VariableDecl>,
 }
 
+impl VariableExpr {
+    pub fn new(name: Symbol) -> Self {
+        Self { name, decl: AstDecorated::new() }
+    }
+}
+
+impl From<VariableExpr> for ExpressionKind {
+    fn from(value: VariableExpr) -> Self {
+        ExpressionKind::Variable(value)
+    }
+}
+
 #[derive(Debug)]
 pub struct CallExpr {
     pub callee: Symbol,
@@ -66,6 +78,7 @@ pub enum ExpressionKind {
     Call(CallExpr),
 }
 
+#[derive(Debug)]
 pub struct Expression {
     pub kind: ExpressionKind,
     pub span: Span,
@@ -82,13 +95,11 @@ impl Expression {
     }
 }
 
-impl fmt::Debug for Expression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#?}", self.kind)
-    }
-}
-
-use std::fmt;
+/* impl fmt::Debug for Expression { */
+/*     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { */
+/*         write!(f, "{:#?}", self.kind) */
+/*     } */
+/* } */
 
 use session;
 use lexer::unescaped::Unescaped;

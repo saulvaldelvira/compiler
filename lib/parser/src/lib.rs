@@ -147,7 +147,7 @@ impl<'src> Parser<'src> {
         let ty =
         if self.match_type(TokenKind::Colon) {
             let ty = self.ty()?;
-            span = span.join(&ty.span);
+            span = span.join(&self.previous_span()?);
             Some(ty)
         } else { None };
 
@@ -177,7 +177,6 @@ impl<'src> Parser<'src> {
             ($tk:expr) => {
                 Ok(Type{
                     kind: $tk,
-                    span: self.previous_span()?
                 })
             };
         }
