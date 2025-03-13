@@ -10,7 +10,7 @@ use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
-use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, StatementKind, WhileStmt};
+use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
 use lexer::{Span, unescaped::Unescaped};
@@ -105,7 +105,7 @@ impl<'src> Parser<'src> {
 
         let return_type = if self.match_type(TokenKind::Arrow) {
             self.ty()?
-        } else { Type::empty_implicit() };
+        } else { Type::empty() };
 
         let Statement {
             kind: StatementKind::Block(block),
@@ -223,9 +223,23 @@ impl<'src> Parser<'src> {
         else if self.match_type(TokenKind::For) {
             self.for_stmt()
         }
+        else if self.match_type(TokenKind::Return) {
+            self.ret_stmt()
+        }
         else {
             self.single_line_stmt()
         }
+    }
+    fn ret_stmt(&mut self) -> Result<Statement> {
+        let span = self.previous_span()?;
+        let expr = self.try_expression();
+        let endspan = self.consume(TokenKind::Semicolon)?.span;
+        Ok(Statement {
+            kind: StatementKind::Return(ReturnStmt {
+                expr
+            }),
+            span: span.join(&endspan)
+        })
     }
     fn if_stmt(&mut self) -> Result<Statement> {
         let mut span = self.consume(TokenKind::LeftParen)?.span;
@@ -345,6 +359,14 @@ impl<'src> Parser<'src> {
     fn expression(&mut self) -> Result<Expression> {
         self.comma()
     }
+
+    fn try_expression(&mut self) -> Option<Expression> {
+        match self.expression() {
+            Ok(expr) => Some(expr),
+            Err(_) => None,
+        }
+    }
+
     fn comma(&mut self) -> Result<Expression> {
         let mut left = self.assignment()?;
         if self.match_type(TokenKind::Comma) {

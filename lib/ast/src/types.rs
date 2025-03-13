@@ -49,7 +49,7 @@ macro_rules! impl_ty {
 }
 
 impl Type {
-    pub const fn empty_implicit() -> Self {
+    pub const fn empty() -> Self {
         Self {
             kind: TypeKind::Empty,
         }

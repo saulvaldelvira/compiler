@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::declaration::{DeclarationKind, FunctionDecl};
 use crate::expr::CallExpr;
-use crate::stmt::StatementKind;
+use crate::stmt::{ReturnStmt, StatementKind};
 use crate::types::Type;
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
@@ -90,8 +90,11 @@ pub trait Visitor<'ast> : Sized {
             SK::Empty(e) => self.visit_empty_stmt(e),
             SK::Break(b) => self.visit_break_stmt(b),
             SK::Continue(c) => self.visit_continue_stmt(c),
+            SK::Return(r) => self.visit_return(r),
         }
     }
+    fn visit_return(&mut self, ret: &'ast ReturnStmt) -> Self::Result { walk_return(self, ret) }
+
     fn visit_type(&mut self, ty: &'ast Type) -> Self::Result {
         let _todo = ty;
         Self::Result::output()
@@ -149,6 +152,12 @@ pub fn walk_if_statement<'ast, V: Visitor<'ast>>(v: &mut V, i: &'ast IfStmt) -> 
     V::Result::output()
 }
 
+pub fn walk_return<'ast, V: Visitor<'ast>>(v: &mut V, ret: &'ast ReturnStmt) -> V::Result {
+        if let Some(ret) = &ret.expr {
+            v.visit_expression(ret);
+        }
+        V::Result::output()
+}
 
 pub trait VisitorResult {
     type T;

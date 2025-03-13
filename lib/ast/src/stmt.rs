@@ -61,6 +61,11 @@ pub struct BreakStmt;
 pub struct ContinueStmt;
 
 #[derive(Debug)]
+pub struct ReturnStmt {
+    pub expr: Option<Expression>,
+}
+
+#[derive(Debug)]
 pub enum StatementKind {
     Expression(ExprAsStmt),
     Print(PrintStmt),
@@ -72,6 +77,7 @@ pub enum StatementKind {
     Empty(EmptyStmt),
     Break(BreakStmt),
     Continue(ContinueStmt),
+    Return(ReturnStmt),
 }
 
 pub struct Statement {

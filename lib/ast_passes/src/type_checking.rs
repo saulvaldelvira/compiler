@@ -1,5 +1,8 @@
 use std::borrow::Cow;
+use std::rc::Rc;
 
+use ast::declaration::FunctionDecl;
+use ast::stmt::ReturnStmt;
 use ast::types::{ErrorType, Type, TypeKind};
 use ast::visitor::{walk_binary, walk_if_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
@@ -7,11 +10,16 @@ use error_manager::ErrorManager;
 
 pub struct TypeCheking {
     pub (super) error_manager: ErrorManager,
+
+    current_function: Option<Rc<FunctionDecl>>,
 }
 
 impl TypeCheking {
     pub fn new() -> Self {
-        Self { error_manager: ErrorManager::new() }
+        Self {
+            error_manager: ErrorManager::new(),
+            current_function: None
+        }
     }
     pub fn process(&mut self, prog: &Program) {
         self.visit_program(prog);
@@ -193,7 +201,7 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_statement(&mut self, s: &'_ ast::Statement) -> Self::Result {
         use ast::stmt::StatementKind as SK;
-        match &s.kind {
+        let ty = match &s.kind {
             SK::Expression(e) => self.visit_expr_as_stmt(e),
             SK::Print(e) => self.visit_print(e),
             SK::Decl(d) => self.visit_decl_stmt(d),
@@ -204,7 +212,14 @@ impl Visitor<'_> for TypeCheking {
             SK::Empty(e) => self.visit_empty_stmt(e),
             SK::Break(b) => self.visit_break_stmt(b),
             SK::Continue(c) => self.visit_continue_stmt(c),
+            SK::Return(r) => self.visit_return(r),
+        };
+
+        if let Some(Type { kind: TypeKind::Error(err)}) = ty {
+            self.error_manager.error(err.msg, s.span);
         }
+
+        Self::Result::output()
     }
 
     fn visit_type(&mut self, ty: &'_ Type) -> Self::Result {
@@ -213,7 +228,11 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_function_decl(&mut self, f: &'_ std::rc::Rc<ast::declaration::FunctionDecl>) -> Self::Result {
-        ast::visitor::walk_function_decl(self, f)
+        let oldf = self.current_function.take();
+        self.current_function = Some(Rc::clone(f));
+        ast::visitor::walk_function_decl(self, f);
+        self.current_function = oldf;
+        Self::Result::output()
     }
 
     fn visit_declaration(&mut self, d: &'_ ast::Declaration) -> Self::Result {
@@ -226,6 +245,25 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_program(&mut self, prog: &'_ Program) -> Self::Result {
         ast::visitor::walk_program(self, prog)
+    }
+
+    fn visit_return(&mut self, ret: &'_ ReturnStmt) -> Self::Result {
+        if let Some(expr) = ret.expr.as_ref() {
+            self.visit_expression(expr);
+        }
+
+        let Some(expected) = &self.current_function else { panic!() };
+
+        if let Some(expr) = ret.expr.as_ref() {
+            if expr.ty.unwrap().kind != expected.return_type.kind {
+                let msg = format!("Incompatible type {:#?} on return, inside function with type {:#?}", expr.ty.unwrap().kind, expected.return_type.kind);
+                self.error_manager.error(msg, expr.span);
+            }
+        } else if !matches!(expected.return_type.kind, TypeKind::Empty) {
+            return Some(error(format!("Return needs an expression of type {:#?}", expected.return_type.kind)));
+        }
+
+        Self::Result::output()
     }
 
 }
