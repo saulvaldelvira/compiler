@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use ast::types::{ErrorType, Type, TypeKind};
 use ast::visitor::{walk_binary, walk_if_statement};
-use ast::Span;
 use ast::{Program, Visitor, visitor::VisitorResult};
 use error_manager::ErrorManager;
 
@@ -18,12 +17,12 @@ impl TypeCheking {
         self.visit_program(prog);
     }
 
-    pub fn error(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) -> Type {
-        let msg = msg.into();
-        self.error_manager.error(msg.clone(), span);
-        Type {
-            kind: TypeKind::Error(ErrorType { msg })
-        }
+}
+
+fn error(msg: impl Into<Cow<'static, str>>) -> Type {
+    let msg = msg.into();
+    Type {
+        kind: TypeKind::Error(ErrorType { msg })
     }
 }
 
@@ -52,7 +51,13 @@ impl Visitor<'_> for TypeCheking {
         self.visit_expression(&t.if_true);
         self.visit_expression(&t.if_false);
 
-        Some(t.if_true.ty.cloned().unwrap())
+        Some (
+            if t.if_true.ty.unwrap().kind != t.if_false.ty.unwrap().kind {
+                error("Incompatible types on ternary operator")
+            } else {
+                t.if_true.ty.cloned().unwrap()
+            }
+        )
     }
 
     fn visit_assignment(&mut self, a: &'_ ast::expr::AssignmentExpr) -> Self::Result {
@@ -63,7 +68,7 @@ impl Visitor<'_> for TypeCheking {
         let rt = a.right.ty.unwrap();
 
         if lt.kind != rt.kind {
-            self.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
+            self.error_manager.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
         }
 
         Some(a.left.ty.cloned().unwrap())
@@ -112,8 +117,8 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_call(&mut self, call: &'_ ast::expr::CallExpr) -> Self::Result {
-        ast::visitor::walk_call(self, call)?;
-        let ty = call.decl.get().unwrap().return_type.clone();
+        ast::visitor::walk_call(self, call);
+        let ty = call.decl.unwrap().return_type.clone();
         Some(ty)
     }
 
@@ -129,9 +134,15 @@ impl Visitor<'_> for TypeCheking {
         Self::Result::output()
     }
 
-    fn visit_print(&mut self, pr: &'_ ast::stmt::PrintStmt) -> Self::Result { self.visit_expression(&pr.expr); Self::Result::output()  }
+    fn visit_print(&mut self, pr: &'_ ast::stmt::PrintStmt) -> Self::Result {
+        self.visit_expression(&pr.expr);
+        Self::Result::output()
+    }
 
-    fn visit_decl_stmt(&mut self, d: &'_ ast::stmt::DeclarationStmt) -> Self::Result { self.visit_declaration(&d.inner); Self::Result::output()  }
+    fn visit_decl_stmt(&mut self, d: &'_ ast::stmt::DeclarationStmt) -> Self::Result {
+        self.visit_declaration(&d.inner);
+        Self::Result::output()
+    }
 
     fn visit_block(&mut self, b: &'_ ast::stmt::BlockStmt) -> Self::Result {
         for stmt in &b.stmts {
@@ -152,12 +163,23 @@ impl Visitor<'_> for TypeCheking {
     fn visit_while(&mut self, w: &'_ ast::stmt::WhileStmt) -> Self::Result {
         self.visit_expression(&w.cond);
         self.visit_statement(&w.stmts);
+
+        let ty = w.cond.ty.unwrap();
+        if !matches!(ty.kind, TypeKind::Bool) {
+            self.error_manager.error("While condition must be bool", w.cond.span);
+        }
+
         Self::Result::output()
     }
 
     fn visit_for(&mut self, f: &'_ ast::stmt::ForStmt) -> Self::Result {
         if let Some(init) = &f.init { self.visit_declaration(init); }
-        if let Some(cond) = &f.cond { self.visit_expression(cond); }
+        if let Some(cond) = &f.cond {
+            self.visit_expression(cond);
+            if !cond.ty.unwrap().is_boolean() {
+                self.error_manager.error("For condition must be boolean", cond.span);
+            }
+        }
         if let Some(inc) = &f.cond { self.visit_expression(inc); }
         self.visit_statement(&f.body);
         Self::Result::output()

@@ -346,7 +346,7 @@ impl<'src> Parser<'src> {
         self.comma()
     }
     fn comma(&mut self) -> Result<Expression> {
-        let mut left = self.ternary()?;
+        let mut left = self.assignment()?;
         if self.match_type(TokenKind::Comma) {
             let op = self.previous_lexem()?;
             let right = Box::new(self.comma()?);
@@ -360,22 +360,8 @@ impl<'src> Parser<'src> {
         }
         Ok(left)
     }
-    fn ternary(&mut self) -> Result<Expression> {
-        let mut cond = self.assignment()?;
-        if self.match_type(TokenKind::Question) {
-            let if_true = Box::new(self.assignment()?);
-            self.consume(TokenKind::Colon)?;
-            let if_false = Box::new(self.assignment()?);
-            let span = cond.span.join(&if_false.span);
-            cond = Expression::new(
-                ExpressionKind::Ternary(TernaryExpr { cond: Box::new(cond), if_true, if_false }),
-                span
-            )
-        }
-        Ok(cond)
-    }
     fn assignment(&mut self) -> Result<Expression> {
-        let left = self.logical()?;
+        let left = self.ternary()?;
         let ast = if self.match_type(TokenKind::Equal) {
             let right = Box::new(self.assignment()?);
             let span = left.span.join(&right.span);
@@ -387,6 +373,20 @@ impl<'src> Parser<'src> {
             left
         };
         Ok(ast)
+    }
+    fn ternary(&mut self) -> Result<Expression> {
+        let mut cond = self.logical()?;
+        if self.match_type(TokenKind::Question) {
+            let if_true = Box::new(self.logical()?);
+            self.consume(TokenKind::Colon)?;
+            let if_false = Box::new(self.logical()?);
+            let span = cond.span.join(&if_false.span);
+            cond = Expression::new(
+                ExpressionKind::Ternary(TernaryExpr { cond: Box::new(cond), if_true, if_false }),
+                span
+            )
+        }
+        Ok(cond)
     }
     fn logical(&mut self) -> Result<Expression> {
         let mut left = self.equality()?;
