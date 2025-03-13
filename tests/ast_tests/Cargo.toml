@@ -8,3 +8,4 @@ lexer = { path = "../../lib/lexer" }
 parser = { path = "../../lib/parser" }
 ast = { path = "../../lib/ast" }
 ast_passes = { path = "../../lib/ast_passes" }
+codegen = { path = "../../lib/codegen" }

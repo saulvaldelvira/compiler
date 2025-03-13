@@ -9,16 +9,23 @@ use crate::{AstDecorated, Expression};
 use crate::types::Type;
 
 #[derive(Debug)]
+pub enum MemoryAddress {
+    Absolute(u16),
+    Relative(i16),
+}
+
+#[derive(Debug)]
 pub struct VariableDecl {
     pub is_const: bool,
     pub name: Symbol,
     pub init: Option<Expression>,
     pub ty: AstDecorated<Type>,
+    pub address: AstDecorated<MemoryAddress>,
 }
 
 impl VariableDecl {
     pub fn new(name: Symbol, init: Option<Expression>, is_const: bool) -> Self {
-        Self { name, init, is_const, ty: AstDecorated::new() }
+        Self { name, init, is_const, ty: AstDecorated::new(), address: AstDecorated::new() }
     }
 }
 

@@ -4,6 +4,8 @@ use std::{env, fs, process};
 
 use ast::Program;
 use ast_passes::{perform_identification, perform_typechecking};
+use codegen::assign_memory;
+use codegen::size_strategy::MaplSizeStrategy;
 use lexer::token::Token;
 use lexer::Lexer;
 use parser::Parser;
@@ -37,13 +39,19 @@ fn process(text: &str) {
         return
     }
 
-    println!("{program:#?}");
-
     if let Err(em) = perform_typechecking(&program) {
+        println!("{program:#?}");
         em.print_errors(&mut stdout().lock()).unwrap();
         /* return; */
     }
 
+    if let Err(em) = assign_memory::<MaplSizeStrategy>(&program) {
+        println!("{program:#?}");
+        em.print_errors(&mut stdout().lock()).unwrap();
+        /* return; */
+    }
+
+    println!("{program:#?}");
 }
 
 fn main() {

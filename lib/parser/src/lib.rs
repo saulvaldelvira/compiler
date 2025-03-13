@@ -4,7 +4,7 @@ use core::str;
 use std::rc::Rc;
 
 use ast::types::{CustomType, Type, TypeKind};
-use ast::{AstDecorated, AstRef, Expression};
+use ast::{AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
@@ -93,12 +93,12 @@ impl<'src> Parser<'src> {
             self.consume(TokenKind::Colon)?;
             let ty = self.ty()?;
 
-            let vardecl = VariableDecl {
-                name: arg_name,
-                ty: AstDecorated::from(ty),
-                is_const: false,
-                init: None,
-            };
+            let vardecl = VariableDecl::new(
+                arg_name,
+                None,
+                false,
+            );
+            vardecl.ty.set(ty);
 
             args.push(Rc::new(vardecl));
         }
@@ -159,14 +159,12 @@ impl<'src> Parser<'src> {
         let semicolon = self.consume(TokenKind::Semicolon)?.span;
         let span = span.join(&semicolon);
 
+        let mut vdecl = VariableDecl::new(name, init, is_const);
+        vdecl.ty = ty.into();
+
         let decl = Declaration {
             kind: DeclarationKind::Variable(
-                      VariableDecl {
-                          is_const,
-                          name,
-                          init,
-                          ty: AstDecorated::from(ty)
-                      }.into()
+                      vdecl.into()
                   ),
             span
         };
