@@ -12,10 +12,6 @@ impl PartialEq for ErrorType {
     }
 }
 
-impl ErrorType {
-    fn size(&self) -> usize { self.msg.len() }
-}
-
 #[derive(Debug,Clone,PartialEq)]
 pub struct CustomType {
     pub name: Symbol,
@@ -72,24 +68,15 @@ fn error(msg: impl Into<Cow<'static,str>>) -> Type {
 }
 
 impl Type {
-    pub fn size(&self) -> usize {
-        match &self.kind {
-            TK::Bool => 1,
-            TK::String => 8,
-            TK::Error(err) => err.size(),
-            TK::Empty => 0,
-            TypeKind::Int => 4,
-            TypeKind::Float => 4,
-            TK::Char => 1,
-            _ => todo!()
-        }
-    }
-
     pub fn is_boolean(&self) -> bool {
         matches!(self.kind, TK::Bool)
     }
 
     pub fn arithmetic(&self, other: &Type) -> Type {
+        if matches!(other.kind, TK::Error(_)) {
+            return other.clone()
+        }
+
         if !matches!(self.kind, TK::Int | TK::Float) {
             return error(format!("Can't operate arithmetically with {:#?}", self.kind))
         }
@@ -101,6 +88,10 @@ impl Type {
     }
 
     pub fn comparison(&self, other: &Type) -> Type {
+        if matches!(other.kind, TK::Error(_)) {
+            return other.clone()
+        }
+
         if !matches!(self.kind, TK::Int | TK::Float) {
             return error(format!("Can't compare {:#?}", self.kind))
         }
@@ -112,6 +103,10 @@ impl Type {
     }
 
     pub fn logical(&self, other: &Type) -> Type {
+        if matches!(other.kind, TK::Error(_)) {
+            return other.clone()
+        }
+
         if !matches!(self.kind, TK::Bool) {
             return error(format!("Can't operate logically on {:#?}", self.kind))
         }

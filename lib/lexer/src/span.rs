@@ -1,14 +1,22 @@
 //! Utilities to represent spans inside a file
 
+use std::fmt::Debug;
 use std::{fmt, str};
 
 /// Represents a span in a buffer, bounded by an offset and a len
-#[derive(Clone,Copy,Debug,Default)]
+#[derive(Clone,Copy,Default)]
 pub struct Span {
     /// Offset of the span inside the buffer
     pub offset: usize,
     /// Length of the span
     pub len: usize,
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Span { offset, len } = self;
+        write!(f, "Span {{ {offset}, {len} }}")
+    }
 }
 
 /// Represents a [`Span`] in a file, bounded by

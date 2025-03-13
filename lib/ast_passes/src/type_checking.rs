@@ -75,7 +75,7 @@ impl Visitor<'_> for TypeCheking {
         let lt = a.left.ty.unwrap();
         let rt = a.right.ty.unwrap();
 
-        if lt.kind != rt.kind {
+        if lt.kind != rt.kind && !matches!(rt.kind, TypeKind::Error(_)){
             self.error_manager.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
         }
 
