@@ -27,6 +27,7 @@ fn error(msg: impl Into<Cow<'static, str>>) -> Type {
 }
 
 impl Visitor<'_> for TypeCheking {
+    type Param = ();
     type Result = Option<Type>;
 
     fn visit_unary(&mut self, u: &'_ ast::expr::UnaryExpr) -> Self::Result { self.visit_expression(&u.expr) }

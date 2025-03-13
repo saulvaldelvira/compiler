@@ -41,37 +41,38 @@ impl Identification {
 
     pub fn process(&mut self, program: &Program) {
         self.pass = Pass::Global;
-        self.visit_program(program);
+        self.visit_program(program, ());
         if self.n_errors > 0 { return }
 
         self.pass = Pass::Discover;
-        self.visit_program(program);
+        self.visit_program(program, ());
         if self.n_errors > 0 { return }
 
         self.pass = Pass::Link;
-        self.visit_program(program);
+        self.visit_program(program, ());
     }
 }
 
 impl<'ast> Visitor<'ast> for Identification {
+    type Param = ();
     type Result = ();
 
-    fn visit_program(&mut self, prog: &'ast Program) {
+    fn visit_program(&mut self, prog: &'ast Program, p: ()) {
        if matches!(self.pass, Pass::Unset) {
            panic!("Fatal Error!: Don't call Identification::visit_program, call Identification::process!");
        } else {
-           walk_program(self, prog)
+           walk_program(self, prog, p)
        }
     }
 
-    fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) {
+    fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>, _p: ()) {
         if !matches!(self.pass, Pass::Link) { return }
         self.scopes.def_var(v.name, Rc::clone(v));
 
 
     }
 
-    fn visit_variable_expr(&mut self, v: &'ast VariableExpr) {
+    fn visit_variable_expr(&mut self, v: &'ast VariableExpr, _p: ()) {
         if !matches!(self.pass, Pass::Link) { return }
         match self.scopes.get_var(&v.name) {
             Some(decl) => v.decl.set(Rc::clone(decl)),
@@ -79,15 +80,15 @@ impl<'ast> Visitor<'ast> for Identification {
         }
     }
 
-    fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) {
+    fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>, p: ()) {
         self.scopes.def_fn(f.name, Rc::clone(f));
         if matches!(self.pass, Pass::Global) { return }
         self.scopes.set();
-        walk_function_decl(self, f);
+        walk_function_decl(self, f, p);
         self.scopes.reset();
     }
 
-    fn visit_call(&mut self, call: &'ast CallExpr) {
+    fn visit_call(&mut self, call: &'ast CallExpr, _p: ()) {
         if !matches!(self.pass, Pass::Link) { return }
 
         match self.scopes.get_func(&call.callee) {
