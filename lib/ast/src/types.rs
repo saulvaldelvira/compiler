@@ -85,6 +85,10 @@ impl Type {
         }
     }
 
+    pub fn is_boolean(&self) -> bool {
+        matches!(self.kind, TK::Bool)
+    }
+
     pub fn arithmetic(&self, other: &Type) -> Type {
         if !matches!(self.kind, TK::Int | TK::Float) {
             return error(format!("Can't operate arithmetically with {:#?}", self.kind))
