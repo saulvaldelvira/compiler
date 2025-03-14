@@ -68,7 +68,7 @@ impl<S: SizeStrategy> Visitor<'_> for MemoryAllocation<S> {
         })
         .for_each(|vd| {
                 addr -= S::size_of(&vd.ty.unwrap()) as i16;
-                vd.address.set(MemoryAddress::Relative(addr as i16));
+                vd.address.set(MemoryAddress::Relative(addr));
         });
 
         walk_function_decl(self, f)

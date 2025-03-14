@@ -1,5 +1,10 @@
-use super::{Define, Eval, Execute, MaplCodeGenerator};
-use ast::stmt::{DeclarationStmt, ExprAsStmt, PrintStmt, StatementKind};
+use std::ops::Deref;
+
+use crate::memory::{MaplSizeStrategy, SizeStrategy};
+
+use super::{get_last_variable_decl, Define, Eval, Execute, MaplCodeGenerator};
+use ast::declaration::MemoryAddress;
+use ast::stmt::{DeclarationStmt, ExprAsStmt, PrintStmt, ReturnStmt, StatementKind};
 use ast::Statement;
 
 impl Execute for PrintStmt {
@@ -23,7 +28,7 @@ impl Execute for Statement {
             StatementKind::Empty(_empty_stmt) => todo!(),
             StatementKind::Break(_break_stmt) => todo!(),
             StatementKind::Continue(_continue_stmt) => todo!(),
-            StatementKind::Return(_return_stmt) => todo!(),
+            StatementKind::Return(return_stmt) => return_stmt.execute(cg),
         }
     }
 }
@@ -40,5 +45,32 @@ impl Execute for ExprAsStmt {
 impl Execute for DeclarationStmt {
     fn execute(&self, cg: &mut MaplCodeGenerator) {
         self.inner.define(cg);
+    }
+}
+
+impl Execute for ReturnStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        if let Some(expr) = &self.expr {
+            expr.eval(cg);
+        }
+
+        let Some(cf) = &cg.current_function else { unreachable!() };
+
+        let ret_size = MaplSizeStrategy::size_of(&cf.return_type);
+
+        let params_size: usize = cf.args.iter()
+                                   .map(|vd| &vd.ty)
+                                   .map(|t| MaplSizeStrategy::size_of(&t.unwrap()))
+                                   .sum();
+
+        let locals_size = - get_last_variable_decl(cf)
+                               .map(|vd| {
+                                   let addr = vd.address.unwrap();
+                                   let MemoryAddress::Relative(addr) = addr.deref() else { unreachable!() };
+                                   *addr
+                               })
+                               .unwrap_or(0);
+
+        cg.base.write_fmt(format_args!("ret {ret_size}, {locals_size}, {params_size}"));
     }
 }

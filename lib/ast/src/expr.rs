@@ -163,7 +163,11 @@ impl Expression {
         }
     }
     pub fn lvalue(&self) -> bool {
-        matches!(self.kind, Variable(_))
+        match &self.kind {
+            Variable(_) => true,
+            Assignment(a) => a.left.lvalue(),
+            _ => false
+        }
     }
 }
 

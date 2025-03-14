@@ -1,7 +1,8 @@
-use ast::expr::{BinaryExpr, BinaryExprKind, BinaryExprOp, ExpressionKind, LitExpr, LitValue};
+use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, VariableExpr};
 use ast::Expression;
+use session::with_symbol;
 
-use super::{Eval, MaplCodeGenerator};
+use super::{Address, Eval, MaplCodeGenerator};
 
 impl Eval for Expression {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
@@ -10,10 +11,38 @@ impl Eval for Expression {
             ExpressionKind::Unary(_unary_expr) => todo!(),
             ExpressionKind::Binary(binary_expr) => binary_expr.eval(cg),
             ExpressionKind::Ternary(_ternary_expr) => todo!(),
-            ExpressionKind::Assignment(_assignment_expr) => todo!(),
-            ExpressionKind::Variable(_variable_expr) => todo!(),
-            ExpressionKind::Call(_call_expr) => todo!(),
+            ExpressionKind::Assignment(assignment_expr) => assignment_expr.eval(cg),
+            ExpressionKind::Variable(variable_expr) => variable_expr.eval(cg),
+            ExpressionKind::Call(call_expr) => call_expr.eval(cg),
         }
+    }
+}
+
+impl Eval for CallExpr {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        for param in &self.args {
+            param.eval(cg);
+        }
+        with_symbol(self.callee, |s| {
+            cg.base.write_fmt(format_args!("call {s}"));
+        })
+    }
+}
+
+impl Eval for AssignmentExpr {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.left.address(cg);
+        self.right.eval(cg);
+        cg.sufixed_op("STORE", &self.left.ty.unwrap());
+        self.left.address(cg);
+        cg.sufixed_op("LOAD", &self.left.ty.unwrap());
+    }
+}
+
+impl Eval for VariableExpr {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.address(cg);
+        cg.sufixed_op("LOAD", &self.decl.unwrap().ty.unwrap());
     }
 }
 

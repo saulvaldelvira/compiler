@@ -22,10 +22,11 @@ impl BaseCodeGenerator {
         Self { buf: String::new() }
     }
     fn write(&mut self, src: &str) {
-        self.buf.push_str(src);
+        self.buf.write_fmt(format_args!("{src}\n")).unwrap();
     }
     fn write_fmt(&mut self, src: Arguments<'_>) {
         self.buf.write_fmt(src).unwrap();
+        self.buf.write_str("\n").unwrap();
     }
 }
 

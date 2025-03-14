@@ -1,19 +1,45 @@
 use crate::code_generator::{BaseCodeGenerator, CodeGenerator};
+use ast::declaration::{DeclarationKind, FunctionDecl, MemoryAddress, VariableDecl};
+use ast::stmt::{DeclarationStmt, StatementKind};
 use ast::types::{Type, TypeKind};
 use core::fmt::Write;
-use ast::Program;
+use std::rc::Rc;
+use ast::{Declaration, Program, Statement};
 
-pub struct MaplCodeGenerator(BaseCodeGenerator);
+pub struct MaplCodeGenerator {
+    base: BaseCodeGenerator,
+    current_function: Option<Rc<FunctionDecl>>
+}
+
+fn get_last_variable_decl(f: &FunctionDecl) -> Option<&VariableDecl> {
+    f.body.stmts.iter()
+        .filter_map(|stmt| {
+            let Statement {
+                kind: StatementKind::Decl(
+                          DeclarationStmt {
+                              inner : Declaration { kind : DeclarationKind::Variable(v), .. },
+                              ..
+                          }
+                      ),
+                      ..
+            } = stmt else { return None };
+
+            Some(v)
+        }).map(|v| &**v).next_back()
+}
 
 impl CodeGenerator for MaplCodeGenerator {
 
     fn build() -> Self {
-        MaplCodeGenerator(BaseCodeGenerator::new())
+        MaplCodeGenerator {
+            base: BaseCodeGenerator::new(),
+            current_function: None,
+        }
     }
 
     fn generate(mut self, program: &Program) -> String {
         program.define(&mut self);
-        self.0.buf
+        self.base.buf
     }
 
 }
@@ -27,15 +53,26 @@ fn get_type_suffix(t: &Type) -> &str {
 
 impl MaplCodeGenerator {
     fn pushi(&mut self, n: i32) {
-        writeln!(self.0.buf, "PUSHI {n}").unwrap();
+        writeln!(self.base.buf, "PUSHI {n}").unwrap();
     }
 
     fn pushf(&mut self, n: f64) {
-        writeln!(self.0.buf, "PUSHF {n}").unwrap();
+        writeln!(self.base.buf, "PUSHF {n}").unwrap();
     }
 
     fn pushb(&mut self, n: u8) {
-        writeln!(self.0.buf, "PUSHB {n}").unwrap();
+        writeln!(self.base.buf, "PUSHB {n}").unwrap();
+    }
+
+    fn pushaddr(&mut self, addr: &MemoryAddress) {
+        match addr {
+            MemoryAddress::Absolute(abs) => self.base.write_fmt(format_args!("PUSHA {abs}")),
+            MemoryAddress::Relative(rel) => {
+                self.base.write("PUSHA bp");
+                self.base.write_fmt(format_args!("PUSHI {rel}"));
+                self.base.write("ADD");
+            }
+        }
     }
 
     fn add(&mut self, ty: &Type) {
@@ -56,11 +93,11 @@ impl MaplCodeGenerator {
 
     fn sufixed_op(&mut self, op: &str, ty: &Type) {
         let t = get_type_suffix(ty);
-        writeln!(self.0.buf, "{op}{t}").unwrap();
+        writeln!(self.base.buf, "{op}{t}\n").unwrap();
     }
 
     fn out(&mut self, t: &Type) {
-        self.0.buf.write_fmt(format_args!("OUT{}\n", get_type_suffix(t))).unwrap();
+        self.base.write_fmt(format_args!("OUT{}", get_type_suffix(t)));
     }
     fn discard_type(&mut self, t: &Type) {
         match &t.kind {
@@ -68,7 +105,7 @@ impl MaplCodeGenerator {
             | TypeKind::Float
             | TypeKind::Bool
             | TypeKind::Char => {
-                self.0.buf.write_fmt(format_args!("POP{}\n", get_type_suffix(t))).unwrap();
+                self.base.write_fmt(format_args!("POP{}", get_type_suffix(t)));
             }
             _ => { }
         }
@@ -78,6 +115,7 @@ impl MaplCodeGenerator {
 mod execute;
 mod eval;
 mod define;
+mod address;
 
 trait Execute {
     fn execute(&self, cg: &mut MaplCodeGenerator);
@@ -91,4 +129,6 @@ trait Define {
     fn define(&self, cg: &mut MaplCodeGenerator);
 }
 
-
+trait Address {
+    fn address(&self, cg: &mut MaplCodeGenerator);
+}
