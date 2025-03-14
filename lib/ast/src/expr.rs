@@ -103,7 +103,7 @@ pub struct VariableExpr {
 
 impl VariableExpr {
     pub fn new(name: Symbol) -> Self {
-        Self { name, decl: AstDecorated::new() }
+        Self { name, decl: AstRef::empty() }
     }
 }
 

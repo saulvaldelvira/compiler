@@ -8,7 +8,7 @@ pub mod stmt;
 use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub use expr::Expression;
 pub use stmt::Statement;
@@ -89,4 +89,34 @@ impl<T> AstDecorated<T> {
     }
 }
 
-pub type AstRef<T> = AstDecorated<Rc<T>>;
+pub struct AstRef<T>(AstDecorated<Weak<T>>);
+
+impl<T> Debug for AstRef<T> {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
+impl<T> AstRef<T> {
+    pub fn empty() -> Self {
+        Self(AstDecorated::new())
+    }
+
+    pub fn set(&self, value: Weak<T>) {
+        self.0.set(value);
+    }
+
+    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        f(&self.unwrap())
+    }
+
+    pub fn unwrap(&self) -> Rc<T> {
+        self.0.unwrap().upgrade().unwrap()
+    }
+}
+
+impl<T> From<Weak<T>> for AstRef<T> {
+    fn from(value: Weak<T>) -> Self {
+        Self(AstDecorated::from(value))
+    }
+}

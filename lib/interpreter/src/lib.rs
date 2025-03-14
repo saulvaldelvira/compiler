@@ -95,7 +95,7 @@ impl Visitor<'_> for Interpreter {
                 if f.name == "main" {
                     let callee = f.name;
                     let main = CallExpr {
-                        decl: AstRef::from(Rc::clone(f)),
+                        decl: AstRef::from(Rc::downgrade(f)),
                         args: Vec::new().into_boxed_slice(),
                         callee
                     };

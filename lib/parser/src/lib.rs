@@ -588,7 +588,7 @@ impl<'src> Parser<'src> {
                         CallExpr {
                             callee: name,
                             args: args.into_boxed_slice(),
-                            decl: AstRef::new()
+                            decl: AstRef::empty()
                         }),
                     span
                 ))
@@ -597,7 +597,7 @@ impl<'src> Parser<'src> {
                     ExpressionKind::Variable(
                               VariableExpr {
                                   name,
-                                  decl: AstRef::new()
+                                  decl: AstRef::empty()
                               }),
                     prev_span,
                 ))

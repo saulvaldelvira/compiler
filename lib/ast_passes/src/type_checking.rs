@@ -83,7 +83,7 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_variable_expr(&mut self, _v: &'_ ast::expr::VariableExpr) -> Self::Result {
-        let ty = _v.decl.get().unwrap().ty.cloned().unwrap();
+        let ty = _v.decl.unwrap().ty.cloned().unwrap();
         Some(ty)
     }
 

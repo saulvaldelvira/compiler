@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
 use ast::expr::{CallExpr, VariableExpr};
@@ -24,8 +24,8 @@ impl Identification {
     pub fn process(&mut self, program: &Program) {
         for decl in &program.decls {
             match &decl.kind {
-                DeclarationKind::Variable(vdecl) => self.scopes.def_var(vdecl.name, Rc::clone(vdecl)),
-                DeclarationKind::Function(fdecl) => self.scopes.def_fn(fdecl.name, Rc::clone(fdecl)),
+                DeclarationKind::Variable(vdecl) => self.scopes.def_var(vdecl.name, Rc::downgrade(&vdecl)),
+                DeclarationKind::Function(fdecl) => self.scopes.def_fn(fdecl.name, Rc::downgrade(&fdecl)),
             }
         }
 
@@ -44,20 +44,20 @@ impl<'ast> Visitor<'ast> for Identification {
     }
 
     fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) -> Self::Result {
-        self.scopes.def_var(v.name, Rc::clone(v));
+        self.scopes.def_var(v.name, Rc::downgrade(v));
         Ok(())
     }
 
     fn visit_variable_expr(&mut self, v: &'ast VariableExpr) -> Self::Result {
         match self.scopes.get_var(&v.name) {
-            Some(decl) => v.decl.set(Rc::clone(decl)),
+            Some(decl) => v.decl.set(Weak::clone(decl)),
             None => return Err(format!("Undefined variable \"{:?}\"", v.name)),
         }
         Ok(())
     }
 
     fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) -> Self::Result {
-        self.scopes.def_fn(f.name, Rc::clone(f));
+        self.scopes.def_fn(f.name, Rc::downgrade(f));
         self.scopes.set();
         walk_function_decl(self, f).unwrap();
         self.scopes.reset();
@@ -67,7 +67,7 @@ impl<'ast> Visitor<'ast> for Identification {
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
         match self.scopes.get_func(&call.callee) {
             Some(decl) => {
-                call.decl.set(Rc::clone(decl));
+                call.decl.set(Weak::clone(decl));
             },
             None => return Err(format!("Undefined function \"{:?}\"", call.callee)),
         }
@@ -78,8 +78,8 @@ impl<'ast> Visitor<'ast> for Identification {
 
 #[derive(Default)]
 pub struct ScopeLevel {
-    variables: HashMap<Symbol,Rc<VariableDecl>>,
-    functions: HashMap<Symbol,Rc<FunctionDecl>>,
+    variables: HashMap<Symbol,Weak<VariableDecl>>,
+    functions: HashMap<Symbol,Weak<FunctionDecl>>,
 }
 
 pub struct Scopes(Vec<ScopeLevel>);
@@ -98,20 +98,20 @@ impl Scopes {
             unreachable!("Called reset on level 0")
         );
     }
-    pub fn def_fn(&mut self, name: Symbol, func: Rc<FunctionDecl>) {
+    pub fn def_fn(&mut self, name: Symbol, func: Weak<FunctionDecl>) {
         self.0.last_mut().unwrap().functions.insert(name, func);
     }
-    pub fn def_var(&mut self, name: Symbol, variable: Rc<VariableDecl>) {
+    pub fn def_var(&mut self, name: Symbol, variable: Weak<VariableDecl>) {
         self.0.last_mut().unwrap().variables.insert(name, variable);
     }
-    pub fn get_func(&self, sym: &Symbol) -> Option<&Rc<FunctionDecl>> {
+    pub fn get_func(&self, sym: &Symbol) -> Option<&Weak<FunctionDecl>> {
         for lev in self.0.iter().rev() {
             let val = lev.functions.get(sym);
             if val.is_some() { return val }
         }
         None
     }
-    pub fn get_var(&self, sym: &Symbol) -> Option<&Rc<VariableDecl>> {
+    pub fn get_var(&self, sym: &Symbol) -> Option<&Weak<VariableDecl>> {
         for lev in self.0.iter().rev() {
             let val = lev.variables.get(sym);
             if val.is_some() { return val }
