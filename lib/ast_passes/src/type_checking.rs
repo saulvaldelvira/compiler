@@ -2,9 +2,10 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use ast::declaration::FunctionDecl;
+use ast::expr::ArrayAccess;
 use ast::stmt::{ReadStmt, ReturnStmt};
 use ast::types::{ErrorType, Type, TypeKind};
-use ast::visitor::{walk_binary, walk_expression, walk_if_statement, walk_read_stmt, walk_statement};
+use ast::visitor::{walk_array_access, walk_binary, walk_expression, walk_if_statement, walk_read_stmt, walk_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
 use util::ErrorManager;
 
@@ -101,18 +102,27 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_expression(&mut self, a: &'_ ast::Expression) -> Self::Result {
         let ty = walk_expression(self, a);
-        match ty.clone() {
+        match ty {
             Some(ty) => {
                 if let TypeKind::Error(err) = &ty.kind {
                     self.error_manager.error(err.msg.clone(), a.span);
+                    a.ty.set(ty);
+                    return None;
                 }
-                a.ty.set(ty);
+                a.ty.set(ty.clone());
+                Some(ty)
             },
             None => {
-                self.error_manager.error("Unknown type", a.span);
+                a.ty.set(error(""));
+                None
             },
-        };
-        ty
+        }
+    }
+
+    fn visit_array_access(&mut self, ac: &'_ ArrayAccess) -> Self::Result {
+        walk_array_access(self, ac);
+        let ty = ac.array.ty.unwrap().square_brackets(&ac.index);
+        Some(ty)
     }
 
     fn visit_call(&mut self, call: &'_ ast::expr::CallExpr) -> Self::Result {

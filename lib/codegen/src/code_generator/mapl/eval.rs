@@ -1,4 +1,7 @@
-use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use std::ops::Deref;
+
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::types::{ArrayType, Type, TypeKind};
 use ast::Expression;
 use session::with_symbol;
 
@@ -14,7 +17,19 @@ impl Eval for Expression {
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.eval(cg),
             ExpressionKind::Variable(variable_expr) => variable_expr.eval(cg),
             ExpressionKind::Call(call_expr) => call_expr.eval(cg),
+            ExpressionKind::ArrayAccess(arr) => arr.eval(cg),
         }
+    }
+}
+
+impl Eval for ArrayAccess {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.address(cg);
+        let ty = self.array.ty.unwrap();
+        let Type { kind:
+            TypeKind::Array(ArrayType { of, ..} )
+        } = ty.deref() else { unreachable!() };
+        cg.sufixed_op("LOAD", of);
     }
 }
 

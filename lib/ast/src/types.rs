@@ -17,6 +17,18 @@ pub struct CustomType {
     pub name: Symbol,
 }
 
+#[derive(Debug,Clone)]
+pub struct ArrayType {
+    pub of: Box<Type>,
+    pub length: usize,
+}
+
+impl PartialEq for ArrayType {
+    fn eq(&self, other: &Self) -> bool {
+        self.of.kind == other.of.kind && self.length == other.length
+    }
+}
+
 #[derive(Debug,Clone,PartialEq)]
 pub enum TypeKind {
     Int,
@@ -24,6 +36,7 @@ pub enum TypeKind {
     Bool,
     Char,
     String,
+    Array(ArrayType),
     Error(ErrorType),
     Custom(CustomType),
     Empty,
@@ -59,6 +72,8 @@ impl Type {
 
 use TypeKind as TK;
 
+use crate::Expression;
+
 fn error(msg: impl Into<Cow<'static,str>>) -> Type {
     Type {
         kind: TypeKind::Error(ErrorType {
@@ -72,10 +87,36 @@ impl Type {
         matches!(self.kind, TK::Bool)
     }
 
-    pub fn arithmetic(&self, other: &Type) -> Type {
-        if matches!(other.kind, TK::Error(_)) {
-            return other.clone()
+    pub fn integral(&self) -> bool {
+        matches!(self.kind, TK::Int)
+    }
+
+    fn propagate_error(&self, other: &Type) -> Option<Type> {
+        if matches!(self.kind, TypeKind::Error(_)) {
+            Some(self.clone())
+        } else if matches!(other.kind, TypeKind::Error(_)) {
+            Some(other.clone())
+        } else {
+            None
         }
+    }
+
+    pub fn square_brackets(&self, other: &Expression) -> Type {
+        if let Some(err) = self.propagate_error(&other.ty.unwrap()) { return err };
+
+        let TK::Array(arr) = &self.kind else {
+            return error(format!("Can't use square brackets on type {:#?}", self.kind));
+        };
+
+        if !other.ty.unwrap().integral() {
+            return error(format!("Expected integral index, found {:#?}", self.kind));
+        }
+
+        Type::clone(&arr.of)
+    }
+
+    pub fn arithmetic(&self, other: &Type) -> Type {
+        if let Some(err) = self.propagate_error(other) { return err };
 
         if !matches!(self.kind, TK::Int | TK::Float) {
             return error(format!("Can't operate arithmetically with {:#?}", self.kind))
@@ -88,9 +129,7 @@ impl Type {
     }
 
     pub fn comparison(&self, other: &Type) -> Type {
-        if matches!(other.kind, TK::Error(_)) {
-            return other.clone()
-        }
+        if let Some(err) = self.propagate_error(other) { return err };
 
         if !matches!(self.kind, TK::Int | TK::Float) {
             return error(format!("Can't compare {:#?}", self.kind))
@@ -103,9 +142,7 @@ impl Type {
     }
 
     pub fn logical(&self, other: &Type) -> Type {
-        if matches!(other.kind, TK::Error(_)) {
-            return other.clone()
-        }
+        if let Some(err) = self.propagate_error(other) { return err };
 
         if !matches!(self.kind, TK::Bool) {
             return error(format!("Can't operate logically on {:#?}", self.kind))

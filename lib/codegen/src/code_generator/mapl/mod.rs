@@ -132,6 +132,11 @@ impl MaplCodeGenerator {
         writeln!(self.base.buf, "{op}{t}\n").unwrap();
     }
 
+/*     fn sufixed_op_arg(&mut self, op: &str, ty: &Type, arg: impl Display) { */
+/*         let t = get_type_suffix(ty); */
+/*         writeln!(self.base.buf, "{op}{t} {arg}\n").unwrap(); */
+/*     } */
+
     fn out(&mut self, t: &Type) {
         self.base.write_fmt(format_args!("OUT{}", get_type_suffix(t)));
     }

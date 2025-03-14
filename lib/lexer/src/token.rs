@@ -19,8 +19,13 @@ pub enum TokenKind {
     /// "}"
     RightBrace,
 
-    /// ",
-    /// "
+    /// "["
+    LeftBracket,
+
+    /// "]"
+    RightBracket,
+
+    /// ","
     Comma,
 
     /// "."

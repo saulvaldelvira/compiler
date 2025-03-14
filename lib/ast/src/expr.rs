@@ -128,6 +128,12 @@ pub struct LitExpr {
 }
 
 #[derive(Debug)]
+pub struct ArrayAccess {
+    pub array: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
+#[derive(Debug)]
 pub enum ExpressionKind {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
@@ -136,6 +142,7 @@ pub enum ExpressionKind {
     Variable(VariableExpr),
     Literal(LitExpr),
     Call(CallExpr),
+    ArrayAccess(ArrayAccess),
 }
 
 #[derive(Debug)]
@@ -170,6 +177,7 @@ impl Expression {
         match &self.kind {
             Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
             Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
+            ArrayAccess(arr) => arr.array.has_side_effect() || arr.index.has_side_effect(),
             Ternary(t) =>
                 t.cond.has_side_effect() || t.if_true.has_side_effect() || t.if_false.has_side_effect(),
             Assignment(_) | Call(_) => true,
@@ -180,6 +188,7 @@ impl Expression {
         match &self.kind {
             Variable(_) => true,
             Assignment(a) => a.left.lvalue(),
+            ArrayAccess(_) => true,
             _ => false
         }
     }

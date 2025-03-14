@@ -79,6 +79,8 @@ impl<'lex> Lexer<'lex> {
             ')' => self.add_token(TokenKind::RightParen),
             '{' => self.add_token(TokenKind::LeftBrace),
             '}' => self.add_token(TokenKind::RightBrace),
+            '[' => self.add_token(TokenKind::LeftBracket),
+            ']' => self.add_token(TokenKind::RightBracket),
             ',' => self.add_token(TokenKind::Comma),
             '.' => {
                 if self.c.peek().is_numeric() {

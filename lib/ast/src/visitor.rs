@@ -2,7 +2,7 @@ use std::ops::ControlFlow;
 use std::rc::Rc;
 
 use crate::declaration::{DeclarationKind, FunctionDecl};
-use crate::expr::CallExpr;
+use crate::expr::{ArrayAccess, CallExpr};
 use crate::stmt::{ReadStmt, ReturnStmt, StatementKind};
 use crate::types::Type;
 use crate::Expression;
@@ -37,6 +37,9 @@ pub trait Visitor<'ast> : Sized {
             self.visit_expression(init);
         }
         Self::Result::output()
+    }
+    fn visit_array_access(&mut self, a: &'ast ArrayAccess) -> Self::Result {
+        walk_array_access(self, a)
     }
     fn visit_expr_as_stmt(&mut self, s: &'ast ExprAsStmt) -> Self::Result {
         self.visit_expression(&s.expr);
@@ -121,6 +124,12 @@ pub fn walk_read_stmt<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast ReadStmt) -> V
     V::Result::output()
 }
 
+pub fn walk_array_access<'ast, V: Visitor<'ast>>(v: &mut V, ac: &'ast ArrayAccess) -> V::Result {
+    v.visit_expression(&ac.array);
+    v.visit_expression(&ac.index);
+    V::Result::output()
+}
+
 pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression) -> V::Result {
         use ExpressionKind as EK;
         match &expr.kind {
@@ -131,6 +140,7 @@ pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression
             EK::Variable(var) => v.visit_variable_expr(var),
             EK::Literal(l) => v.visit_literal(l),
             EK::Call(c) => v.visit_call(c),
+            EK::ArrayAccess(a) => v.visit_array_access(a),
         }
 }
 

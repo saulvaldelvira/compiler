@@ -2,14 +2,15 @@ pub mod error;
 
 use core::str;
 use std::rc::Rc;
+use std::str::FromStr;
 
-use ast::types::{CustomType, Type, TypeKind};
+use ast::types::{ArrayType, CustomType, Type, TypeKind};
 use ast::{AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
@@ -79,7 +80,7 @@ impl<'src> Parser<'src> {
     fn function(&mut self) -> Result<Declaration> {
         let start_span = self.previous_span()?;
         let name = self.consume_ident()?;
-        self.consume(TokenKind::LeftParen)?;
+       self.consume(TokenKind::LeftParen)?;
 
         let mut args = Vec::new();
 
@@ -170,6 +171,19 @@ impl<'src> Parser<'src> {
         };
         Ok(decl)
     }
+    fn array_type(&mut self) -> Result<Type> {
+        let ty = self.ty()?;
+        self.consume(TokenKind::Semicolon)?;
+        self.consume(TokenKind::IntLiteral)?;
+        let length = self.previous_parse::<usize>()?;
+        self.consume(TokenKind::RightBracket)?;
+        Ok(Type { kind: TypeKind::Array(
+                ArrayType {
+                    of: Box::new(ty),
+                    length
+                }
+        ) })
+    }
     fn ty(&mut self) -> Result<Type> {
         macro_rules! ty {
             ($tk:expr) => {
@@ -193,7 +207,11 @@ impl<'src> Parser<'src> {
         else if self.match_type(TokenKind::Identifier) {
             let name = self.previous_lexem()?;
             ty!(TypeKind::Custom(CustomType { name }))
-        } else {
+        }
+        else if self.match_type(TokenKind::LeftBracket) {
+            self.array_type()
+        }
+        else {
             Err("Expected type".into())
         }
     }
@@ -565,8 +583,7 @@ impl<'src> Parser<'src> {
             LitValue::Str(self.previous_lexem()?)
         }
         else if self.match_type(TokenKind::IntLiteral) {
-            let f: i32 = self.previous()?.span.slice(self.src).parse()?;
-            LitValue::Int(f)
+            LitValue::Int(self.previous_parse::<i32>()?)
         }
         else if self.match_type(TokenKind::FloatLiteral) {
             let f: f64 = self.previous()?.span.slice(self.src).parse()?;
@@ -584,7 +601,27 @@ impl<'src> Parser<'src> {
             return Ok(None)
         }))
     }
+    fn access(&mut self, mut expr: Expression) -> Result<Expression> {
+        if self.match_type(TokenKind::LeftBracket) {
+            let index = self.expression()?;
+            let span = self.consume(TokenKind::RightBracket)?.span;
+            let span = expr.span.join(&span);
+
+            let acc = ArrayAccess {
+                array: Box::new(expr),
+                index: Box::new(index),
+            };
+            expr = Expression::new(ExpressionKind::ArrayAccess(acc), span);
+            self.access(expr)
+        } else {
+             Ok(expr)
+        }
+    }
     fn primary(&mut self) -> Result<Expression> {
+        let expr = self.__primary()?;
+        self.access(expr)
+    }
+    fn __primary(&mut self) -> Result<Expression> {
         if let Some(value) = self.literal()? {
             return Ok(Expression::new(
                 ExpressionKind::Literal(LitExpr { value }),
@@ -682,6 +719,11 @@ impl<'src> Parser<'src> {
     }
     fn previous_span(&self) -> Result<Span> {
         self.previous().map(|s| s.span)
+    }
+    fn previous_parse<T: FromStr>(&self) -> Result<T> {
+        self.previous()?.span.slice(self.src).parse::<T>().map_err(|_| {
+            ParseError::from("Error parsing lexem")
+        })
     }
     fn previous_lexem(&mut self) -> Result<Symbol> {
         Ok(self.owned_lexem(self.previous()?.span))

@@ -8,15 +8,16 @@ impl SizeStrategy for MaplSizeStrategy {
     const CALL_FRAME: usize = 4;
 
     fn size_of(t: &Type) -> usize {
-        match t.kind {
+        match &t.kind {
             TypeKind::Int => 2,
             TypeKind::Float => 4,
             TypeKind::Bool => 1,
             TypeKind::Char => 1,
             TypeKind::Empty => 0,
+            TypeKind::Array(array) => Self::size_of(&array.of) * array.length,
             TypeKind::String => todo!(),
             TypeKind::Custom(_) => todo!(),
-            _ => unreachable!()
+            TypeKind::Error(_) => unreachable!(),
         }
     }
 }
