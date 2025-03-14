@@ -21,6 +21,11 @@ pub struct PrintStmt {
 }
 
 #[derive(Debug)]
+pub struct ReadStmt {
+    pub expr: Expression,
+}
+
+#[derive(Debug)]
 pub struct DeclarationStmt {
     pub inner: Declaration,
 }
@@ -69,6 +74,7 @@ pub struct ReturnStmt {
 pub enum StatementKind {
     Expression(ExprAsStmt),
     Print(PrintStmt),
+    Read(ReadStmt),
     Decl(DeclarationStmt),
     Block(BlockStmt),
     If(IfStmt),

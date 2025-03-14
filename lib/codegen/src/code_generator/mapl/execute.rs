@@ -2,9 +2,9 @@ use std::ops::Deref;
 
 use crate::memory::{MaplSizeStrategy, SizeStrategy};
 
-use super::{get_last_variable_decl, Define, Eval, Execute, MaplCodeGenerator};
+use super::{get_last_variable_decl, Address, Define, Eval, Execute, MaplCodeGenerator};
 use ast::declaration::MemoryAddress;
-use ast::stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
+use ast::stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::Statement;
 
 impl Execute for PrintStmt {
@@ -20,6 +20,7 @@ impl Execute for Statement {
         match &self.kind {
             StatementKind::Expression(expr_as_stmt) => expr_as_stmt.execute(cg),
             StatementKind::Print(print_stmt) => print_stmt.execute(cg),
+            StatementKind::Read(read_stmt) => read_stmt.execute(cg),
             StatementKind::Decl(declaration_stmt) => declaration_stmt.execute(cg),
             StatementKind::Block(block_stmt) => block_stmt.execute(cg),
             StatementKind::If(if_stmt) => if_stmt.execute(cg),
@@ -30,6 +31,14 @@ impl Execute for Statement {
             StatementKind::Break(break_stmt) => break_stmt.execute(cg),
             StatementKind::Continue(continue_stmt) => continue_stmt.execute(cg),
         }
+    }
+}
+
+impl Execute for ReadStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        self.expr.address(cg);
+        cg.sufixed_op("IN", &self.expr.ty.unwrap());
+        cg.sufixed_op("STORE", &self.expr.ty.unwrap());
     }
 }
 

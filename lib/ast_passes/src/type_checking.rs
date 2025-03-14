@@ -2,9 +2,9 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use ast::declaration::FunctionDecl;
-use ast::stmt::ReturnStmt;
+use ast::stmt::{ReadStmt, ReturnStmt};
 use ast::types::{ErrorType, Type, TypeKind};
-use ast::visitor::{walk_binary, walk_if_statement};
+use ast::visitor::{walk_binary, walk_expression, walk_if_statement, walk_read_stmt, walk_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
 use util::ErrorManager;
 
@@ -100,16 +100,7 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_expression(&mut self, a: &'_ ast::Expression) -> Self::Result {
-        use ast::expr::ExpressionKind as EK;
-        let ty = match &a.kind {
-            EK::Unary(u) => self.visit_unary(u),
-            EK::Binary(b) => self.visit_binary(b),
-            EK::Ternary(t) => self.visit_ternary(t),
-            EK::Assignment(a) => self.visit_assignment(a),
-            EK::Variable(v) => self.visit_variable_expr(v),
-            EK::Literal(l) => self.visit_literal(l),
-            EK::Call(c) => self.visit_call(c),
-        };
+        let ty = walk_expression(self, a);
         match ty.clone() {
             Some(ty) => {
                 if let TypeKind::Error(err) = &ty.kind {
@@ -200,26 +191,22 @@ impl Visitor<'_> for TypeCheking {
     fn visit_continue_stmt(&mut self, _c: &'_ ast::stmt::ContinueStmt) -> Self::Result { Self::Result::output() }
 
     fn visit_statement(&mut self, s: &'_ ast::Statement) -> Self::Result {
-        use ast::stmt::StatementKind as SK;
-        let ty = match &s.kind {
-            SK::Expression(e) => self.visit_expr_as_stmt(e),
-            SK::Print(e) => self.visit_print(e),
-            SK::Decl(d) => self.visit_decl_stmt(d),
-            SK::Block(b) => self.visit_block(b),
-            SK::If(i) => self.visit_if(i),
-            SK::While(w) => self.visit_while(w),
-            SK::For(f) => self.visit_for(f),
-            SK::Empty(e) => self.visit_empty_stmt(e),
-            SK::Break(b) => self.visit_break_stmt(b),
-            SK::Continue(c) => self.visit_continue_stmt(c),
-            SK::Return(r) => self.visit_return(r),
-        };
+        let ty = walk_statement(self, s);
 
         if let Some(Type { kind: TypeKind::Error(err)}) = ty {
             self.error_manager.error(err.msg, s.span);
         }
 
         Self::Result::output()
+    }
+
+    fn visit_read_stmt(&mut self, r: &'_ ReadStmt) -> Self::Result {
+        walk_read_stmt(self, r);
+        if !r.expr.lvalue() {
+            Some(error("Cannot read into non-lvalue"))
+        } else {
+            None
+        }
     }
 
     fn visit_type(&mut self, ty: &'_ Type) -> Self::Result {

@@ -10,7 +10,7 @@ use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
 use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
-use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
+use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
 use lexer::{Span, unescaped::Unescaped};
@@ -334,7 +334,12 @@ impl<'src> Parser<'src> {
         if self.match_type(TokenKind::Print) {
             self.print_stmt(stmts)?;
             return Ok(())
-        } else if self.match_type(TokenKind::Semicolon) {
+        }
+        else if self.match_type(TokenKind::Read) {
+            self.read_stmt(stmts)?;
+            return Ok(())
+        }
+        else if self.match_type(TokenKind::Semicolon) {
             Statement {
                 kind: StatementKind::Empty(EmptyStmt),
                 span: self.previous_span().unwrap()
@@ -378,6 +383,31 @@ impl<'src> Parser<'src> {
 
         Ok(())
     }
+
+    fn read_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
+        let start_span = self.previous_span().unwrap();
+        let expr = self.expression()?;
+        let span = start_span.join(&expr.span);
+
+        stmts.push(Statement {
+            kind: StatementKind::Read(ReadStmt { expr }),
+            span
+        });
+
+        while self.match_type(TokenKind::Comma) {
+            let expr = self.expression()?;
+            let span = expr.span;
+            stmts.push(Statement {
+                kind: StatementKind::Read(ReadStmt { expr }),
+                span
+            });
+        }
+
+        self.consume(TokenKind::Semicolon)?;
+
+        Ok(())
+    }
+
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
         let span = self.consume(TokenKind::Semicolon)?.span;

@@ -5,6 +5,7 @@
 pub mod expr;
 pub mod stmt;
 
+use std::any;
 use std::cell::{Ref, RefCell};
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -32,7 +33,7 @@ impl<T: Debug> Debug for AstDecorated<T> {
         if let Some(r) = self.0.borrow().deref() {
             write!(f, "{r:?}")
         } else {
-            Ok(())
+            write!(f, "(unset)")
         }
     }
 }
@@ -58,6 +59,9 @@ impl<T> AstDecorated<T> {
     }
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> Option<R> {
         self.0.borrow().deref().as_ref().map(f)
+    }
+    pub fn is_present(&self) -> bool {
+        self.0.borrow().is_some()
     }
 }
 
@@ -92,8 +96,15 @@ impl<T> AstDecorated<T> {
 pub struct AstRef<T>(AstDecorated<Weak<T>>);
 
 impl<T> Debug for AstRef<T> {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tname = any::type_name::<T>();
+        let tname = tname.split("::").last().unwrap_or(tname);
+        write!(f, "AstRef<{tname}>")?;
+        if self.0.is_present() {
+            write!(f, "(set)")
+        } else {
+            write!(f, "(unset)")
+        }
     }
 }
 

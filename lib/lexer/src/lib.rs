@@ -28,6 +28,7 @@ delay! {
         map.insert("for",TokenKind::For);
         map.insert("if",TokenKind::If);
         map.insert("print",TokenKind::Print);
+        map.insert("read",TokenKind::Read);
         map.insert("int",TokenKind::Int);
         map.insert("char",TokenKind::Char);
         map.insert("float",TokenKind::Float);

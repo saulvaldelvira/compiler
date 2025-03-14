@@ -122,6 +122,9 @@ pub enum TokenKind {
     /// "print"
     Print,
 
+    /// "read"
+    Read,
+
     /// "return"
     Return,
 

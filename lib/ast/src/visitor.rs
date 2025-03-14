@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::declaration::{DeclarationKind, FunctionDecl};
 use crate::expr::CallExpr;
-use crate::stmt::{ReturnStmt, StatementKind};
+use crate::stmt::{ReadStmt, ReturnStmt, StatementKind};
 use crate::types::Type;
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
@@ -43,6 +43,9 @@ pub trait Visitor<'ast> : Sized {
         Self::Result::output()
     }
     fn visit_print(&mut self, pr: &'ast PrintStmt) -> Self::Result { self.visit_expression(&pr.expr); Self::Result::output()  }
+    fn visit_read_stmt(&mut self, r: &'ast ReadStmt) -> Self::Result {
+        walk_read_stmt(self, r)
+    }
     fn visit_decl_stmt(&mut self, d: &'ast DeclarationStmt) -> Self::Result { self.visit_declaration(&d.inner); Self::Result::output()  }
     fn visit_block(&mut self, b: &'ast BlockStmt) -> Self::Result {
         for stmt in &b.stmts {
@@ -100,6 +103,7 @@ pub fn walk_statement<'ast, V: Visitor<'ast>>(v: &mut V, stmt: &'ast Statement) 
         match &stmt.kind {
             SK::Expression(e) => v.visit_expr_as_stmt(e),
             SK::Print(e) => v.visit_print(e),
+            SK::Read(r) => v.visit_read_stmt(r),
             SK::Decl(d) => v.visit_decl_stmt(d),
             SK::Block(b) => v.visit_block(b),
             SK::If(i) => v.visit_if(i),
@@ -110,6 +114,11 @@ pub fn walk_statement<'ast, V: Visitor<'ast>>(v: &mut V, stmt: &'ast Statement) 
             SK::Continue(c) => v.visit_continue_stmt(c),
             SK::Return(r) => v.visit_return(r),
         }
+}
+
+pub fn walk_read_stmt<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast ReadStmt) -> V::Result {
+    v.visit_expression(&r.expr);
+    V::Result::output()
 }
 
 pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression) -> V::Result {
