@@ -5,7 +5,7 @@ use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
 use ast::expr::{CallExpr, VariableExpr};
 use ast::visitor::{self, walk_function_decl};
 use ast::{Program, Visitor};
-use error_manager::ErrorManager;
+use util::ErrorManager;
 use session::Symbol;
 
 pub struct Identification {

@@ -1,5 +1,5 @@
 use ast::Program;
-use error_manager::ErrorManager;
+use util::ErrorManager;
 use identification::Identification;
 use type_checking::TypeCheking;
 

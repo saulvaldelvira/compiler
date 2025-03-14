@@ -6,7 +6,7 @@ use ast::stmt::ReturnStmt;
 use ast::types::{ErrorType, Type, TypeKind};
 use ast::visitor::{walk_binary, walk_if_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
-use error_manager::ErrorManager;
+use util::ErrorManager;
 
 pub struct TypeCheking {
     pub (super) error_manager: ErrorManager,
