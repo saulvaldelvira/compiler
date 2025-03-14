@@ -95,6 +95,7 @@ fn eval_arithmetic(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
         BinaryExprOp::Sub => cg.subs(&t),
         BinaryExprOp::Mul => cg.mul(&t),
         BinaryExprOp::Div => cg.div(&t),
+        BinaryExprOp::Mod => cg.sufixed_op("MOD", &t),
         _ => unreachable!()
     }
 }

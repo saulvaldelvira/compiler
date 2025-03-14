@@ -493,7 +493,7 @@ impl<'src> Parser<'src> {
     }
     fn factor(&mut self) -> Result<Expression> {
         let mut left = self.unary()?;
-        while self.match_types(&[TokenKind::Slash,TokenKind::Star]){
+        while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Mod]){
             let op = self.previous()?.kind;
             let op = BinaryExprOp::try_from(op).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))

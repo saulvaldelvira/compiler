@@ -146,6 +146,7 @@ impl<'lex> Lexer<'lex> {
                     self.add_token(TokenKind::BitWiseOr)
                 }
             },
+            '%' => self.add_token(TokenKind::Mod),
             '"' => self.string(),
             ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
             c =>

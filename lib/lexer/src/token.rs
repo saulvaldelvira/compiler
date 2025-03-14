@@ -160,6 +160,9 @@ pub enum TokenKind {
 
     /// "||"
     Or,
+
+    /// '%'
+    Mod,
 }
 
 /// A token consist on a discriminator [TokenKind] and a [Span]

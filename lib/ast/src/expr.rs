@@ -50,6 +50,7 @@ pub enum BinaryExprOp {
     Neq,
     And,
     Or,
+    Mod,
 }
 
 impl TryFrom<TokenKind> for BinaryExprOp {
@@ -69,6 +70,7 @@ impl TryFrom<TokenKind> for BinaryExprOp {
             TokenKind::LessEqual => Self::Le,
             TokenKind::And => Self::And,
             TokenKind::Or => Self::Or,
+            TokenKind::Mod => Self::Mod,
             _ => return Err(())
         })
     }
