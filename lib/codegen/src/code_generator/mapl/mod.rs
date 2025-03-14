@@ -6,9 +6,15 @@ use core::fmt::Write;
 use std::rc::Rc;
 use ast::{Declaration, Program, Statement};
 
+struct LoopCtx {
+    cond_label: String,
+    end_label: String,
+}
+
 pub struct MaplCodeGenerator {
     base: BaseCodeGenerator,
     current_function: Option<Rc<FunctionDecl>>,
+    loops: Vec<LoopCtx>,
     label_counter: usize,
 }
 
@@ -36,6 +42,7 @@ impl CodeGenerator for MaplCodeGenerator {
             base: BaseCodeGenerator::new(),
             current_function: None,
             label_counter: 0,
+            loops: Vec::new(),
         }
     }
 
@@ -58,6 +65,27 @@ impl MaplCodeGenerator {
     fn anon_label(&mut self) -> String {
         self.label_counter += 1;
         format!("label_{}", self.label_counter)
+    }
+
+    fn enter_loop(&mut self, cond_label: String, end_label: String) {
+        self.loops.push(LoopCtx { cond_label, end_label });
+    }
+
+    fn exit_loop(&mut self) -> (String,String) {
+        let LoopCtx { cond_label, end_label } = self.loops.pop().unwrap();
+        (cond_label,end_label)
+    }
+
+    fn continue_current_loop(&mut self)  {
+        let MaplCodeGenerator { base, loops, ..} = self;
+        let l = &loops.last().as_ref().unwrap().end_label;
+        base.write_fmt(format_args!("JMP {l}"));
+    }
+
+    fn exit_current_loop(&mut self) {
+        let MaplCodeGenerator { base, loops, ..} = self;
+        let l = &loops.last().as_ref().unwrap().cond_label;
+        base.write_fmt(format_args!("JMP {l}"));
     }
 
     fn pushi(&mut self, n: i32) {

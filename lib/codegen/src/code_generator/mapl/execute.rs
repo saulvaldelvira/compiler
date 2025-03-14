@@ -4,7 +4,7 @@ use crate::memory::{MaplSizeStrategy, SizeStrategy};
 
 use super::{get_last_variable_decl, Define, Eval, Execute, MaplCodeGenerator};
 use ast::declaration::MemoryAddress;
-use ast::stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
+use ast::stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::Statement;
 
 impl Execute for PrintStmt {
@@ -24,12 +24,50 @@ impl Execute for Statement {
             StatementKind::Block(block_stmt) => block_stmt.execute(cg),
             StatementKind::If(if_stmt) => if_stmt.execute(cg),
             StatementKind::While(while_stmt) => while_stmt.execute(cg),
-            StatementKind::For(_for_stmt) => todo!(),
+            StatementKind::For(for_stmt) => for_stmt.execute(cg),
             StatementKind::Empty(_) => {},
             StatementKind::Return(return_stmt) => return_stmt.execute(cg),
-            StatementKind::Break(_break_stmt) => todo!(),
-            StatementKind::Continue(_continue_stmt) => todo!(),
+            StatementKind::Break(break_stmt) => break_stmt.execute(cg),
+            StatementKind::Continue(continue_stmt) => continue_stmt.execute(cg),
         }
+    }
+}
+
+impl Execute for BreakStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        cg.exit_current_loop();
+    }
+}
+
+impl Execute for ContinueStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        cg.continue_current_loop();
+    }
+}
+
+impl Execute for ForStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        if let Some(init) = &self.init {
+            init.define(cg);
+        }
+        let cond_label = cg.anon_label();
+        let end_label = cg.anon_label();
+        cg.base.write_fmt(format_args!("{cond_label}:"));
+        if let Some(cond) = &self.cond {
+            cond.eval(cg);
+            cg.base.write_fmt(format_args!("JZ {end_label}"));
+        }
+
+        cg.enter_loop(cond_label, end_label);
+        self.body.execute(cg);
+        let (cond_label,end_label) = cg.exit_loop();
+
+        if let Some(inc) = &self.inc {
+            inc.eval(cg);
+            cg.base.write_fmt(format_args!("JMP {cond_label}"));
+        }
+
+        cg.base.write_fmt(format_args!("{end_label}:"));
     }
 }
 
@@ -59,7 +97,11 @@ impl Execute for WhileStmt {
         cg.base.write_fmt(format_args!("{cond_label}:"));
         self.cond.eval(cg);
         cg.base.write_fmt(format_args!("JZ {end_label}"));
+
+        cg.enter_loop(cond_label, end_label);
         self.stmts.execute(cg);
+        let (cond_label,end_label) = cg.exit_loop();
+
         cg.base.write_fmt(format_args!("JMP {cond_label}"));
         cg.base.write_fmt(format_args!("{end_label}:"));
     }
