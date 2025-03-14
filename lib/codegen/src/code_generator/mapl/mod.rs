@@ -8,7 +8,8 @@ use ast::{Declaration, Program, Statement};
 
 pub struct MaplCodeGenerator {
     base: BaseCodeGenerator,
-    current_function: Option<Rc<FunctionDecl>>
+    current_function: Option<Rc<FunctionDecl>>,
+    label_counter: usize,
 }
 
 fn get_last_variable_decl(f: &FunctionDecl) -> Option<&VariableDecl> {
@@ -34,6 +35,7 @@ impl CodeGenerator for MaplCodeGenerator {
         MaplCodeGenerator {
             base: BaseCodeGenerator::new(),
             current_function: None,
+            label_counter: 0,
         }
     }
 
@@ -47,11 +49,17 @@ impl CodeGenerator for MaplCodeGenerator {
 fn get_type_suffix(t: &Type) -> &str {
     match t.kind {
         TypeKind::Int => "I",
+        TypeKind::Char => "B",
         _ => todo!()
     }
 }
 
 impl MaplCodeGenerator {
+    fn anon_label(&mut self) -> String {
+        self.label_counter += 1;
+        format!("label_{}", self.label_counter)
+    }
+
     fn pushi(&mut self, n: i32) {
         writeln!(self.base.buf, "PUSHI {n}").unwrap();
     }

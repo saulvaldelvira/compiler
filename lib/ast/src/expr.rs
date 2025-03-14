@@ -22,7 +22,6 @@ pub enum BinaryExprOp {
     Sub,
     Mul,
     Div,
-    Comma,
     Gt,
     Ge,
     Lt,
@@ -38,7 +37,6 @@ impl TryFrom<TokenKind> for BinaryExprOp {
 
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
         Ok(match value {
-            TokenKind::Comma => Self::Comma,
             TokenKind::Minus => Self::Sub,
             TokenKind::Plus => Self::Add,
             TokenKind::Slash => Self::Div,
@@ -134,12 +132,6 @@ impl Expression {
         }
     }
 }
-
-/* impl fmt::Debug for Expression { */
-/*     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { */
-/*         write!(f, "{:#?}", self.kind) */
-/*     } */
-/* } */
 
 use lexer::token::TokenKind;
 use lexer::unescaped::Unescaped;

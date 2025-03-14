@@ -197,8 +197,8 @@ impl<'src> Parser<'src> {
             Err("Expected type".into())
         }
     }
-    fn statement(&mut self) -> Result<Statement> {
-        if let Some(vdecl) = self.try_var_decl() {
+    fn statement(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
+        let stmt = if let Some(vdecl) = self.try_var_decl() {
             let vdecl = vdecl?;
             let span = vdecl.span;
             let stmt = Statement {
@@ -225,8 +225,11 @@ impl<'src> Parser<'src> {
             self.ret_stmt()
         }
         else {
-            self.single_line_stmt()
-        }
+            self.single_line_stmt(stmts)?;
+            return Ok(())
+        };
+        stmts.push(stmt?);
+        Ok(())
     }
     fn ret_stmt(&mut self) -> Result<Statement> {
         let span = self.previous_span()?;
@@ -271,7 +274,7 @@ impl<'src> Parser<'src> {
     fn block_inner(&mut self) -> Result<Vec<Statement>> {
         let mut stmts = Vec::new();
         while !self.check(TokenKind::RightBrace) && !self.is_finished() {
-            stmts.push(self.statement()?);
+            self.statement(&mut stmts)?
         }
         Ok(stmts)
     }
@@ -286,8 +289,22 @@ impl<'src> Parser<'src> {
         let stmts = self.block_inner()?;
         let end_span = self.consume(TokenKind::RightBrace).unwrap().span;
         Ok(Statement {
-            kind: StatementKind::Block(BlockStmt { stmts }),
+            kind: StatementKind::Block(BlockStmt { stmts: stmts.into_boxed_slice() }),
             span: start_span.join(&end_span)
+        })
+    }
+    fn statement_flatten(&mut self) -> Result<Statement> {
+        let mut stmts = Vec::new();
+        self.statement(&mut stmts)?;
+        Ok(if stmts.len() > 1 {
+            let span = stmts.first().unwrap().span;
+            let end_span = stmts.last().unwrap().span;
+            Statement {
+                kind: StatementKind::Block(BlockStmt { stmts: stmts.into_boxed_slice() }),
+                span: span.join(&end_span),
+            }
+        } else {
+            stmts.pop().unwrap()
         })
     }
     fn for_stmt(&mut self) -> Result<Statement> {
@@ -305,17 +322,18 @@ impl<'src> Parser<'src> {
             Some(self.expression()?)
         } else { None };
         self.consume(TokenKind::RightParen)?;
-        let body = Box::new(self.statement()?);
+        let body = Box::new(self.statement_flatten()?);
         let span =  span.join(&body.span);
         Ok(Statement {
             kind: StatementKind::For(ForStmt { init, cond, inc, body }),
             span
         })
     }
-    fn single_line_stmt(&mut self) -> Result<Statement> {
+    fn single_line_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
         let ast =
         if self.match_type(TokenKind::Print) {
-            self.print_stmt()?
+            self.print_stmt(stmts)?;
+            return Ok(())
         } else if self.match_type(TokenKind::Semicolon) {
             Statement {
                 kind: StatementKind::Empty(EmptyStmt),
@@ -334,16 +352,31 @@ impl<'src> Parser<'src> {
         } else {
             self.expression_as_stmt()?
         };
-        Ok(ast)
+        stmts.push(ast);
+        Ok(())
     }
-    fn print_stmt(&mut self) -> Result<Statement> {
+    fn print_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
         let start_span = self.previous_span().unwrap();
         let expr = self.expression()?;
-        let end_span = self.consume(TokenKind::Semicolon)?.span;
-        Ok(Statement {
+        let span = start_span.join(&expr.span);
+
+        stmts.push(Statement {
             kind: StatementKind::Print(PrintStmt { expr }),
-            span: start_span.join(&end_span)
-        })
+            span
+        });
+
+        while self.match_type(TokenKind::Comma) {
+            let expr = self.expression()?;
+            let span = expr.span;
+            stmts.push(Statement {
+                kind: StatementKind::Print(PrintStmt { expr }),
+                span
+            });
+        }
+
+        self.consume(TokenKind::Semicolon)?;
+
+        Ok(())
     }
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
@@ -355,35 +388,13 @@ impl<'src> Parser<'src> {
         })
     }
     fn expression(&mut self) -> Result<Expression> {
-        self.comma()
+        self.assignment()
     }
 
     fn try_expression(&mut self) -> Option<Expression> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(_) => None,
-        }
+        self.expression().ok()
     }
 
-    fn comma(&mut self) -> Result<Expression> {
-        let mut left = self.assignment()?;
-        if self.match_type(TokenKind::Comma) {
-            let right = Box::new(self.comma()?);
-            let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(
-                    BinaryExpr {
-                        left: Box::new(left),
-                        op: BinaryExprOp::Comma,
-                        right,
-                        kind: BinaryExprKind::Comma
-                    }
-                ),
-                span
-            );
-        }
-        Ok(left)
-    }
     fn assignment(&mut self) -> Result<Expression> {
         let left = self.ternary()?;
         let ast = if self.match_type(TokenKind::Equal) {

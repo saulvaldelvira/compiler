@@ -27,7 +27,7 @@ pub struct DeclarationStmt {
 
 #[derive(Debug)]
 pub struct BlockStmt {
-    pub stmts: Vec<Statement>,
+    pub stmts: Box<[Statement]>,
 }
 
 #[derive(Debug)]

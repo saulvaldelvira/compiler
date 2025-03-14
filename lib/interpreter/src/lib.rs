@@ -177,7 +177,6 @@ impl Visitor<'_> for Interpreter {
             BinaryExprOp::Le => tern!(left <= right),
             BinaryExprOp::Eq => tern!(left == right),
             BinaryExprOp::Neq => tern!(left != right),
-            BinaryExprOp::Comma => num!(right),
             _ => todo!()
         };
 

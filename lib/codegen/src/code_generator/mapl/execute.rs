@@ -4,7 +4,7 @@ use crate::memory::{MaplSizeStrategy, SizeStrategy};
 
 use super::{get_last_variable_decl, Define, Eval, Execute, MaplCodeGenerator};
 use ast::declaration::MemoryAddress;
-use ast::stmt::{DeclarationStmt, ExprAsStmt, PrintStmt, ReturnStmt, StatementKind};
+use ast::stmt::{BlockStmt, DeclarationStmt, ExprAsStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::Statement;
 
 impl Execute for PrintStmt {
@@ -21,14 +21,54 @@ impl Execute for Statement {
             StatementKind::Expression(expr_as_stmt) => expr_as_stmt.execute(cg),
             StatementKind::Print(print_stmt) => print_stmt.execute(cg),
             StatementKind::Decl(declaration_stmt) => declaration_stmt.execute(cg),
-            StatementKind::Block(_block_stmt) => todo!(),
-            StatementKind::If(_if_stmt) => todo!(),
-            StatementKind::While(_while_stmt) => todo!(),
+            StatementKind::Block(block_stmt) => block_stmt.execute(cg),
+            StatementKind::If(if_stmt) => if_stmt.execute(cg),
+            StatementKind::While(while_stmt) => while_stmt.execute(cg),
             StatementKind::For(_for_stmt) => todo!(),
             StatementKind::Empty(_empty_stmt) => todo!(),
             StatementKind::Break(_break_stmt) => todo!(),
             StatementKind::Continue(_continue_stmt) => todo!(),
             StatementKind::Return(return_stmt) => return_stmt.execute(cg),
+        }
+    }
+}
+
+impl Execute for IfStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        let else_label = cg.anon_label();
+        let end_label = cg.anon_label();
+
+        self.cond.eval(cg);
+        cg.base.write_fmt(format_args!("JZ {else_label}"));
+        self.if_true.execute(cg);
+        cg.base.write_fmt(format_args!("JMP {end_label}"));
+        cg.base.write_fmt(format_args!("{else_label}:"));
+        if let Some(if_false) = &self.if_false {
+            if_false.execute(cg);
+        }
+        cg.base.write_fmt(format_args!("{end_label}:"));
+
+    }
+}
+
+impl Execute for WhileStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        let cond_label = cg.anon_label();
+        let end_label = cg.anon_label();
+
+        cg.base.write_fmt(format_args!("{cond_label}:"));
+        self.cond.eval(cg);
+        cg.base.write_fmt(format_args!("JZ {end_label}"));
+        self.stmts.execute(cg);
+        cg.base.write_fmt(format_args!("JMP {cond_label}"));
+        cg.base.write_fmt(format_args!("{end_label}:"));
+    }
+}
+
+impl Execute for BlockStmt {
+    fn execute(&self, cg: &mut MaplCodeGenerator) {
+        for stmt in &self.stmts {
+            stmt.execute(cg);
         }
     }
 }
