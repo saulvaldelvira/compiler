@@ -1,11 +1,12 @@
+use std::io::stderr;
 use std::process::exit;
 use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
 use ast::Program;
 use ast_passes::{perform_identification, perform_typechecking};
-use config::Config;
-use interpreter::Interpreter;
+use codegen::target::MaplTarget;
+use config::{Config, Target};
 use lexer::token::Token;
 use lexer::Lexer;
 use parser::Parser;
@@ -19,38 +20,46 @@ pub fn tokenize(text: &str) -> Box<[Token]> {
     })
 }
 
+fn fail(n: usize) -> ! {
+    println!("Compilation failed with {n} error{}",
+        if n > 1 { "s" } else { "" }
+    );
+    exit(1);
+}
+
 pub fn parse(tokens: Box<[Token]>, src: &str) -> Program {
     Parser::new(&tokens, src).parse().unwrap_or_else(|nerr| {
-        println!("Compilation failed with {nerr} error{}",
-            if nerr > 1 { "s" } else { "" }
-        );
-        exit(1);
+        fail(nerr as usize)
     })
 }
 
-fn process(text: &str) {
+fn process(text: &str, target: Target) -> String {
     /* println!("*** LEXER ***"); */
     let tokens = tokenize(text);
     /* tokens.iter().for_each(|t| println!("{t:#?}")); */
     /* println!("\n*** PARSER ***"); */
     let program = parse(tokens, text);
 
-    if perform_identification(&program).is_err() {
-        return
+    if let Err(em) = perform_identification(&program) {
+        em.print_errors(&mut stderr().lock()).unwrap();
+        fail(em.n_errors())
     }
 
-    if perform_typechecking(&program).is_err() {
-        return
+    if let Err(em) = perform_typechecking(&program) {
+        em.print_errors(&mut stderr().lock()).unwrap();
+        fail(em.n_errors())
     }
 
-    let interpreter = Interpreter::new();
-    let mut interpreter = interpreter;
     #[cfg(debug_assertions)]
-    println!("\
-================================= Executing  ===================================
+    eprintln!("\
+================================================================================
 {program:#?}
 ================================================================================");
-    interpreter.interpret(&program);
+
+    match target {
+        Target::Mapl => codegen::process::<MaplTarget>(&program)
+    }
+
 }
 
 fn main() {
@@ -60,7 +69,12 @@ fn main() {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
-        process(&text);
+        let out = process(&text, conf.target());
+        let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
+        let start = &file[..ext];
+        let fname = format!("{start}.out");
+        fs::write(&fname, out).unwrap();
+        println!("Program written to {fname}");
     }
     if conf.files().is_empty() {
         let mut text = String::new();
@@ -68,7 +82,8 @@ fn main() {
             eprintln!("Error reading stdin: {err}");
             exit(1)
         });
-        process(&text);
+        let out = process(&text, conf.target());
+        println!("{out}");
     }
 }
 

@@ -1,101 +1,78 @@
-use core::fmt;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use ast::declaration::{FunctionDecl, VariableDecl};
+use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
 use ast::expr::{CallExpr, VariableExpr};
-use ast::visitor::{walk_function_decl, walk_program};
+use ast::visitor::{self, walk_function_decl};
 use ast::{Program, Visitor};
+use error_manager::ErrorManager;
 use session::Symbol;
 
-enum Pass {
-    Discover,
-    Global,
-    Link,
-    Unset
-}
-
 pub struct Identification {
+    pub (super) error_manager: ErrorManager,
     scopes: Scopes,
-    n_errors: usize,
-    pass: Pass,
 }
 
 impl Identification {
     pub fn new() -> Self {
         Identification {
             scopes: Scopes::new(),
-            n_errors: 0,
-            pass: Pass::Unset
+            error_manager: ErrorManager::new(),
         }
     }
 
-    pub fn n_errors(&self) -> usize {
-        self.n_errors
-    }
-
-    fn error_fmt(&mut self, msg: fmt::Arguments<'_>) {
-        self.n_errors += 1;
-        eprintln!("IDENTIFICATION: {msg}");
-    }
-
     pub fn process(&mut self, program: &Program) {
-        self.pass = Pass::Global;
-        self.visit_program(program);
-        if self.n_errors > 0 { return }
+        for decl in &program.decls {
+            match &decl.kind {
+                DeclarationKind::Variable(vdecl) => self.scopes.def_var(vdecl.name, Rc::clone(vdecl)),
+                DeclarationKind::Function(fdecl) => self.scopes.def_fn(fdecl.name, Rc::clone(fdecl)),
+            }
+        }
 
-        self.pass = Pass::Discover;
-        self.visit_program(program);
-        if self.n_errors > 0 { return }
-
-        self.pass = Pass::Link;
-        self.visit_program(program);
+        self.visit_program(program).unwrap();
     }
 }
 
 impl<'ast> Visitor<'ast> for Identification {
-    type Result = ();
+    type Result = Result<(),String>;
 
-    fn visit_program(&mut self, prog: &'ast Program) {
-       if matches!(self.pass, Pass::Unset) {
-           panic!("Fatal Error!: Don't call Identification::visit_program, call Identification::process!");
-       } else {
-           walk_program(self, prog)
-       }
+    fn visit_expression(&mut self, a: &'ast ast::Expression) -> Self::Result {
+        visitor::walk_expression(self, a).unwrap_or_else(|err| {
+            self.error_manager.error(err, a.span);
+        });
+        Ok(())
     }
 
-    fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) {
-        if !matches!(self.pass, Pass::Link) { return }
+    fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) -> Self::Result {
         self.scopes.def_var(v.name, Rc::clone(v));
-
-
+        Ok(())
     }
 
-    fn visit_variable_expr(&mut self, v: &'ast VariableExpr) {
-        if !matches!(self.pass, Pass::Link) { return }
+    fn visit_variable_expr(&mut self, v: &'ast VariableExpr) -> Self::Result {
         match self.scopes.get_var(&v.name) {
             Some(decl) => v.decl.set(Rc::clone(decl)),
-            None => self.error_fmt(format_args!("Undefined variable \"{:?}\"", v.name)),
+            None => return Err(format!("Undefined variable \"{:?}\"", v.name)),
         }
+        Ok(())
     }
 
-    fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) {
+    fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) -> Self::Result {
         self.scopes.def_fn(f.name, Rc::clone(f));
-        if matches!(self.pass, Pass::Global) { return }
         self.scopes.set();
-        walk_function_decl(self, f);
+        walk_function_decl(self, f).unwrap();
         self.scopes.reset();
+        Ok(())
     }
 
-    fn visit_call(&mut self, call: &'ast CallExpr) {
-        if !matches!(self.pass, Pass::Link) { return }
-
+    fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
         match self.scopes.get_func(&call.callee) {
             Some(decl) => {
                 call.decl.set(Rc::clone(decl));
             },
-            None => self.error_fmt(format_args!("Undefined function \"{:?}\"", call.callee)),
+            None => return Err(format!("Undefined function \"{:?}\"", call.callee)),
         }
+
+        Ok(())
     }
 }
 

@@ -6,12 +6,13 @@ use type_checking::TypeCheking;
 mod identification;
 mod type_checking;
 
-pub fn perform_identification(program: &Program) -> Result<(),usize> {
+pub fn perform_identification(program: &Program) -> Result<(),ErrorManager> {
     let mut ident = Identification::new();
     ident.process(program);
-    match ident.n_errors() {
+    let Identification { error_manager, .. } = ident;
+    match error_manager.n_errors() {
         0 => Ok(()),
-        n => Err(n)
+        _ => Err(error_manager)
     }
 }
 

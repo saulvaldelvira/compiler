@@ -1,3 +1,4 @@
 /target
 input.txt
 Cargo.lock
+*.out

@@ -18,16 +18,30 @@ impl CodeGenerator for MaplCodeGenerator {
 
 }
 
+fn get_type_suffix(t: &Type) -> &str {
+    match t.kind {
+        TypeKind::Int => "I",
+        _ => todo!()
+    }
+}
+
 impl MaplCodeGenerator {
     fn pushi(&mut self, n: i32) {
         writeln!(self.0.buf, "PUSHI {n}").unwrap();
     }
-    fn out(&mut self, tk: &Type) {
-        let t = match tk.kind {
-            TypeKind::Int => "I",
-            _ => todo!()
-        };
-        self.0.buf.write_fmt(format_args!("OUT{t}\n")).unwrap();
+    fn out(&mut self, t: &Type) {
+        self.0.buf.write_fmt(format_args!("OUT{}\n", get_type_suffix(t))).unwrap();
+    }
+    fn discard_type(&mut self, t: &Type) {
+        match &t.kind {
+            TypeKind::Int
+            | TypeKind::Float
+            | TypeKind::Bool
+            | TypeKind::Char => {
+                self.0.buf.write_fmt(format_args!("POP{}\n", get_type_suffix(t))).unwrap();
+            }
+            _ => { }
+        }
     }
 }
 
