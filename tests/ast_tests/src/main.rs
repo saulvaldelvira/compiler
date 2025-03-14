@@ -4,8 +4,7 @@ use std::{env, fs, process};
 
 use ast::Program;
 use ast_passes::{perform_identification, perform_typechecking};
-use codegen::assign_memory;
-use codegen::size_strategy::MaplSizeStrategy;
+use codegen::target::MaplTarget;
 use lexer::token::Token;
 use lexer::Lexer;
 use parser::Parser;
@@ -45,13 +44,12 @@ fn process(text: &str) {
         /* return; */
     }
 
-    if let Err(em) = assign_memory::<MaplSizeStrategy>(&program) {
-        println!("{program:#?}");
-        em.print_errors(&mut stdout().lock()).unwrap();
-        /* return; */
-    }
+    let code = codegen::process::<MaplTarget>(&program);
 
     println!("{program:#?}");
+
+    fs::write("/tmp/out.txt", &code).unwrap();
+    println!("Code written to /tmp/out.txt");
 }
 
 fn main() {

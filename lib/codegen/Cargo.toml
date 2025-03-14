@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 ast = { path = "../ast" }
 error_manager = { path = "../error_manager" }
+session = { path = "../session" }

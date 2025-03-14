@@ -1,13 +1,14 @@
-use ast::{Program, Visitor};
-use error_manager::ErrorManager;
-use memory::MemoryAllocation;
-use size_strategy::SizeStrategy;
+use ast::Program;
+use code_generator::gen_code;
+use memory::assign_memory;
 
 mod memory;
-pub mod size_strategy;
+mod code_generator;
 
-pub fn assign_memory<S: SizeStrategy>(program: &Program) -> Result<(), ErrorManager> {
-    let mut mem = MemoryAllocation::<S>::new();
-    mem.visit_program(program);
-    Ok(())
+pub mod target;
+pub use target::Target;
+
+pub fn process<T: Target>(program: &Program) -> String {
+    assign_memory::<T::SizeStrategy>(program);
+    gen_code::<T::CodeGenerator>(program)
 }

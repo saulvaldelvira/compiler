@@ -4,9 +4,17 @@ use std::rc::Rc;
 use ast::declaration::{DeclarationKind, FunctionDecl, MemoryAddress};
 use ast::stmt::{DeclarationStmt, StatementKind};
 use ast::visitor::{walk_function_decl, walk_program};
-use ast::{Declaration, Visitor};
+use ast::{Declaration, Program, Visitor};
 
-use crate::size_strategy::SizeStrategy;
+use ast::types::Type;
+
+mod mapl;
+pub use mapl::MaplSizeStrategy;
+
+pub trait SizeStrategy {
+    const CALL_FRAME: usize;
+    fn size_of(t: &Type) -> usize;
+}
 
 pub struct MemoryAllocation<S: SizeStrategy> {
     _marker: PhantomData<S>,
@@ -18,6 +26,11 @@ impl<S: SizeStrategy> MemoryAllocation<S> {
             _marker: PhantomData
         }
     }
+}
+
+pub fn assign_memory<S: SizeStrategy>(program: &Program) {
+    let mut mem = MemoryAllocation::<S>::new();
+    mem.visit_program(program);
 }
 
 impl<S: SizeStrategy> Visitor<'_> for MemoryAllocation<S> {

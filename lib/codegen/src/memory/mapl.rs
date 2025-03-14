@@ -1,9 +1,6 @@
 use ast::types::{Type, TypeKind};
 
-pub trait SizeStrategy {
-    const CALL_FRAME: usize;
-    fn size_of(t: &Type) -> usize;
-}
+use super::SizeStrategy;
 
 pub struct MaplSizeStrategy;
 
@@ -23,3 +20,4 @@ impl SizeStrategy for MaplSizeStrategy {
         }
     }
 }
+
