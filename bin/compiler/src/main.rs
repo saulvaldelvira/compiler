@@ -64,26 +64,36 @@ fn process(text: &str, target: Target) -> String {
 
 fn main() {
     let conf = Config::parse(env::args());
-    for file in conf.files() {
+    for file in &conf.files {
         let text = fs::read_to_string(file).unwrap_or_else(|err| {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
-        let out = process(&text, conf.target());
-        let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
-        let start = &file[..ext];
-        let fname = format!("{start}.out");
+        let out = process(&text, conf.target);
+
+        let fname = conf.out_file.clone().unwrap_or_else(|| {
+            let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
+            let start = &file[..ext];
+            format!("{start}.out")
+        });
+
         fs::write(&fname, out).unwrap();
         println!("Program written to {fname}");
     }
-    if conf.files().is_empty() {
+    if conf.files.is_empty() {
         let mut text = String::new();
         stdin().read_to_string(&mut text).unwrap_or_else(|err| {
             eprintln!("Error reading stdin: {err}");
             exit(1)
         });
-        let out = process(&text, conf.target());
-        println!("{out}");
+        let out = process(&text, conf.target);
+        match conf.out_file {
+            Some(f) => {
+                fs::write(&f, out).unwrap();
+                println!("Program written to {f}");
+            },
+            None => println!("{out}")
+        }
     }
 }
 

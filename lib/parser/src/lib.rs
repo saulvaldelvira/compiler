@@ -9,7 +9,7 @@ use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
+use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
@@ -368,12 +368,16 @@ impl<'src> Parser<'src> {
     fn comma(&mut self) -> Result<Expression> {
         let mut left = self.assignment()?;
         if self.match_type(TokenKind::Comma) {
-            let op = self.previous_lexem()?;
             let right = Box::new(self.comma()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
                 ExpressionKind::Binary(
-                    BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comma }
+                    BinaryExpr {
+                        left: Box::new(left),
+                        op: BinaryExprOp::Comma,
+                        right,
+                        kind: BinaryExprKind::Comma
+                    }
                 ),
                 span
             );
@@ -411,7 +415,10 @@ impl<'src> Parser<'src> {
     fn logical(&mut self) -> Result<Expression> {
         let mut left = self.equality()?;
         while self.match_types(&[TokenKind::Or, TokenKind::And]) {
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = BinaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Unknown operand {op:#?}"))
+            })?;
             let right = Box::new(self.logical()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
@@ -424,7 +431,10 @@ impl<'src> Parser<'src> {
     fn equality(&mut self) -> Result<Expression> {
         let mut left = self.comparison()?;
         while self.match_types(&[TokenKind::BangEqual, TokenKind::EqualEqual]) {
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = BinaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Unknown operand {op:#?}"))
+            })?;
             let right = Box::new(self.comparison()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
@@ -441,7 +451,10 @@ impl<'src> Parser<'src> {
                                 TokenKind::Less,
                                 TokenKind::LessEqual]
                              ){
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = BinaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Unknown operand {op:#?}"))
+            })?;
             let right = Box::new(self.term()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
@@ -454,7 +467,10 @@ impl<'src> Parser<'src> {
     fn term(&mut self) -> Result<Expression> {
         let mut left = self.factor()?;
         while self.match_types(&[TokenKind::Minus,TokenKind::Plus]){
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = BinaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Unknown operand {op:#?}"))
+            })?;
             let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
             left = Expression::new(
@@ -467,7 +483,10 @@ impl<'src> Parser<'src> {
     fn factor(&mut self) -> Result<Expression> {
         let mut left = self.unary()?;
         while self.match_types(&[TokenKind::Slash,TokenKind::Star]){
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = BinaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Unknown operand {op:#?}"))
+            })?;
             let right = Box::new(self.unary()?);
             let span = left.span.join(&right.span);
             left = Expression::new(

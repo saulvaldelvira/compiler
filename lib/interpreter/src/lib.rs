@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use std::rc::Rc;
 
 use ast::declaration::{DeclarationKind, VariableDecl};
-use ast::expr::CallExpr;
+use ast::expr::{BinaryExprOp, CallExpr};
 use ast::visitor::{walk_call, VisitorResult};
 use ast::AstRef;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
@@ -166,22 +166,20 @@ impl Visitor<'_> for Interpreter {
                 LitValue::Float($e)
             };
         }
-        let res = with_symbol(b.op, |op| {
-            match op {
-                "*" => num!(left * right),
-                "+" => num!(left + right),
-                "-" => num!(left - right),
-                "/" => num!(left / right),
-                ">" => tern!(left > right),
-                "<" => tern!(left < right),
-                ">=" => tern!(left >= right),
-                "<=" => tern!(left <= right),
-                "==" => tern!(left == right),
-                "!=" => tern!(left != right),
-                "," => num!(right),
-                _ => unreachable!("Unknown operator")
-            }
-        });
+        let res = match b.op {
+            BinaryExprOp::Add => num!(left + right),
+            BinaryExprOp::Sub => num!(left - right),
+            BinaryExprOp::Mul => num!(left * right),
+            BinaryExprOp::Div => num!(left / right),
+            BinaryExprOp::Gt => tern!(left > right),
+            BinaryExprOp::Lt => tern!(left < right),
+            BinaryExprOp::Ge => tern!(left >= right),
+            BinaryExprOp::Le => tern!(left <= right),
+            BinaryExprOp::Eq => tern!(left == right),
+            BinaryExprOp::Neq => tern!(left != right),
+            BinaryExprOp::Comma => num!(right),
+            _ => todo!()
+        };
 
         self.ctx.values.push(res);
 

@@ -11,9 +11,49 @@ pub struct UnaryExpr {
 #[derive(Debug)]
 pub struct BinaryExpr {
     pub left: Expr,
-    pub op: Symbol,
+    pub op: BinaryExprOp,
     pub right: Expr,
     pub kind: BinaryExprKind,
+}
+
+#[derive(Debug)]
+pub enum BinaryExprOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Comma,
+    Gt,
+    Ge,
+    Lt,
+    Le,
+    Eq,
+    Neq,
+    And,
+    Or,
+}
+
+impl TryFrom<TokenKind> for BinaryExprOp {
+    type Error = ();
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        Ok(match value {
+            TokenKind::Comma => Self::Comma,
+            TokenKind::Minus => Self::Sub,
+            TokenKind::Plus => Self::Add,
+            TokenKind::Slash => Self::Div,
+            TokenKind::Star => Self::Mul,
+            TokenKind::BangEqual => Self::Neq,
+            TokenKind::EqualEqual => Self::Eq,
+            TokenKind::Greater => Self::Gt,
+            TokenKind::GreaterEqual => Self::Ge,
+            TokenKind::Less => Self::Lt,
+            TokenKind::LessEqual => Self::Le,
+            TokenKind::And => Self::And,
+            TokenKind::Or => Self::Or,
+            _ => return Err(())
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -101,7 +141,7 @@ impl Expression {
 /*     } */
 /* } */
 
-use session;
+use lexer::token::TokenKind;
 use lexer::unescaped::Unescaped;
 use lexer::Span;
 use session::Symbol;
