@@ -25,10 +25,10 @@ impl Execute for Statement {
             StatementKind::If(if_stmt) => if_stmt.execute(cg),
             StatementKind::While(while_stmt) => while_stmt.execute(cg),
             StatementKind::For(_for_stmt) => todo!(),
-            StatementKind::Empty(_empty_stmt) => todo!(),
+            StatementKind::Empty(_) => {},
+            StatementKind::Return(return_stmt) => return_stmt.execute(cg),
             StatementKind::Break(_break_stmt) => todo!(),
             StatementKind::Continue(_continue_stmt) => todo!(),
-            StatementKind::Return(return_stmt) => return_stmt.execute(cg),
         }
     }
 }

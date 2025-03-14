@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use std::rc::Rc;
 
 use ast::declaration::{DeclarationKind, VariableDecl};
-use ast::expr::{BinaryExprOp, CallExpr};
+use ast::expr::{BinaryExprOp, CallExpr, UnaryExprOp};
 use ast::visitor::{walk_call, VisitorResult};
 use ast::AstRef;
 use ast::{expr::{ExpressionKind, LitExpr, LitValue, VariableExpr}, stmt::{ForStmt, WhileStmt}, Program, Visitor};
@@ -111,26 +111,23 @@ impl Visitor<'_> for Interpreter {
         self.visit_expression(&u.expr)?;
         let val = self.ctx.pop_val();
 
-        let val = with_symbol(u.op, |op| {
-            match op {
-                "!" => match val {
-                    LitValue::Int(n) => LitValue::Bool(n != 0),
-                    LitValue::Float(n) => LitValue::Bool(n != 0.0),
-                    LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
-                    LitValue::Bool(b) => LitValue::Bool(!b),
-                    LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
-                },
-                "-" => match val {
+        let val = match u.op {
+            UnaryExprOp::Negation => match val {
                     LitValue::Int(n) => LitValue::Int(-n),
                     LitValue::Float(n) => LitValue::Float(-n),
                     LitValue::Char(c) => LitValue::Int(-(c as i32)),
                     LitValue::Bool(b) => LitValue::Int((0 - b as u8) as i32),
                     LitValue::Str(_) => err!("Can't use operator on a String" ; &u.expr.span),
-                },
-                "+" => val,
-                _ => unreachable!()
+            },
+            UnaryExprOp::Plus => val,
+            UnaryExprOp::Not => match val {
+                    LitValue::Int(n) => LitValue::Bool(n != 0),
+                    LitValue::Float(n) => LitValue::Bool(n != 0.0),
+                    LitValue::Char(c) => LitValue::Bool(c as u32 != 0),
+                    LitValue::Bool(b) => LitValue::Bool(!b),
+                    LitValue::Str(_) => err!("Can't use operator on a String" ; u.expr.span),
             }
-        });
+        };
 
         self.ctx.values.push(val);
 

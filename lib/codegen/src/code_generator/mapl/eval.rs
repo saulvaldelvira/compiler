@@ -1,19 +1,49 @@
-use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, VariableExpr};
+use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::Expression;
 use session::with_symbol;
 
-use super::{Address, Eval, MaplCodeGenerator};
+use super::{get_type_suffix, Address, Eval, MaplCodeGenerator};
 
 impl Eval for Expression {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
         match &self.kind {
             ExpressionKind::Literal(lit_expr) => lit_expr.eval(cg),
-            ExpressionKind::Unary(_unary_expr) => todo!(),
+            ExpressionKind::Unary(unary_expr) => unary_expr.eval(cg),
             ExpressionKind::Binary(binary_expr) => binary_expr.eval(cg),
-            ExpressionKind::Ternary(_ternary_expr) => todo!(),
+            ExpressionKind::Ternary(ternary_expr) => ternary_expr.eval(cg),
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.eval(cg),
             ExpressionKind::Variable(variable_expr) => variable_expr.eval(cg),
             ExpressionKind::Call(call_expr) => call_expr.eval(cg),
+        }
+    }
+}
+
+impl Eval for TernaryExpr {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        let else_label = cg.anon_label();
+        let end_label = cg.anon_label();
+
+        self.cond.eval(cg);
+        cg.base.write_fmt(format_args!("JZ {else_label}"));
+        self.if_true.eval(cg);
+        cg.base.write_fmt(format_args!("JMP {end_label}"));
+        cg.base.write_fmt(format_args!("{else_label}:"));
+        self.if_false.eval(cg);
+        cg.base.write_fmt(format_args!("{end_label}:"));
+    }
+}
+
+impl Eval for UnaryExpr {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.expr.eval(cg);
+        match self.op {
+            UnaryExprOp::Negation => {
+                let ty = self.expr.ty.unwrap();
+                let ty = get_type_suffix(&ty);
+                cg.base.write_fmt(format_args!("PUSH{ty} -1\nMUL{ty}"));
+            },
+            UnaryExprOp::Plus => {},
+            UnaryExprOp::Not => cg.base.write("NOT"),
         }
     }
 }

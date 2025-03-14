@@ -3,8 +3,28 @@
 type Expr = Box<Expression>;
 
 #[derive(Debug)]
+pub enum UnaryExprOp {
+    Negation,
+    Plus,
+    Not,
+}
+
+impl TryFrom<TokenKind> for UnaryExprOp {
+    type Error = ();
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        Ok(match value {
+            TokenKind::Minus => Self::Negation,
+            TokenKind::Bang => Self::Not,
+            TokenKind::Plus => Self::Plus,
+            _ => return Err(())
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct UnaryExpr {
-    pub op: Symbol,
+    pub op: UnaryExprOp,
     pub expr: Expr
 }
 

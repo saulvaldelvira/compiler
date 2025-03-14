@@ -9,7 +9,7 @@ use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr};
+use ast::expr::{AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
@@ -510,7 +510,10 @@ impl<'src> Parser<'src> {
     fn unary(&mut self) -> Result<Expression> {
         if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus]) {
             let start_span = self.previous_span().unwrap();
-            let op = self.previous_lexem()?;
+            let op = self.previous()?.kind;
+            let op = UnaryExprOp::try_from(op).map_err(|_| {
+                ParseError::new(format!("Invalid unary operand {op:#?}"))
+            })?;
             let expr = Box::new(self.unary()?);
             let span = start_span.join(&expr.span);
             Ok(Expression::new(
