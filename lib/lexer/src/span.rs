@@ -67,7 +67,7 @@ impl Span {
     #[must_use]
     pub fn file_position(&self, src: &str) -> FilePosition {
         let mut fpos = FilePosition {
-            start_line: 0,
+            start_line: 1,
             start_col: 0,
             end_line: 0,
             end_col: 0,

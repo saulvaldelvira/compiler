@@ -2,6 +2,7 @@ use core::fmt;
 use std::borrow::Cow;
 use std::io;
 
+use lexer::span::FilePosition;
 use lexer::Span;
 
 pub struct Error {
@@ -17,9 +18,10 @@ impl Error {
         }
     }
 
-    pub fn print(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+    pub fn print(&self, src: &str, out: &mut dyn fmt::Write) -> fmt::Result {
         if let Some(s) = self.span {
-            write!(out, "{s}: ")?;
+            let FilePosition { start_line, start_col, .. } = s.file_position(src);
+            write!(out, "[{start_line}:{start_col}]: ")?;
         }
         writeln!(out, "{}", self.msg)
     }
@@ -42,10 +44,10 @@ impl ErrorManager {
 
     pub fn errors(&self) -> &[Error] { &self.errors }
 
-    pub fn print_errors(&self, out: &mut dyn io::Write) -> fmt::Result {
+    pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.errors {
-            err.print(&mut buf)?;
+            err.print(src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();
         }

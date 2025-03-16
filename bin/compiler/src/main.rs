@@ -41,12 +41,12 @@ fn process(text: &str, target: Target) -> String {
     let program = parse(tokens, text);
 
     if let Err(em) = perform_identification(&program) {
-        em.print_errors(&mut stderr().lock()).unwrap();
+        em.print_errors(text, &mut stderr().lock()).unwrap();
         fail(em.n_errors())
     }
 
     if let Err(em) = perform_typechecking(&program) {
-        em.print_errors(&mut stderr().lock()).unwrap();
+        em.print_errors(text, &mut stderr().lock()).unwrap();
         fail(em.n_errors())
     }
 

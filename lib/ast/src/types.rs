@@ -1,9 +1,11 @@
 use std::borrow::Cow;
+use lexer::Span;
 use session::Symbol;
 
 #[derive(Debug,Clone)]
 pub struct ErrorType {
     pub msg: Cow<'static,str>,
+    pub span: Option<Span>,
 }
 
 impl PartialEq for ErrorType {
@@ -77,7 +79,8 @@ use crate::Expression;
 fn error(msg: impl Into<Cow<'static,str>>) -> Type {
     Type {
         kind: TypeKind::Error(ErrorType {
-            msg: msg.into()
+            msg: msg.into(),
+            span: None
         }),
     }
 }
@@ -152,6 +155,16 @@ impl Type {
         }
 
         Type::bool()
+    }
+
+    pub fn promote_to(&self, other: &Type) -> Type {
+        if let Some(err) = self.propagate_error(other) { return err };
+
+        if self.kind != other.kind {
+            return error(format!("Can't promote {:#?} to {:#?}", self.kind, other.kind))
+        }
+
+        self.clone()
     }
 }
 

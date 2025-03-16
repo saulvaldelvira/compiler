@@ -31,7 +31,7 @@ impl TypeCheking {
 fn error(msg: impl Into<Cow<'static, str>>) -> Type {
     let msg = msg.into();
     Type {
-        kind: TypeKind::Error(ErrorType { msg })
+        kind: TypeKind::Error(ErrorType { msg, span: None })
     }
 }
 
@@ -76,7 +76,10 @@ impl Visitor<'_> for TypeCheking {
         let lt = a.left.ty.unwrap();
         let rt = a.right.ty.unwrap();
 
-        if lt.kind != rt.kind && !matches!(rt.kind, TypeKind::Error(_)){
+        if lt.kind != rt.kind
+           && !matches!(rt.kind, TypeKind::Error(_))
+           && !matches!(lt.kind, TypeKind::Error(_))
+        {
             self.error_manager.error(format!("Assignment of type {:#?} to {:#?}", rt.kind, lt.kind), a.right.span.join(&a.left.span));
         }
 
@@ -103,20 +106,20 @@ impl Visitor<'_> for TypeCheking {
     fn visit_expression(&mut self, a: &'_ ast::Expression) -> Self::Result {
         let ty = walk_expression(self, a);
         match ty {
-            Some(ty) => {
-                if let TypeKind::Error(err) = &ty.kind {
-                    self.error_manager.error(err.msg.clone(), a.span);
-                    a.ty.set(ty);
-                    return None;
+            Some(mut ty) => {
+                if let TypeKind::Error(err) = &mut ty.kind {
+                    if err.span.is_none() {
+                        err.span = Some(a.span);
+                        self.error_manager.error(err.msg.clone(), a.span);
+                    }
                 }
-                a.ty.set(ty.clone());
-                Some(ty)
+                a.ty.set(ty);
             },
             None => {
                 a.ty.set(error(""));
-                None
             },
         }
+        a.ty.cloned()
     }
 
     fn visit_array_access(&mut self, ac: &'_ ArrayAccess) -> Self::Result {
@@ -204,7 +207,9 @@ impl Visitor<'_> for TypeCheking {
         let ty = walk_statement(self, s);
 
         if let Some(Type { kind: TypeKind::Error(err)}) = ty {
-            self.error_manager.error(err.msg, s.span);
+            if err.span.is_none() {
+                self.error_manager.error(err.msg, s.span);
+            }
         }
 
         Self::Result::output()
