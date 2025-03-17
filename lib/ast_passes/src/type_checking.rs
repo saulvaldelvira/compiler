@@ -49,7 +49,6 @@ impl Visitor<'_> for TypeCheking {
             BinaryExprKind::Logical => b.left.get_type().logical(&b.right.get_type()),
             BinaryExprKind::Arithmetic => b.left.get_type().arithmetic(&b.right.get_type()),
             BinaryExprKind::Comparison => b.left.get_type().comparison(&b.right.get_type()),
-            BinaryExprKind::Comma => b.left.ty.cloned().unwrap(),
         };
 
         Some(ty)

@@ -171,7 +171,6 @@ impl Eval for BinaryExpr {
             BinaryExprKind::Logical => eval_logical(self, cg),
             BinaryExprKind::Arithmetic => eval_arithmetic(self, cg),
             BinaryExprKind::Comparison => eval_comparison(self, cg),
-            BinaryExprKind::Comma => self.right.eval(cg),
         }
     }
 }

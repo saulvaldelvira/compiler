@@ -81,7 +81,6 @@ pub enum BinaryExprKind {
     Logical,
     Arithmetic,
     Comparison,
-    Comma,
 }
 
 #[derive(Debug)]
