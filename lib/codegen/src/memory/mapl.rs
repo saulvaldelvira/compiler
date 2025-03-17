@@ -16,7 +16,12 @@ impl SizeStrategy for MaplSizeStrategy {
             TypeKind::Empty => 0,
             TypeKind::Array(array) => Self::size_of(&array.of) * array.length,
             TypeKind::String => todo!(),
-            TypeKind::Custom(_) => todo!(),
+            TypeKind::Struct(st) => {
+                st.decl.unwrap()
+                  .fields.iter()
+                  .map(|field| Self::size_of(&field.ty))
+                  .sum()
+            }
             TypeKind::Error(_) => unreachable!(),
         }
     }

@@ -107,6 +107,9 @@ impl MaplCodeGenerator {
                 self.base.write("PUSHA bp");
                 self.base.write_fmt(format_args!("PUSHI {rel}"));
                 self.base.write("ADD");
+            },
+            MemoryAddress::FieldOffset(off) => {
+                self.base.write_fmt(format_args!("PUSHI {off}"));
             }
         }
     }

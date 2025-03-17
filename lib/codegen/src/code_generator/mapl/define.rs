@@ -63,6 +63,7 @@ impl Define for Declaration {
         match &self.kind {
             DeclarationKind::Variable(variable_decl) => variable_decl.define(cg),
             DeclarationKind::Function(function_decl) => function_decl.define(cg),
+            DeclarationKind::Struct(_) => {},
         }
     }
 }
@@ -72,7 +73,7 @@ impl Define for VariableDecl {
         if let Some(init) = &self.init {
             cg.pushaddr(&self.address.unwrap());
             init.eval(cg);
-            cg.sufixed_op("STORE", &self.ty.unwrap());
+            cg.sufixed_op("STORE", &self.ty.as_ref().unwrap());
         }
     }
 }

@@ -150,7 +150,7 @@ impl Execute for ReturnStmt {
         let ret_size = MaplSizeStrategy::size_of(&cf.return_type);
 
         let params_size: usize = cf.args.iter()
-                                   .map(|vd| &vd.ty)
+                                   .map(|vd| vd.ty.as_ref())
                                    .map(|t| MaplSizeStrategy::size_of(&t.unwrap()))
                                    .sum();
 

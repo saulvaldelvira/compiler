@@ -14,11 +14,6 @@ impl PartialEq for ErrorType {
     }
 }
 
-#[derive(Debug,Clone,PartialEq)]
-pub struct CustomType {
-    pub name: Symbol,
-}
-
 #[derive(Debug,Clone)]
 pub struct ArrayType {
     pub of: Box<Type>,
@@ -31,6 +26,27 @@ impl PartialEq for ArrayType {
     }
 }
 
+#[derive(Debug,Clone)]
+pub struct StructType {
+    pub name: Symbol,
+    pub decl: AstRef<StructDecl>,
+}
+
+impl StructType {
+    pub fn new(name: Symbol) -> Self {
+        Self {
+            name,
+            decl: AstRef::empty(),
+        }
+    }
+}
+
+impl PartialEq for StructType {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
 #[derive(Debug,Clone,PartialEq)]
 pub enum TypeKind {
     Int,
@@ -39,12 +55,12 @@ pub enum TypeKind {
     Char,
     String,
     Array(ArrayType),
+    Struct(StructType),
     Error(ErrorType),
-    Custom(CustomType),
     Empty,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Type {
     pub kind: TypeKind,
 }
@@ -74,7 +90,8 @@ impl Type {
 
 use TypeKind as TK;
 
-use crate::Expression;
+use crate::declaration::StructDecl;
+use crate::{AstRef, Expression};
 
 fn error(msg: impl Into<Cow<'static,str>>) -> Type {
     Type {
@@ -116,6 +133,22 @@ impl Type {
         }
 
         Type::clone(&arr.of)
+    }
+
+    pub fn access_field(&self, field: Symbol) -> Type {
+        if let TypeKind::Error(_) = self.kind { return self.clone() };
+
+        let TypeKind::Struct(st) = &self.kind else {
+            return error("Can't access field of non-struct type");
+        };
+
+        for f in &st.decl.unwrap().fields {
+            if f.name == field {
+                return f.ty.clone();
+            }
+        }
+
+        error(format!("Struct {:#?} doesn't have a {field:#?} field", st.name))
     }
 
     pub fn arithmetic(&self, other: &Type) -> Type {

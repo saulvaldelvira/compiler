@@ -26,6 +26,7 @@ pub struct Program {
     pub decls: Box<[Declaration]>,
 }
 
+#[derive(Clone,PartialEq)]
 pub struct AstDecorated<T>(RefCell<Option<T>>);
 
 impl<T: Debug> Debug for AstDecorated<T> {
@@ -93,6 +94,7 @@ impl<T> AstDecorated<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct AstRef<T>(AstDecorated<Weak<T>>);
 
 impl<T> Debug for AstRef<T> {

@@ -4,16 +4,16 @@ use core::str;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use ast::types::{ArrayType, CustomType, Type, TypeKind};
+use ast::types::{ArrayType, StructType, Type, TypeKind};
 use ast::{AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
-use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, VariableDecl};
+use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, StructDecl, StructField, VariableDecl};
 use lexer::{Span, unescaped::Unescaped};
 use session::{with_session, with_session_interner};
 use self::error::ParseError;
@@ -68,7 +68,11 @@ impl<'src> Parser<'src> {
         }
         else if let Some(func) = self.try_function() {
             func
-        } else {
+        }
+        else if let Some(s) = self.try_struct() {
+            s
+        }
+        else {
             Err("Expected declaration".into())
         }
     }
@@ -76,6 +80,50 @@ impl<'src> Parser<'src> {
         if self.match_type(TokenKind::Fn) {
             Some(self.function())
         } else { None }
+    }
+    fn try_struct(&mut self) -> Option<Result<Declaration>> {
+        if self.match_type(TokenKind::Struct) {
+            Some(self.struct_decl())
+        } else { None }
+    }
+    fn struct_decl(&mut self) -> Result<Declaration> {
+        let start_span = self.previous_span()?;
+        let name = self.consume_ident()?;
+        self.consume(TokenKind::LeftBrace)?;
+
+        let mut fields = Vec::new();
+        loop {
+            if self.check(TokenKind::RightBrace) { break };
+
+            let field_name = self.consume_ident()?;
+            self.consume(TokenKind::Colon)?;
+            let field_ty = self.ty()?;
+
+            let field = StructField::new(field_name, field_ty);
+            fields.push(field);
+
+            if self.match_type(TokenKind::Comma) {
+                continue;
+            } else {
+                break
+            }
+        }
+
+        let end_span = self.consume(TokenKind::RightBrace)?.span;
+
+        let span = start_span.join(&end_span);
+
+        let s = StructDecl {
+            name,
+            fields: fields.into_boxed_slice(),
+        };
+
+        Ok(
+            Declaration {
+                kind: DeclarationKind::Struct(Rc::new(s)),
+                span
+            }
+        )
     }
     fn function(&mut self) -> Result<Declaration> {
         let start_span = self.previous_span()?;
@@ -94,12 +142,12 @@ impl<'src> Parser<'src> {
             self.consume(TokenKind::Colon)?;
             let ty = self.ty()?;
 
-            let vardecl = VariableDecl::new(
+            let mut vardecl = VariableDecl::new(
                 arg_name,
                 None,
                 false,
             );
-            vardecl.ty.set(ty);
+            vardecl.ty = Some(ty);
 
             args.push(Rc::new(vardecl));
         }
@@ -206,7 +254,7 @@ impl<'src> Parser<'src> {
         }
         else if self.match_type(TokenKind::Identifier) {
             let name = self.previous_lexem()?;
-            ty!(TypeKind::Custom(CustomType { name }))
+            ty!(TypeKind::Struct(StructType::new(name)))
         }
         else if self.match_type(TokenKind::LeftBracket) {
             self.array_type()
@@ -613,7 +661,17 @@ impl<'src> Parser<'src> {
             };
             expr = Expression::new(ExpressionKind::ArrayAccess(acc), span);
             self.access(expr)
-        } else {
+        }
+        else if self.match_type(TokenKind::Dot) {
+            let field = self.consume(TokenKind::Identifier)?;
+            let field_span = field.span;
+            let field = self.owned_lexem(field_span);
+            let span = expr.span.join(&field_span);
+            let saccess = StructAccess::new(expr, field);
+            expr = Expression::new(ExpressionKind::StructAccess(saccess), span);
+            self.access(expr)
+        }
+        else {
              Ok(expr)
         }
     }

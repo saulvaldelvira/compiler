@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
-use ast::expr::{ArrayAccess, AssignmentExpr, ExpressionKind, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, ExpressionKind, StructAccess, VariableExpr};
 use ast::types::{ArrayType, Type, TypeKind};
 use ast::Expression;
 use crate::memory::{MaplSizeStrategy, SizeStrategy};
 
-use super::{Address, Eval};
+use super::{Address, Eval, MaplCodeGenerator};
 
 impl Address for Expression {
     fn address(&self, cg: &mut super::MaplCodeGenerator) {
@@ -13,12 +13,24 @@ impl Address for Expression {
             ExpressionKind::Variable(variable_expr) => variable_expr.address(cg),
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.address(cg),
             ExpressionKind::ArrayAccess(arr) => arr.address(cg),
+            ExpressionKind::StructAccess(sa) => sa.address(cg),
             ExpressionKind::Unary(_unary_expr) => todo!(),
             ExpressionKind::Binary(_binary_expr) => todo!(),
             ExpressionKind::Ternary(_ternary_expr) => todo!(),
             ExpressionKind::Literal(_lit_expr) => todo!(),
             ExpressionKind::Call(_call_expr) => todo!(),
         }
+    }
+}
+
+impl Address for StructAccess {
+    fn address(&self, cg: &mut MaplCodeGenerator) {
+        self.st.address(cg);
+        let TypeKind::Struct(s) = &self.st.ty.unwrap().kind else { unreachable!() };
+        let decl = s.decl.unwrap();
+        let field = decl.fields.iter().find(|f| f.name == self.field).unwrap();
+        cg.pushaddr(&field.address.unwrap());
+        cg.base.write("ADDI");
     }
 }
 

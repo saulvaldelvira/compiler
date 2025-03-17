@@ -106,8 +106,8 @@ pub enum TokenKind {
     /// "bool"
     Bool,
 
-    /// "class"
-    Class,
+    /// "struct"
+    Struct,
 
     /// "else"
     Else,

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use ast::declaration::{DeclarationKind, FunctionDecl, MemoryAddress};
+use ast::declaration::{DeclarationKind, FunctionDecl, MemoryAddress, StructDecl};
 use ast::stmt::{DeclarationStmt, StatementKind};
 use ast::visitor::{walk_function_decl, walk_program};
 use ast::{Declaration, Program, Visitor};
@@ -45,9 +45,17 @@ impl<S: SizeStrategy> Visitor<'_> for MemoryAllocation<S> {
             })
             .for_each(|vd| {
                 vd.address.set(MemoryAddress::Absolute(addr as u16));
-                addr += S::size_of(&vd.ty.unwrap());
+                addr += S::size_of(&vd.ty.as_ref().unwrap());
         });
         walk_program(self, prog)
+    }
+
+    fn visit_struct_decl(&mut self, s: &'_ Rc<StructDecl>) -> Self::Result {
+        let mut off = 0_usize;
+        s.fields.iter().for_each(|field| {
+            field.address.set(MemoryAddress::FieldOffset(off as u16));
+            off += S::size_of(&field.ty);
+        });
     }
 
     fn visit_function_decl(&mut self, f: &'_ Rc<FunctionDecl>) -> Self::Result {
@@ -55,7 +63,7 @@ impl<S: SizeStrategy> Visitor<'_> for MemoryAllocation<S> {
 
         f.args.iter().rev().for_each(|vdecl| {
             vdecl.address.set(MemoryAddress::Relative(addr as i16));
-            addr += S::size_of(&vdecl.ty.unwrap());
+            addr += S::size_of(&vdecl.ty.as_ref().unwrap());
         });
 
         let mut addr = 0_i16;
@@ -67,7 +75,7 @@ impl<S: SizeStrategy> Visitor<'_> for MemoryAllocation<S> {
             Some(vd)
         })
         .for_each(|vd| {
-                addr -= S::size_of(&vd.ty.unwrap()) as i16;
+                addr -= S::size_of(&vd.ty.as_ref().unwrap()) as i16;
                 vd.address.set(MemoryAddress::Relative(addr));
         });
 

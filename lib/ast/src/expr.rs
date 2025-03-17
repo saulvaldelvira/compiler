@@ -134,6 +134,21 @@ pub struct ArrayAccess {
 }
 
 #[derive(Debug)]
+pub struct StructAccess {
+    pub st: Box<Expression>,
+    pub field: Symbol,
+}
+
+impl StructAccess {
+    pub fn new(st: impl Into<Box<Expression>>, field: Symbol) -> Self {
+        Self {
+            st: st.into(),
+            field,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum ExpressionKind {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
@@ -143,6 +158,7 @@ pub enum ExpressionKind {
     Literal(LitExpr),
     Call(CallExpr),
     ArrayAccess(ArrayAccess),
+    StructAccess(StructAccess),
 }
 
 #[derive(Debug)]
@@ -166,7 +182,7 @@ use lexer::token::TokenKind;
 use lexer::unescaped::Unescaped;
 use lexer::Span;
 use session::Symbol;
-use ExpressionKind::*;
+use ExpressionKind as EK;
 
 use crate::declaration::{FunctionDecl, VariableDecl};
 use crate::types::Type;
@@ -175,20 +191,22 @@ use crate::{AstDecorated, AstRef};
 impl Expression {
     pub fn has_side_effect(&self) -> bool {
         match &self.kind {
-            Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
-            Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
-            ArrayAccess(arr) => arr.array.has_side_effect() || arr.index.has_side_effect(),
-            Ternary(t) =>
+            EK::Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
+            EK::Binary(b) => b.left.has_side_effect() || b.right.has_side_effect(),
+            EK::ArrayAccess(arr) => arr.array.has_side_effect() || arr.index.has_side_effect(),
+            EK::Ternary(t) =>
                 t.cond.has_side_effect() || t.if_true.has_side_effect() || t.if_false.has_side_effect(),
-            Assignment(_) | Call(_) => true,
-            Literal(_) | Variable(_) => false,
+            EK::Assignment(_) | EK::Call(_) => true,
+
+            EK::Literal(_) | EK::Variable(_) | EK::StructAccess(_) => false,
         }
     }
     pub fn lvalue(&self) -> bool {
         match &self.kind {
-            Variable(_) => true,
-            Assignment(a) => a.left.lvalue(),
-            ArrayAccess(_) => true,
+            EK::Variable(_) => true,
+            EK::Assignment(a) => a.left.lvalue(),
+            EK::ArrayAccess(_) => true,
+            EK::StructAccess(_) => true,
             _ => false
         }
     }

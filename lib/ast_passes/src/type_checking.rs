@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use ast::declaration::FunctionDecl;
-use ast::expr::ArrayAccess;
+use ast::expr::{ArrayAccess, StructAccess};
 use ast::stmt::{ReadStmt, ReturnStmt};
 use ast::types::{ErrorType, Type, TypeKind};
 use ast::visitor::{walk_array_access, walk_binary, walk_expression, walk_if_statement, walk_read_stmt, walk_statement};
@@ -87,7 +87,7 @@ impl Visitor<'_> for TypeCheking {
     }
 
     fn visit_variable_expr(&mut self, _v: &'_ ast::expr::VariableExpr) -> Self::Result {
-        let ty = _v.decl.unwrap().ty.cloned().unwrap();
+        let ty = _v.decl.unwrap().ty.clone().unwrap();
         Some(ty)
     }
 
@@ -116,7 +116,7 @@ impl Visitor<'_> for TypeCheking {
                 a.ty.set(ty);
             },
             None => {
-                a.ty.set(error(""));
+                a.ty.set(error("Missing type"));
             },
         }
         a.ty.cloned()
@@ -139,6 +139,12 @@ impl Visitor<'_> for TypeCheking {
             self.visit_expression(init);
         }
         Self::Result::output()
+    }
+
+    fn visit_struct_access(&mut self, a: &'_ StructAccess) -> Self::Result {
+        self.visit_expression(&a.st);
+        let ty = a.st.ty.unwrap().access_field(a.field);
+        Some(ty)
     }
 
     fn visit_expr_as_stmt(&mut self, s: &'_ ast::stmt::ExprAsStmt) -> Self::Result {
@@ -235,14 +241,6 @@ impl Visitor<'_> for TypeCheking {
         ast::visitor::walk_function_decl(self, f);
         self.current_function = oldf;
         Self::Result::output()
-    }
-
-    fn visit_declaration(&mut self, d: &'_ ast::Declaration) -> Self::Result {
-        use ast::declaration::DeclarationKind as DK;
-        match &d.kind {
-            DK::Variable(v) => self.visit_vardecl(v),
-            DK::Function(function_decl) => self.visit_function_decl(function_decl),
-        }
     }
 
     fn visit_program(&mut self, prog: &'_ Program) -> Self::Result {

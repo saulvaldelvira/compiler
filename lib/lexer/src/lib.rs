@@ -21,7 +21,7 @@ pub struct Lexer<'lex> {
 delay! {
     static KEYWORDS : HashMap<&str,TokenKind> = {
         let mut map = HashMap::new();
-        map.insert("class",TokenKind::Class);
+        map.insert("struct",TokenKind::Struct);
         map.insert("else",TokenKind::Else);
         map.insert("false",TokenKind::False);
         map.insert("fn",TokenKind::Fn);

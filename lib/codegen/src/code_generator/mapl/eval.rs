@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::types::{ArrayType, Type, TypeKind};
 use ast::Expression;
 use session::with_symbol;
@@ -18,7 +18,16 @@ impl Eval for Expression {
             ExpressionKind::Variable(variable_expr) => variable_expr.eval(cg),
             ExpressionKind::Call(call_expr) => call_expr.eval(cg),
             ExpressionKind::ArrayAccess(arr) => arr.eval(cg),
+            ExpressionKind::StructAccess(sa) => sa.eval(cg),
         }
+    }
+}
+
+impl Eval for StructAccess {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.address(cg);
+        let s = self.st.ty.unwrap().access_field(self.field);
+        cg.sufixed_op("LOAD", &s);
     }
 }
 
@@ -87,7 +96,7 @@ impl Eval for AssignmentExpr {
 impl Eval for VariableExpr {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
         self.address(cg);
-        cg.sufixed_op("LOAD", &self.decl.unwrap().ty.unwrap());
+        cg.sufixed_op("LOAD", &self.decl.unwrap().ty.as_ref().unwrap());
     }
 }
 

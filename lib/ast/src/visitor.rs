@@ -1,10 +1,10 @@
 use std::ops::ControlFlow;
 use std::rc::Rc;
 
-use crate::declaration::{DeclarationKind, FunctionDecl};
-use crate::expr::{ArrayAccess, CallExpr};
+use crate::declaration::{DeclarationKind, FunctionDecl, StructDecl, StructField};
+use crate::expr::{ArrayAccess, CallExpr, StructAccess};
 use crate::stmt::{ReadStmt, ReturnStmt, StatementKind};
-use crate::types::Type;
+use crate::types::{ArrayType, StructType, Type, TypeKind};
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
@@ -33,13 +33,13 @@ pub trait Visitor<'ast> : Sized {
         walk_expression(self, expr)
     }
     fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) -> Self::Result {
-        if let Some(ref init) = v.init {
-            self.visit_expression(init);
-        }
-        Self::Result::output()
+        walk_variable_decl(self, v)
     }
     fn visit_array_access(&mut self, a: &'ast ArrayAccess) -> Self::Result {
         walk_array_access(self, a)
+    }
+    fn visit_struct_access(&mut self, a: &'ast StructAccess) -> Self::Result {
+        walk_struct_access(self, a)
     }
     fn visit_expr_as_stmt(&mut self, s: &'ast ExprAsStmt) -> Self::Result {
         self.visit_expression(&s.expr);
@@ -80,18 +80,28 @@ pub trait Visitor<'ast> : Sized {
     fn visit_return(&mut self, ret: &'ast ReturnStmt) -> Self::Result { walk_return(self, ret) }
 
     fn visit_type(&mut self, ty: &'ast Type) -> Self::Result {
-        let _todo = ty;
-        Self::Result::output()
+        walk_type(self, ty)
     }
+
+    fn visit_array_type(&mut self, aty: &'ast ArrayType) -> Self::Result {
+        walk_array_type(self, aty)
+    }
+
+    fn visit_struct_type(&mut self, sty: &'ast StructType) -> Self::Result {
+        walk_struct_type(self, sty)
+    }
+
     fn visit_function_decl(&mut self, f: &'ast Rc<FunctionDecl>) -> Self::Result {
         walk_function_decl(self, f)
     }
-    fn visit_declaration(&mut self, d: &'ast Declaration) -> Self::Result {
-        use DeclarationKind as DK;
-        match &d.kind {
-            DK::Variable(v) => self.visit_vardecl(v),
-            DK::Function(function_decl) => self.visit_function_decl(function_decl),
-        }
+    fn visit_declaration(&mut self, decl: &'ast Declaration) -> Self::Result {
+        walk_declaration(self, decl)
+    }
+    fn visit_struct_decl(&mut self, s: &'ast Rc<StructDecl>) -> Self::Result {
+        walk_struct_decl(self, s)
+    }
+    fn visit_struct_field(&mut self, field: &'ast StructField) -> Self::Result {
+        walk_struct_field(self, field)
     }
     fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
         walk_program(self, prog)
@@ -99,6 +109,60 @@ pub trait Visitor<'ast> : Sized {
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
         walk_call(self, call)
     }
+}
+
+pub fn walk_type<'ast, V: Visitor<'ast>>(v: &mut V, ty: &'ast Type) -> V::Result {
+        match &ty.kind {
+            TypeKind::Array(aty) => v.visit_array_type(aty),
+            TypeKind::Struct(sty) => v.visit_struct_type(sty),
+            TypeKind::Int |
+            TypeKind::Float |
+            TypeKind::Bool |
+            TypeKind::Char |
+            TypeKind::String |
+            TypeKind::Error(_) |
+            TypeKind::Empty => { V::Result::output() }
+        }
+}
+
+pub fn walk_variable_decl<'ast, V: Visitor<'ast>>(v: &mut V, vdecl: &'ast VariableDecl) -> V::Result {
+    if let Some(ref ty) = vdecl.ty {
+        v.visit_type(ty);
+    }
+    if let Some(ref init) = vdecl.init {
+        v.visit_expression(init);
+    }
+    V::Result::output()
+}
+
+pub fn walk_array_type<'ast, V: Visitor<'ast>>(v: &mut V, aty: &'ast ArrayType) -> V::Result {
+    v.visit_type(&aty.of);
+    V::Result::output()
+}
+
+pub fn walk_struct_type<'ast, V: Visitor<'ast>>(_v: &mut V, _sty: &'ast StructType) -> V::Result {
+    V::Result::output()
+}
+
+pub fn walk_declaration<'ast, V: Visitor<'ast>>(v: &mut V, decl: &'ast Declaration) -> V::Result {
+        use DeclarationKind as DK;
+        match &decl.kind {
+            DK::Variable(var) => v.visit_vardecl(var),
+            DK::Function(function_decl) => v.visit_function_decl(function_decl),
+            DK::Struct(s) => v.visit_struct_decl(s),
+        }
+}
+
+pub fn walk_struct_field<'ast, V: Visitor<'ast>>(v: &mut V, s: &'ast StructField) -> V::Result {
+    v.visit_type(&s.ty);
+    V::Result::output()
+}
+
+pub fn walk_struct_decl<'ast, V: Visitor<'ast>>(v: &mut V, s: &'ast StructDecl) -> V::Result {
+    for field in &s.fields {
+        v.visit_struct_field(field);
+    }
+    V::Result::output()
 }
 
 pub fn walk_statement<'ast, V: Visitor<'ast>>(v: &mut V, stmt: &'ast Statement) -> V::Result {
@@ -130,6 +194,11 @@ pub fn walk_array_access<'ast, V: Visitor<'ast>>(v: &mut V, ac: &'ast ArrayAcces
     V::Result::output()
 }
 
+pub fn walk_struct_access<'ast, V: Visitor<'ast>>(v: &mut V, sa: &'ast StructAccess) -> V::Result {
+    v.visit_expression(&sa.st);
+    V::Result::output()
+}
+
 pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression) -> V::Result {
         use ExpressionKind as EK;
         match &expr.kind {
@@ -141,6 +210,7 @@ pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression
             EK::Literal(l) => v.visit_literal(l),
             EK::Call(c) => v.visit_call(c),
             EK::ArrayAccess(a) => v.visit_array_access(a),
+            EK::StructAccess(sa) => v.visit_struct_access(sa),
         }
 }
 

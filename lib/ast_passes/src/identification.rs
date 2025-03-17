@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use ast::declaration::{DeclarationKind, FunctionDecl, VariableDecl};
+use ast::declaration::{DeclarationKind, FunctionDecl, StructDecl, VariableDecl};
 use ast::expr::{CallExpr, VariableExpr};
-use ast::visitor::{self, walk_function_decl};
+use ast::types::StructType;
+use ast::visitor::{self, walk_function_decl, walk_struct_decl};
 use ast::{Program, Visitor};
 use util::ErrorManager;
 use session::Symbol;
@@ -24,8 +25,9 @@ impl Identification {
     pub fn process(&mut self, program: &Program) {
         for decl in &program.decls {
             match &decl.kind {
-                DeclarationKind::Variable(vdecl) => self.scopes.def_var(vdecl.name, Rc::downgrade(&vdecl)),
-                DeclarationKind::Function(fdecl) => self.scopes.def_fn(fdecl.name, Rc::downgrade(&fdecl)),
+                DeclarationKind::Variable(vdecl) => self.scopes.def_var(vdecl.name, Rc::downgrade(vdecl)),
+                DeclarationKind::Function(fdecl) => self.scopes.def_fn(fdecl.name, Rc::downgrade(fdecl)),
+                DeclarationKind::Struct(sdecl) => self.scopes.def_struct(sdecl.name, Rc::downgrade(sdecl)),
             }
         }
 
@@ -43,8 +45,29 @@ impl<'ast> Visitor<'ast> for Identification {
         Ok(())
     }
 
+    fn visit_declaration(&mut self, decl: &'ast ast::Declaration) -> Self::Result {
+        visitor::walk_declaration(self, decl).unwrap_or_else(|err| {
+            self.error_manager.error(err, decl.span);
+        });
+        Ok(())
+    }
+
+    fn visit_struct_type(&mut self, sty: &'ast StructType) -> Self::Result {
+        match self.scopes.get_struct(&sty.name) {
+            Some(decl) => sty.decl.set(decl.clone()),
+            None => return Err(format!("Undefined struct type: '{:#?}'", sty.name))
+        };
+        Ok(())
+    }
+
     fn visit_vardecl(&mut self, v: &'ast Rc<VariableDecl>) -> Self::Result {
         self.scopes.def_var(v.name, Rc::downgrade(v));
+        if let Some(ref ty) = v.ty {
+            self.visit_type(ty)?;
+        }
+        if let Some(ref init) = v.init {
+            self.visit_expression(init)?;
+        }
         Ok(())
     }
 
@@ -53,6 +76,12 @@ impl<'ast> Visitor<'ast> for Identification {
             Some(decl) => v.decl.set(Weak::clone(decl)),
             None => return Err(format!("Undefined variable \"{:?}\"", v.name)),
         }
+        Ok(())
+    }
+
+    fn visit_struct_decl(&mut self, s: &'ast Rc<StructDecl>) -> Self::Result {
+        walk_struct_decl(self, s)?;
+        self.scopes.def_struct(s.name, Rc::downgrade(s));
         Ok(())
     }
 
@@ -80,6 +109,7 @@ impl<'ast> Visitor<'ast> for Identification {
 pub struct ScopeLevel {
     variables: HashMap<Symbol,Weak<VariableDecl>>,
     functions: HashMap<Symbol,Weak<FunctionDecl>>,
+    structs: HashMap<Symbol,Weak<StructDecl>>,
 }
 
 pub struct Scopes(Vec<ScopeLevel>);
@@ -104,6 +134,9 @@ impl Scopes {
     pub fn def_var(&mut self, name: Symbol, variable: Weak<VariableDecl>) {
         self.0.last_mut().unwrap().variables.insert(name, variable);
     }
+    pub fn def_struct(&mut self, name: Symbol, variable: Weak<StructDecl>) {
+        self.0.last_mut().unwrap().structs.insert(name, variable);
+    }
     pub fn get_func(&self, sym: &Symbol) -> Option<&Weak<FunctionDecl>> {
         for lev in self.0.iter().rev() {
             let val = lev.functions.get(sym);
@@ -114,6 +147,13 @@ impl Scopes {
     pub fn get_var(&self, sym: &Symbol) -> Option<&Weak<VariableDecl>> {
         for lev in self.0.iter().rev() {
             let val = lev.variables.get(sym);
+            if val.is_some() { return val }
+        }
+        None
+    }
+    pub fn get_struct(&self, sym: &Symbol) -> Option<&Weak<StructDecl>> {
+        for lev in self.0.iter().rev() {
+            let val = lev.structs.get(sym);
             if val.is_some() { return val }
         }
         None
