@@ -158,10 +158,10 @@ pub enum TokenKind {
     Continue,
 
     /// "&"
-    BitWiseAnd,
+    Ampersand,
 
     /// "|"
-    BitWiseOr,
+    VerticalPipe,
 
     /// "&&"
     And,

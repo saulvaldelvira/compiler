@@ -151,7 +151,7 @@ impl Execute for ReturnStmt {
 
         let params_size: usize = cf.args.iter()
                                    .map(|vd| vd.ty.as_ref())
-                                   .map(|t| MaplSizeStrategy::size_of(&t.unwrap()))
+                                   .map(|t| MaplSizeStrategy::size_of(t.unwrap()))
                                    .sum();
 
         let locals_size = - get_last_variable_decl(cf)

@@ -94,6 +94,7 @@ impl<'ast> Visitor<'ast> for Identification {
     }
 
     fn visit_call(&mut self, call: &'ast CallExpr) -> Self::Result {
+        visitor::walk_call(self, call)?;
         match self.scopes.get_func(&call.callee) {
             Some(decl) => {
                 call.decl.set(Weak::clone(decl));

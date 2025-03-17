@@ -4,13 +4,13 @@ use core::str;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use ast::types::{ArrayType, StructType, Type, TypeKind};
+use ast::types::{ArrayType, RefType, StructType, Type, TypeKind};
 use ast::{AstRef, Expression};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, Dereference, ExpressionKind, LitExpr, Reference, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, StructDecl, StructField, VariableDecl};
@@ -209,7 +209,7 @@ impl<'src> Parser<'src> {
         let span = span.join(&semicolon);
 
         let mut vdecl = VariableDecl::new(name, init, is_const);
-        vdecl.ty = ty.into();
+        vdecl.ty = ty;
 
         let decl = Declaration {
             kind: DeclarationKind::Variable(
@@ -258,6 +258,15 @@ impl<'src> Parser<'src> {
         }
         else if self.match_type(TokenKind::LeftBracket) {
             self.array_type()
+        }
+        else if self.match_type(TokenKind::Ampersand) {
+            let inner = self.ty()?;
+            ty!(TypeKind::Ref(RefType { of: Box::new(inner) }))
+        }
+        else if self.match_type(TokenKind::And) {
+            let inner = self.ty()?;
+            let t = Type { kind: TypeKind::Ref(RefType { of: Box::new(inner) }) };
+            ty!(TypeKind::Ref(RefType { of: Box::new(t) }))
         }
         else {
             Err("Expected type".into())
@@ -616,7 +625,24 @@ impl<'src> Parser<'src> {
                 ExpressionKind::Unary(UnaryExpr { op, expr }),
                 span
             ))
-        } else {
+        }
+        else if self.match_type(TokenKind::Ampersand) {
+            let start_span = self.previous_span().unwrap();
+            let expr = Box::new(self.unary()?);
+            let span = start_span.join(&expr.span);
+            Ok(Expression::new(ExpressionKind::Ref(Reference {
+                of: expr,
+            }), span))
+        }
+        else if self.match_type(TokenKind::Star) {
+            let start_span = self.previous_span().unwrap();
+            let expr = Box::new(self.unary()?);
+            let span = start_span.join(&expr.span);
+            Ok(Expression::new(ExpressionKind::Deref(Dereference {
+                of: expr,
+            }), span))
+        }
+        else {
             self.primary()
         }
     }

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, ExpressionKind, LitExpr, LitValue, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
+use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, Dereference, ExpressionKind, LitExpr, LitValue, Reference, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
 use ast::types::{ArrayType, Type, TypeKind};
 use ast::Expression;
 use session::with_symbol;
@@ -19,7 +19,22 @@ impl Eval for Expression {
             ExpressionKind::Call(call_expr) => call_expr.eval(cg),
             ExpressionKind::ArrayAccess(arr) => arr.eval(cg),
             ExpressionKind::StructAccess(sa) => sa.eval(cg),
+            ExpressionKind::Ref(r) => r.eval(cg),
+            ExpressionKind::Deref(dr) => dr.eval(cg),
         }
+    }
+}
+
+impl Eval for Dereference {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.of.eval(cg);
+        cg.sufixed_op("LOAD", &self.of.dereference());
+    }
+}
+
+impl Eval for Reference {
+    fn eval(&self, cg: &mut MaplCodeGenerator) {
+        self.of.address(cg);
     }
 }
 

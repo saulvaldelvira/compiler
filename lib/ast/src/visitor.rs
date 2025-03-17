@@ -2,9 +2,9 @@ use std::ops::ControlFlow;
 use std::rc::Rc;
 
 use crate::declaration::{DeclarationKind, FunctionDecl, StructDecl, StructField};
-use crate::expr::{ArrayAccess, CallExpr, StructAccess};
+use crate::expr::{ArrayAccess, CallExpr, Dereference, Reference, StructAccess};
 use crate::stmt::{ReadStmt, ReturnStmt, StatementKind};
-use crate::types::{ArrayType, StructType, Type, TypeKind};
+use crate::types::{ArrayType, RefType, StructType, Type, TypeKind};
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
@@ -83,6 +83,18 @@ pub trait Visitor<'ast> : Sized {
         walk_type(self, ty)
     }
 
+    fn visit_ref_type(&mut self, rty: &'ast RefType) -> Self::Result {
+        walk_ref_type(self, rty)
+    }
+
+    fn visit_ref_expr(&mut self, rexpr: &'ast Reference) -> Self::Result {
+        walk_ref_expr(self, rexpr)
+    }
+
+    fn visit_deref_expr(&mut self, rexpr: &'ast Dereference) -> Self::Result {
+        walk_deref_expr(self, rexpr)
+    }
+
     fn visit_array_type(&mut self, aty: &'ast ArrayType) -> Self::Result {
         walk_array_type(self, aty)
     }
@@ -111,10 +123,16 @@ pub trait Visitor<'ast> : Sized {
     }
 }
 
+pub fn walk_ref_type<'ast, V: Visitor<'ast>>(v: &mut V, rty: &'ast RefType) -> V::Result {
+    v.visit_type(&rty.of);
+    V::Result::output()
+}
+
 pub fn walk_type<'ast, V: Visitor<'ast>>(v: &mut V, ty: &'ast Type) -> V::Result {
         match &ty.kind {
             TypeKind::Array(aty) => v.visit_array_type(aty),
             TypeKind::Struct(sty) => v.visit_struct_type(sty),
+            TypeKind::Ref(rty) => v.visit_ref_type(rty),
             TypeKind::Int |
             TypeKind::Float |
             TypeKind::Bool |
@@ -199,6 +217,16 @@ pub fn walk_struct_access<'ast, V: Visitor<'ast>>(v: &mut V, sa: &'ast StructAcc
     V::Result::output()
 }
 
+pub fn walk_ref_expr<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast Reference) -> V::Result {
+    v.visit_expression(&r.of);
+    V::Result::output()
+}
+
+pub fn walk_deref_expr<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast Dereference) -> V::Result {
+    v.visit_expression(&r.of);
+    V::Result::output()
+}
+
 pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression) -> V::Result {
         use ExpressionKind as EK;
         match &expr.kind {
@@ -211,6 +239,8 @@ pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression
             EK::Call(c) => v.visit_call(c),
             EK::ArrayAccess(a) => v.visit_array_access(a),
             EK::StructAccess(sa) => v.visit_struct_access(sa),
+            EK::Ref(rexpr) => v.visit_ref_expr(rexpr),
+            EK::Deref(rexpr) => v.visit_deref_expr(rexpr),
         }
 }
 

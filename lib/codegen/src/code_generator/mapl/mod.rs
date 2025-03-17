@@ -57,6 +57,7 @@ fn get_type_suffix(t: &Type) -> &str {
     match t.kind {
         TypeKind::Int => "I",
         TypeKind::Char => "B",
+        TypeKind::Ref(_) => "I",
         _ => todo!()
     }
 }
@@ -148,10 +149,15 @@ impl MaplCodeGenerator {
             TypeKind::Int
             | TypeKind::Float
             | TypeKind::Bool
+            | TypeKind::Ref(_)
             | TypeKind::Char => {
                 self.base.write_fmt(format_args!("POP{}", get_type_suffix(t)));
-            }
-            _ => { }
+            },
+            TypeKind::String |
+            TypeKind::Array(_) |
+            TypeKind::Struct(_) |
+            TypeKind::Error(_) |
+            TypeKind::Empty => {}
         }
     }
 }

@@ -139,14 +139,14 @@ impl<'lex> Lexer<'lex> {
                 if self.c.match_next('&') {
                     self.add_token(TokenKind::And)
                 } else {
-                    self.add_token(TokenKind::BitWiseAnd)
+                    self.add_token(TokenKind::Ampersand)
                 }
             },
             '|' => {
                 if self.c.match_next('|') {
                     self.add_token(TokenKind::Or)
                 } else {
-                    self.add_token(TokenKind::BitWiseOr)
+                    self.add_token(TokenKind::VerticalPipe)
                 }
             },
             '%' => self.add_token(TokenKind::Mod),

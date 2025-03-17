@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::Debug;
 use lexer::Span;
 use session::Symbol;
 
@@ -8,13 +9,19 @@ pub struct ErrorType {
     pub span: Option<Span>,
 }
 
+impl ErrorType {
+    pub fn new(msg: impl Into<Cow<'static,str>>) -> Self {
+        Self { msg: msg.into(), span: None }
+    }
+}
+
 impl PartialEq for ErrorType {
     fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 pub struct ArrayType {
     pub of: Box<Type>,
     pub length: usize,
@@ -23,6 +30,12 @@ pub struct ArrayType {
 impl PartialEq for ArrayType {
     fn eq(&self, other: &Self) -> bool {
         self.of.kind == other.of.kind && self.length == other.length
+    }
+}
+
+impl Debug for ArrayType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{:#?}; {}]", self.of, self.length)
     }
 }
 
@@ -47,7 +60,18 @@ impl PartialEq for StructType {
     }
 }
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Clone,PartialEq)]
+pub struct RefType {
+    pub of: Box<Type>,
+}
+
+impl Debug for RefType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "&{:#?}", self.of)
+    }
+}
+
+#[derive(Clone,PartialEq)]
 pub enum TypeKind {
     Int,
     Float,
@@ -57,12 +81,36 @@ pub enum TypeKind {
     Array(ArrayType),
     Struct(StructType),
     Error(ErrorType),
+    Ref(RefType),
     Empty,
 }
 
-#[derive(Debug,Clone,PartialEq)]
+impl Debug for TypeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Int => write!(f, "int"),
+            Self::Float => write!(f, "float"),
+            Self::Bool => write!(f, "bool"),
+            Self::Char => write!(f, "char"),
+            Self::String => write!(f, "string"),
+            Self::Array(a) => write!(f, "{a:#?}"),
+            Self::Struct(s) => write!(f, "{s:#?}"),
+            Self::Ref(r) => write!(f, "{r:#?}"),
+            Self::Error(err) => write!(f, "{err:#?}"),
+            Self::Empty => write!(f, "()"),
+        }
+    }
+}
+
+#[derive(Clone,PartialEq)]
 pub struct Type {
     pub kind: TypeKind,
+}
+
+impl Debug for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self.kind)
+    }
 }
 
 macro_rules! impl_ty {
@@ -109,6 +157,10 @@ impl Type {
 
     pub fn integral(&self) -> bool {
         matches!(self.kind, TK::Int)
+    }
+
+    pub fn is_primitive(&self) -> bool {
+        matches!(self.kind, TK::Int | TK::Bool | TK::Char | TK::Ref(_))
     }
 
     fn propagate_error(&self, other: &Type) -> Option<Type> {

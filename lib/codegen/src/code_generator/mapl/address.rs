@@ -14,11 +14,13 @@ impl Address for Expression {
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.address(cg),
             ExpressionKind::ArrayAccess(arr) => arr.address(cg),
             ExpressionKind::StructAccess(sa) => sa.address(cg),
-            ExpressionKind::Unary(_unary_expr) => todo!(),
-            ExpressionKind::Binary(_binary_expr) => todo!(),
-            ExpressionKind::Ternary(_ternary_expr) => todo!(),
-            ExpressionKind::Literal(_lit_expr) => todo!(),
-            ExpressionKind::Call(_call_expr) => todo!(),
+            ExpressionKind::Deref(d) => d.of.eval(cg),
+            ExpressionKind::Ref(_) => unreachable!(),
+            ExpressionKind::Unary(_unary_expr) => unreachable!(),
+            ExpressionKind::Binary(_binary_expr) => unreachable!(),
+            ExpressionKind::Ternary(_ternary_expr) => unreachable!(),
+            ExpressionKind::Literal(_lit_expr) => unreachable!(),
+            ExpressionKind::Call(_call_expr) => unreachable!(),
         }
     }
 }

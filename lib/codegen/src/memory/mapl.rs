@@ -10,6 +10,7 @@ impl SizeStrategy for MaplSizeStrategy {
     fn size_of(t: &Type) -> usize {
         match &t.kind {
             TypeKind::Int => 2,
+            TypeKind::Ref(_) => 2,
             TypeKind::Float => 4,
             TypeKind::Bool => 1,
             TypeKind::Char => 1,

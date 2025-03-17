@@ -2,10 +2,10 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use ast::declaration::FunctionDecl;
-use ast::expr::{ArrayAccess, StructAccess};
+use ast::expr::{ArrayAccess, Dereference, Reference, StructAccess};
 use ast::stmt::{ReadStmt, ReturnStmt};
 use ast::types::{ErrorType, Type, TypeKind};
-use ast::visitor::{walk_array_access, walk_binary, walk_expression, walk_if_statement, walk_read_stmt, walk_statement};
+use ast::visitor::{walk_array_access, walk_binary, walk_declaration, walk_deref_expr, walk_expression, walk_if_statement, walk_read_stmt, walk_ref_expr, walk_statement};
 use ast::{Program, Visitor, visitor::VisitorResult};
 use util::ErrorManager;
 
@@ -86,9 +86,21 @@ impl Visitor<'_> for TypeCheking {
         Some(a.left.ty.cloned().unwrap())
     }
 
+    fn visit_ref_expr(&mut self, rexpr: &'_ Reference) -> Self::Result {
+        walk_ref_expr(self, rexpr);
+        let ty = rexpr.of.reference();
+        Some(ty)
+    }
+
     fn visit_variable_expr(&mut self, _v: &'_ ast::expr::VariableExpr) -> Self::Result {
         let ty = _v.decl.unwrap().ty.clone().unwrap();
         Some(ty)
+    }
+
+    fn visit_deref_expr(&mut self, rexpr: &'_ Dereference) -> Self::Result {
+        walk_deref_expr(self, rexpr);
+        let t = rexpr.of.dereference();
+        Some(t)
     }
 
     fn visit_literal(&mut self, _l: &'_ ast::expr::LitExpr) -> Self::Result {
@@ -235,10 +247,24 @@ impl Visitor<'_> for TypeCheking {
         Self::Result::output()
     }
 
+    fn visit_declaration(&mut self, decl: &'_ ast::Declaration) -> Self::Result {
+       if let Some(Type { kind: TypeKind::Error(err), .. }) = walk_declaration(self, decl) {
+           if err.span.is_none() {
+               self.error_manager.error(err.msg, decl.span);
+           }
+       }
+       Self::Result::output()
+    }
+
     fn visit_function_decl(&mut self, f: &'_ std::rc::Rc<ast::declaration::FunctionDecl>) -> Self::Result {
         let oldf = self.current_function.take();
         self.current_function = Some(Rc::clone(f));
         ast::visitor::walk_function_decl(self, f);
+        for arg in &f.args {
+            if !arg.ty.as_ref().unwrap().is_primitive() {
+                return Some(error(format!("Non-primitive type on function param '{:#?}'", arg.name)))
+            }
+        }
         self.current_function = oldf;
         Self::Result::output()
     }

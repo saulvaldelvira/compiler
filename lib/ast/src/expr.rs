@@ -149,6 +149,16 @@ impl StructAccess {
 }
 
 #[derive(Debug)]
+pub struct Reference {
+    pub of: Box<Expression>,
+}
+
+#[derive(Debug)]
+pub struct Dereference {
+    pub of: Box<Expression>,
+}
+
+#[derive(Debug)]
 pub enum ExpressionKind {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
@@ -159,6 +169,8 @@ pub enum ExpressionKind {
     Call(CallExpr),
     ArrayAccess(ArrayAccess),
     StructAccess(StructAccess),
+    Ref(Reference),
+    Deref(Dereference),
 }
 
 #[derive(Debug)]
@@ -185,7 +197,7 @@ use session::Symbol;
 use ExpressionKind as EK;
 
 use crate::declaration::{FunctionDecl, VariableDecl};
-use crate::types::Type;
+use crate::types::{ErrorType, RefType, Type, TypeKind};
 use crate::{AstDecorated, AstRef};
 
 impl Expression {
@@ -196,8 +208,9 @@ impl Expression {
             EK::ArrayAccess(arr) => arr.array.has_side_effect() || arr.index.has_side_effect(),
             EK::Ternary(t) =>
                 t.cond.has_side_effect() || t.if_true.has_side_effect() || t.if_false.has_side_effect(),
+            EK::Ref(r) => r.of.has_side_effect(),
+            EK::Deref(dr) => dr.of.has_side_effect(),
             EK::Assignment(_) | EK::Call(_) => true,
-
             EK::Literal(_) | EK::Variable(_) | EK::StructAccess(_) => false,
         }
     }
@@ -205,10 +218,29 @@ impl Expression {
         match &self.kind {
             EK::Variable(_) => true,
             EK::Assignment(a) => a.left.lvalue(),
+            EK::Deref(dr) => matches!(dr.of.dereference().kind, TypeKind::Ref(_)),
             EK::ArrayAccess(_) => true,
             EK::StructAccess(_) => true,
-            _ => false
+            _ => false,
         }
+    }
+
+    pub fn dereference(&self) -> Type {
+        if let TypeKind::Ref(rt) = &self.ty.unwrap().kind {
+            Type::clone(&rt.of)
+        } else {
+            Type { kind: TypeKind::Error(ErrorType::new("Can't dereference a non-reference expression")) }
+        }
+    }
+
+    pub fn reference(&self) -> Type {
+        let kind =
+        if self.lvalue() {
+            TypeKind::Ref(RefType { of: Box::new(self.ty.unwrap().clone()) })
+        } else {
+            TypeKind::Error(ErrorType::new("Can't reference non-directionable expression"))
+        };
+        Type { kind }
     }
 }
 
