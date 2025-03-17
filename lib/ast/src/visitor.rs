@@ -8,7 +8,7 @@ use crate::types::{ArrayType, RefType, StructType, Type, TypeKind};
 use crate::Expression;
 use crate::{declaration::{Declaration, VariableDecl}, expr::{AssignmentExpr, BinaryExpr, ExpressionKind, LitExpr, TernaryExpr, UnaryExpr, VariableExpr}, stmt::{BlockStmt, BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, Statement, WhileStmt}, Program};
 
-pub trait Visitor<'ast> : Sized {
+pub trait Visitor<'ast> {
     type Result: VisitorResult;
 
     fn visit_unary(&mut self, u: &'ast UnaryExpr) -> Self::Result { self.visit_expression(&u.expr) }
@@ -123,12 +123,18 @@ pub trait Visitor<'ast> : Sized {
     }
 }
 
-pub fn walk_ref_type<'ast, V: Visitor<'ast>>(v: &mut V, rty: &'ast RefType) -> V::Result {
+pub fn walk_ref_type<'ast, V>(v: &mut V, rty: &'ast RefType) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_type(&rty.of);
     V::Result::output()
 }
 
-pub fn walk_type<'ast, V: Visitor<'ast>>(v: &mut V, ty: &'ast Type) -> V::Result {
+pub fn walk_type<'ast, V>(v: &mut V, ty: &'ast Type) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         match &ty.kind {
             TypeKind::Array(aty) => v.visit_array_type(aty),
             TypeKind::Struct(sty) => v.visit_struct_type(sty),
@@ -143,7 +149,10 @@ pub fn walk_type<'ast, V: Visitor<'ast>>(v: &mut V, ty: &'ast Type) -> V::Result
         }
 }
 
-pub fn walk_variable_decl<'ast, V: Visitor<'ast>>(v: &mut V, vdecl: &'ast VariableDecl) -> V::Result {
+pub fn walk_variable_decl<'ast, V>(v: &mut V, vdecl: &'ast VariableDecl) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     if let Some(ref ty) = vdecl.ty {
         v.visit_type(ty);
     }
@@ -153,16 +162,25 @@ pub fn walk_variable_decl<'ast, V: Visitor<'ast>>(v: &mut V, vdecl: &'ast Variab
     V::Result::output()
 }
 
-pub fn walk_array_type<'ast, V: Visitor<'ast>>(v: &mut V, aty: &'ast ArrayType) -> V::Result {
+pub fn walk_array_type<'ast, V>(v: &mut V, aty: &'ast ArrayType) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_type(&aty.of);
     V::Result::output()
 }
 
-pub fn walk_struct_type<'ast, V: Visitor<'ast>>(_v: &mut V, _sty: &'ast StructType) -> V::Result {
+pub fn walk_struct_type<'ast, V>(_v: &mut V, _sty: &'ast StructType) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     V::Result::output()
 }
 
-pub fn walk_declaration<'ast, V: Visitor<'ast>>(v: &mut V, decl: &'ast Declaration) -> V::Result {
+pub fn walk_declaration<'ast, V>(v: &mut V, decl: &'ast Declaration) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         use DeclarationKind as DK;
         match &decl.kind {
             DK::Variable(var) => v.visit_vardecl(var),
@@ -171,19 +189,28 @@ pub fn walk_declaration<'ast, V: Visitor<'ast>>(v: &mut V, decl: &'ast Declarati
         }
 }
 
-pub fn walk_struct_field<'ast, V: Visitor<'ast>>(v: &mut V, s: &'ast StructField) -> V::Result {
+pub fn walk_struct_field<'ast, V>(v: &mut V, s: &'ast StructField) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_type(&s.ty);
     V::Result::output()
 }
 
-pub fn walk_struct_decl<'ast, V: Visitor<'ast>>(v: &mut V, s: &'ast StructDecl) -> V::Result {
+pub fn walk_struct_decl<'ast, V>(v: &mut V, s: &'ast StructDecl) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     for field in &s.fields {
         v.visit_struct_field(field);
     }
     V::Result::output()
 }
 
-pub fn walk_statement<'ast, V: Visitor<'ast>>(v: &mut V, stmt: &'ast Statement) -> V::Result {
+pub fn walk_statement<'ast, V>(v: &mut V, stmt: &'ast Statement) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         use StatementKind as SK;
         match &stmt.kind {
             SK::Expression(e) => v.visit_expr_as_stmt(e),
@@ -201,33 +228,51 @@ pub fn walk_statement<'ast, V: Visitor<'ast>>(v: &mut V, stmt: &'ast Statement) 
         }
 }
 
-pub fn walk_read_stmt<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast ReadStmt) -> V::Result {
+pub fn walk_read_stmt<'ast, V>(v: &mut V, r: &'ast ReadStmt) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&r.expr);
     V::Result::output()
 }
 
-pub fn walk_array_access<'ast, V: Visitor<'ast>>(v: &mut V, ac: &'ast ArrayAccess) -> V::Result {
+pub fn walk_array_access<'ast, V>(v: &mut V, ac: &'ast ArrayAccess) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&ac.array);
     v.visit_expression(&ac.index);
     V::Result::output()
 }
 
-pub fn walk_struct_access<'ast, V: Visitor<'ast>>(v: &mut V, sa: &'ast StructAccess) -> V::Result {
+pub fn walk_struct_access<'ast, V>(v: &mut V, sa: &'ast StructAccess) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&sa.st);
     V::Result::output()
 }
 
-pub fn walk_ref_expr<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast Reference) -> V::Result {
+pub fn walk_ref_expr<'ast, V>(v: &mut V, r: &'ast Reference) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&r.of);
     V::Result::output()
 }
 
-pub fn walk_deref_expr<'ast, V: Visitor<'ast>>(v: &mut V, r: &'ast Dereference) -> V::Result {
+pub fn walk_deref_expr<'ast, V>(v: &mut V, r: &'ast Dereference) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&r.of);
     V::Result::output()
 }
 
-pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression) -> V::Result {
+pub fn walk_expression<'ast, V>(v: &mut V, expr: &'ast Expression) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         use ExpressionKind as EK;
         match &expr.kind {
             EK::Unary(u) => v.visit_unary(u),
@@ -244,25 +289,37 @@ pub fn walk_expression<'ast, V: Visitor<'ast>>(v: &mut V, expr: &'ast Expression
         }
 }
 
-pub fn walk_binary<'ast, V: Visitor<'ast>>(v: &mut V, b: &'ast BinaryExpr) -> V::Result {
+pub fn walk_binary<'ast, V>(v: &mut V, b: &'ast BinaryExpr) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         v.visit_expression(&b.left);
         v.visit_expression(&b.right);
         V::Result::output()
 }
 
-pub fn walk_call<'ast, V: Visitor<'ast>>(v: &mut V, call: &'ast CallExpr) -> V::Result {
+pub fn walk_call<'ast, V>(v: &mut V, call: &'ast CallExpr) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         for arg in &call.args {
             v.visit_expression(arg);
         }
         V::Result::output()
 }
 
-pub fn walk_program<'ast, V: Visitor<'ast>>(v: &mut V, program: &'ast Program) -> V::Result {
+pub fn walk_program<'ast, V>(v: &mut V, program: &'ast Program) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         program.decls.iter().for_each(|decl| { v.visit_declaration(decl); });
         V::Result::output()
 }
 
-pub fn walk_function_decl<'ast, V: Visitor<'ast>>(v: &mut V, f: &'ast FunctionDecl) -> V::Result {
+pub fn walk_function_decl<'ast, V>(v: &mut V, f: &'ast FunctionDecl) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     f.args.iter().for_each(|vardecl| { v.visit_vardecl(vardecl); } );
     v.visit_type(&f.return_type);
     v.visit_block(&f.body);
@@ -270,7 +327,10 @@ pub fn walk_function_decl<'ast, V: Visitor<'ast>>(v: &mut V, f: &'ast FunctionDe
     V::Result::output()
 }
 
-pub fn walk_if_statement<'ast, V: Visitor<'ast>>(v: &mut V, i: &'ast IfStmt) -> V::Result {
+pub fn walk_if_statement<'ast, V>(v: &mut V, i: &'ast IfStmt) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
     v.visit_expression(&i.cond);
     v.visit_statement(&i.if_true);
     if let Some(if_false) = &i.if_false {
@@ -279,7 +339,10 @@ pub fn walk_if_statement<'ast, V: Visitor<'ast>>(v: &mut V, i: &'ast IfStmt) -> 
     V::Result::output()
 }
 
-pub fn walk_return<'ast, V: Visitor<'ast>>(v: &mut V, ret: &'ast ReturnStmt) -> V::Result {
+pub fn walk_return<'ast, V>(v: &mut V, ret: &'ast ReturnStmt) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
         if let Some(ret) = &ret.expr {
             v.visit_expression(ret);
         }
