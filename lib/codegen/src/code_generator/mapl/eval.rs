@@ -41,7 +41,7 @@ impl Eval for Reference {
 impl Eval for StructAccess {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
         self.address(cg);
-        let s = self.st.ty.unwrap().access_field(self.field);
+        let s = self.st.get_type().access_field(self.field);
         cg.sufixed_op("LOAD", &s);
     }
 }
@@ -49,7 +49,7 @@ impl Eval for StructAccess {
 impl Eval for ArrayAccess {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
         self.address(cg);
-        let ty = self.array.ty.unwrap();
+        let ty = self.array.get_type();
         let Type { kind:
             TypeKind::Array(ArrayType { of, ..} )
         } = ty.deref() else { unreachable!() };
@@ -77,7 +77,7 @@ impl Eval for UnaryExpr {
         self.expr.eval(cg);
         match self.op {
             UnaryExprOp::Negation => {
-                let ty = self.expr.ty.unwrap();
+                let ty = self.expr.get_type();
                 let ty = get_type_suffix(&ty);
                 cg.base.write_fmt(format_args!("PUSH{ty} -1\nMUL{ty}"));
             },
@@ -102,9 +102,9 @@ impl Eval for AssignmentExpr {
     fn eval(&self, cg: &mut MaplCodeGenerator) {
         self.left.address(cg);
         self.right.eval(cg);
-        cg.sufixed_op("STORE", &self.left.ty.unwrap());
+        cg.sufixed_op("STORE", &self.left.get_type());
         self.left.address(cg);
-        cg.sufixed_op("LOAD", &self.left.ty.unwrap());
+        cg.sufixed_op("LOAD", &self.left.get_type());
     }
 }
 
@@ -128,7 +128,7 @@ impl Eval for LitExpr {
 }
 
 fn eval_arithmetic(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
-    let t = expr.left.ty.unwrap().arithmetic(&expr.right.ty.unwrap());
+    let t = expr.left.get_type().arithmetic(&expr.right.get_type());
     match expr.op {
         BinaryExprOp::Add => cg.add(&t),
         BinaryExprOp::Sub => cg.subs(&t),
@@ -140,7 +140,7 @@ fn eval_arithmetic(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
 }
 
 fn eval_comparison(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
-    let t = expr.left.ty.unwrap().arithmetic(&expr.right.ty.unwrap());
+    let t = expr.left.get_type().arithmetic(&expr.right.get_type());
     let op = match expr.op {
         BinaryExprOp::Gt => "GT",
         BinaryExprOp::Ge => "GE",
@@ -154,7 +154,7 @@ fn eval_comparison(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
 }
 
 fn eval_logical(expr: &BinaryExpr, cg: &mut MaplCodeGenerator) {
-    let t = expr.left.ty.unwrap().arithmetic(&expr.right.ty.unwrap());
+    let t = expr.left.get_type().arithmetic(&expr.right.get_type());
     let op = match expr.op {
         BinaryExprOp::And => "AND",
         BinaryExprOp::Or => "OR",

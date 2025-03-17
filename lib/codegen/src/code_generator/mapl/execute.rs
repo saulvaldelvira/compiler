@@ -10,7 +10,7 @@ use ast::Statement;
 impl Execute for PrintStmt {
     fn execute(&self, cg: &mut MaplCodeGenerator) {
         self.expr.eval(cg);
-        cg.out(&self.expr.ty.unwrap());
+        cg.out(&self.expr.get_type());
 
     }
 }
@@ -37,8 +37,8 @@ impl Execute for Statement {
 impl Execute for ReadStmt {
     fn execute(&self, cg: &mut MaplCodeGenerator) {
         self.expr.address(cg);
-        cg.sufixed_op("IN", &self.expr.ty.unwrap());
-        cg.sufixed_op("STORE", &self.expr.ty.unwrap());
+        cg.sufixed_op("IN", &self.expr.get_type());
+        cg.sufixed_op("STORE", &self.expr.get_type());
     }
 }
 
@@ -128,7 +128,7 @@ impl Execute for ExprAsStmt {
     fn execute(&self, cg: &mut MaplCodeGenerator) {
         if self.expr.has_side_effect() {
             self.expr.eval(cg);
-            cg.discard_type(&self.expr.ty.unwrap());
+            cg.discard_type(&self.expr.get_type());
         }
     }
 }

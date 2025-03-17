@@ -46,9 +46,9 @@ impl Visitor<'_> for TypeCheking {
         walk_binary(self, b);
 
         let ty = match b.kind {
-            BinaryExprKind::Logical => b.left.ty.unwrap().logical(&b.right.ty.unwrap()),
-            BinaryExprKind::Arithmetic => b.left.ty.unwrap().arithmetic(&b.right.ty.unwrap()),
-            BinaryExprKind::Comparison => b.left.ty.unwrap().comparison(&b.right.ty.unwrap()),
+            BinaryExprKind::Logical => b.left.get_type().logical(&b.right.get_type()),
+            BinaryExprKind::Arithmetic => b.left.get_type().arithmetic(&b.right.get_type()),
+            BinaryExprKind::Comparison => b.left.get_type().comparison(&b.right.get_type()),
             BinaryExprKind::Comma => b.left.ty.cloned().unwrap(),
         };
 
@@ -61,7 +61,7 @@ impl Visitor<'_> for TypeCheking {
         self.visit_expression(&t.if_false);
 
         Some (
-            if t.if_true.ty.unwrap().kind != t.if_false.ty.unwrap().kind {
+            if t.if_true.get_type().kind != t.if_false.get_type().kind {
                 error("Incompatible types on ternary operator")
             } else {
                 t.if_true.ty.cloned().unwrap()
@@ -73,8 +73,8 @@ impl Visitor<'_> for TypeCheking {
         self.visit_expression(&a.left);
         self.visit_expression(&a.right);
 
-        let lt = a.left.ty.unwrap();
-        let rt = a.right.ty.unwrap();
+        let lt = a.left.get_type();
+        let rt = a.right.get_type();
 
         if lt.kind != rt.kind
            && !matches!(rt.kind, TypeKind::Error(_))
@@ -136,7 +136,7 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_array_access(&mut self, ac: &'_ ArrayAccess) -> Self::Result {
         walk_array_access(self, ac);
-        let ty = ac.array.ty.unwrap().square_brackets(&ac.index);
+        let ty = ac.array.get_type().square_brackets(&ac.index);
         Some(ty)
     }
 
@@ -155,7 +155,7 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_struct_access(&mut self, a: &'_ StructAccess) -> Self::Result {
         self.visit_expression(&a.st);
-        let ty = a.st.ty.unwrap().access_field(a.field);
+        let ty = a.st.get_type().access_field(a.field);
         Some(ty)
     }
 
@@ -183,7 +183,7 @@ impl Visitor<'_> for TypeCheking {
 
     fn visit_if(&mut self, i: &'_ ast::stmt::IfStmt) -> Self::Result {
         walk_if_statement(self, i);
-        let ty = i.cond.ty.unwrap();
+        let ty = i.cond.get_type();
         if !matches!(ty.kind, TypeKind::Bool) {
             self.error_manager.error("If condition must be bool", i.cond.span);
         }
@@ -194,7 +194,7 @@ impl Visitor<'_> for TypeCheking {
         self.visit_expression(&w.cond);
         self.visit_statement(&w.stmts);
 
-        let ty = w.cond.ty.unwrap();
+        let ty = w.cond.get_type();
         if !matches!(ty.kind, TypeKind::Bool) {
             self.error_manager.error("While condition must be bool", w.cond.span);
         }
@@ -206,7 +206,7 @@ impl Visitor<'_> for TypeCheking {
         if let Some(init) = &f.init { self.visit_declaration(init); }
         if let Some(cond) = &f.cond {
             self.visit_expression(cond);
-            if !cond.ty.unwrap().is_boolean() {
+            if !cond.get_type().is_boolean() {
                 self.error_manager.error("For condition must be boolean", cond.span);
             }
         }
@@ -281,8 +281,8 @@ impl Visitor<'_> for TypeCheking {
         let Some(expected) = &self.current_function else { panic!() };
 
         if let Some(expr) = ret.expr.as_ref() {
-            if expr.ty.unwrap().kind != expected.return_type.kind {
-                let msg = format!("Incompatible type {:#?} on return, inside function with type {:#?}", expr.ty.unwrap().kind, expected.return_type.kind);
+            if expr.get_type().kind != expected.return_type.kind {
+                let msg = format!("Incompatible type {:#?} on return, inside function with type {:#?}", expr.get_type().kind, expected.return_type.kind);
                 self.error_manager.error(msg, expr.span);
             }
         } else if !matches!(expected.return_type.kind, TypeKind::Empty) {

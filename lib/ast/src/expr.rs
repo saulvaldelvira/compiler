@@ -190,6 +190,8 @@ impl Expression {
     }
 }
 
+use std::cell::Ref;
+
 use lexer::token::TokenKind;
 use lexer::unescaped::Unescaped;
 use lexer::Span;
@@ -201,6 +203,11 @@ use crate::types::{ErrorType, RefType, Type, TypeKind};
 use crate::{AstDecorated, AstRef};
 
 impl Expression {
+
+    pub fn get_type(&self) -> Ref<'_, Type> {
+        self.ty.unwrap()
+    }
+
     pub fn has_side_effect(&self) -> bool {
         match &self.kind {
             EK::Unary(UnaryExpr { expr, .. }) => expr.has_side_effect(),
@@ -226,7 +233,7 @@ impl Expression {
     }
 
     pub fn dereference(&self) -> Type {
-        if let TypeKind::Ref(rt) = &self.ty.unwrap().kind {
+        if let TypeKind::Ref(rt) = &self.get_type().kind {
             Type::clone(&rt.of)
         } else {
             Type { kind: TypeKind::Error(ErrorType::new("Can't dereference a non-reference expression")) }
@@ -236,7 +243,7 @@ impl Expression {
     pub fn reference(&self) -> Type {
         let kind =
         if self.lvalue() {
-            TypeKind::Ref(RefType { of: Box::new(self.ty.unwrap().clone()) })
+            TypeKind::Ref(RefType { of: Box::new(self.get_type().clone()) })
         } else {
             TypeKind::Error(ErrorType::new("Can't reference non-directionable expression"))
         };

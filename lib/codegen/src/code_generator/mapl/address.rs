@@ -28,7 +28,7 @@ impl Address for Expression {
 impl Address for StructAccess {
     fn address(&self, cg: &mut MaplCodeGenerator) {
         self.st.address(cg);
-        let TypeKind::Struct(s) = &self.st.ty.unwrap().kind else { unreachable!() };
+        let TypeKind::Struct(s) = &self.st.get_type().kind else { unreachable!() };
         let decl = s.decl.unwrap();
         let field = decl.fields.iter().find(|f| f.name == self.field).unwrap();
         cg.pushaddr(&field.address.unwrap());
@@ -40,7 +40,7 @@ impl Address for ArrayAccess {
     fn address(&self, cg: &mut super::MaplCodeGenerator) {
         self.array.address(cg);
         self.index.eval(cg);
-        let ty = self.array.ty.unwrap();
+        let ty = self.array.get_type();
         let Type { kind:
             TypeKind::Array(ArrayType { of, ..} )
         } = ty.deref() else { unreachable!() };
@@ -60,7 +60,7 @@ impl Address for AssignmentExpr {
     fn address(&self, cg: &mut super::MaplCodeGenerator) {
         if self.left.has_side_effect() {
             self.left.eval(cg);
-            cg.discard_type(&self.left.ty.unwrap());
+            cg.discard_type(&self.left.get_type());
         }
         self.left.address(cg);
     }

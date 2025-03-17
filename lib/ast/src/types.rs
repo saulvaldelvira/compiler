@@ -174,13 +174,13 @@ impl Type {
     }
 
     pub fn square_brackets(&self, other: &Expression) -> Type {
-        if let Some(err) = self.propagate_error(&other.ty.unwrap()) { return err };
+        if let Some(err) = self.propagate_error(&other.get_type()) { return err };
 
         let TK::Array(arr) = &self.kind else {
             return error(format!("Can't use square brackets on type {:#?}", self.kind));
         };
 
-        if !other.ty.unwrap().integral() {
+        if !other.get_type().integral() {
             return error(format!("Expected integral index, found {:#?}", self.kind));
         }
 
