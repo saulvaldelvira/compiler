@@ -2,7 +2,7 @@ use core::fmt;
 use std::rc::Rc;
 
 use session::Symbol;
-use lexer::Span;
+use span::Span;
 
 use crate::stmt::BlockStmt;
 use crate::{AstDecorated, Expression};

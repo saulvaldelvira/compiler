@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
-use lexer::Span;
+use span::Span;
 use session::Symbol;
 
 #[derive(Debug,Clone)]

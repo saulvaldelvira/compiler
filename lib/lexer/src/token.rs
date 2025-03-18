@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::Span;
+use span::Span;
 
 /// Models all the types of token
 #[derive(Clone,Copy,Debug,PartialEq)]

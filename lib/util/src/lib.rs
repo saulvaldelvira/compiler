@@ -2,8 +2,7 @@ use core::fmt;
 use std::borrow::Cow;
 use std::io;
 
-use lexer::span::FilePosition;
-use lexer::Span;
+use span::{Span,FilePosition};
 
 pub struct Error {
     msg: Cow<'static, str>,

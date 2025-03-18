@@ -1,10 +1,8 @@
 mod cursor;
-pub mod span;
-pub use span::Span;
+
 pub mod unescaped;
 
 use std::collections::HashMap;
-
 
 pub use cursor::Cursor;
 

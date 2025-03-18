@@ -3,7 +3,7 @@
 use core::fmt;
 
 use crate::Expression;
-use lexer::Span;
+use span::Span;
 
 use super::declaration::Declaration;
 

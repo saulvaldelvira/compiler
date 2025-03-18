@@ -15,7 +15,6 @@ pub use declaration::Declaration;
 pub mod visitor;
 pub use visitor::Visitor;
 
-pub use lexer::Span;
 mod decorated;
 pub use decorated::{AstRef,AstDecorated};
 

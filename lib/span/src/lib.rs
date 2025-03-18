@@ -1,10 +1,11 @@
 //! Utilities to represent spans inside a file
 
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::{fmt, str};
 
 /// Represents a span in a buffer, bounded by an offset and a len
-#[derive(Clone,Copy,Default)]
+#[derive(Clone,Copy,Default,PartialEq)]
 pub struct Span {
     /// Offset of the span inside the buffer
     pub offset: usize,
@@ -106,5 +107,31 @@ impl Span {
 impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[{}:{}]", self.offset, self.offset + self.len)
+    }
+}
+
+#[derive(Debug)]
+pub struct Spanned<T> {
+    pub val: T,
+    pub span: Span,
+}
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.val
+    }
+}
+
+impl<T: Clone> Clone for Spanned<T> {
+    fn clone(&self) -> Self {
+        Self { val: self.val.clone(), span: self.span }
+    }
+}
+
+impl<T: PartialEq> PartialEq for Spanned<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.val == other.val
     }
 }

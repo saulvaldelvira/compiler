@@ -1,6 +1,6 @@
 use std::str::CharIndices;
 
-use crate::Span;
+use span::Span;
 
 pub struct Cursor<'lex> {
     chars: CharIndices<'lex>,

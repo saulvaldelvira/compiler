@@ -14,7 +14,8 @@ use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryE
 use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
 use ast::stmt::BlockStmt;
 use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, StructDecl, StructField, VariableDecl};
-use lexer::{Span, unescaped::Unescaped};
+use lexer::unescaped::Unescaped;
+use span::Span;
 use session::{with_session, with_session_interner};
 use self::error::ParseError;
 
@@ -823,7 +824,7 @@ impl<'src> Parser<'src> {
         false
     }
     fn error(&mut self, err: &str) {
-        use lexer::span::FilePosition;
+        use span::FilePosition;
 
         let tok = if self.is_finished() {
             self.previous()

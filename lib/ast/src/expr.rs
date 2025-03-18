@@ -193,7 +193,7 @@ use std::cell::Ref;
 
 use lexer::token::TokenKind;
 use lexer::unescaped::Unescaped;
-use lexer::Span;
+use span::Span;
 use session::Symbol;
 use ExpressionKind as EK;
 

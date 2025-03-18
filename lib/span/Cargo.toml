@@ -1,7 +1,6 @@
 [package]
-name = "util"
+name = "span"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-span = { path = "../span" }

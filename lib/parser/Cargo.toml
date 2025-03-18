@@ -9,3 +9,4 @@ edition = "2021"
 lexer = { path = "../lexer" }
 ast = { path = "../ast" }
 session = { path = "../session" }
+span = { path = "../span" }
