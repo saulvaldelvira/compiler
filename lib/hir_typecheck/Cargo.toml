@@ -1,0 +1,9 @@
+[package]
+name = "hir_typecheck"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hir = { path = "../hir" }
+error_manager = { path = "../error_manager" }
+semantic = { path = "../semantic" }

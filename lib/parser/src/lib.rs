@@ -1,21 +1,19 @@
 pub mod error;
 
 use core::str;
-use std::rc::Rc;
 use std::str::FromStr;
 
-use ast::types::{ArrayType, RefType, StructType, Type, TypeKind};
-use ast::{AstRef, Expression};
+use ast::declaration::{VariableConstness, DeclarationKind, Field, Param};
+use ast::expr::{BinaryExprOp, ExpressionKind, UnaryExprOp};
+use ast::stmt::{StatementKind};
+use ast::types::{Type, TypeKind};
+use ast::{Block, Declaration, Expression, Parenthesized};
 use ast::{expr::LitValue, Statement, Program};
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
-use ast::expr::{ArrayAccess, AssignmentExpr, BinaryExpr, BinaryExprKind, BinaryExprOp, CallExpr, Dereference, ExpressionKind, LitExpr, Reference, StructAccess, TernaryExpr, UnaryExpr, UnaryExprOp, VariableExpr};
-use ast::stmt::{BreakStmt, ContinueStmt, DeclarationStmt, EmptyStmt, ExprAsStmt, ForStmt, IfStmt, PrintStmt, ReadStmt, ReturnStmt, StatementKind, WhileStmt};
-use ast::stmt::BlockStmt;
-use ast::declaration::{Declaration, DeclarationKind, FunctionDecl, StructDecl, StructField, VariableDecl};
 use lexer::unescaped::Unescaped;
-use span::Span;
+use span::{Span, Spanned};
 use session::{with_session, with_session_interner};
 use self::error::ParseError;
 
@@ -55,10 +53,14 @@ impl<'src> Parser<'src> {
     pub fn has_errors(&self) -> bool { self.n_errors > 0 }
     pub fn n_errors(&self) -> u32 { self.n_errors }
 
-    fn consume_ident(&mut self) -> Result<Symbol> {
+    fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
         let span = self.consume(TokenKind::Identifier)?.span;
         Ok(with_session_interner(|i| {
-            i.get_or_intern(span.slice(self.src))
+            let sym = i.get_or_intern(span.slice(self.src));
+            Spanned {
+                val: sym,
+                span,
+            }
         }))
     }
 
@@ -87,20 +89,28 @@ impl<'src> Parser<'src> {
             Some(self.struct_decl())
         } else { None }
     }
+    fn struct_field(&mut self) -> Result<Field> {
+        let name = self.consume_ident_spanned()?;
+        self.consume(TokenKind::Colon)?;
+        let ty = self.ty()?;
+        let span = name.span.join(&ty.span);
+        Ok(Field {
+            ty,
+            name,
+            span,
+        })
+    }
     fn struct_decl(&mut self) -> Result<Declaration> {
-        let start_span = self.previous_span()?;
-        let name = self.consume_ident()?;
-        self.consume(TokenKind::LeftBrace)?;
+        let kw_struct = self.previous_span()?;
+        let name = self.consume_ident_spanned()?;
+        let lb = self.consume(TokenKind::LeftBrace)?.span;
 
         let mut fields = Vec::new();
         loop {
             if self.check(TokenKind::RightBrace) { break };
 
-            let field_name = self.consume_ident()?;
-            self.consume(TokenKind::Colon)?;
-            let field_ty = self.ty()?;
 
-            let field = StructField::new(field_name, field_ty);
+            let field = self.struct_field()?;
             fields.push(field);
 
             if self.match_type(TokenKind::Comma) {
@@ -112,26 +122,40 @@ impl<'src> Parser<'src> {
 
         let end_span = self.consume(TokenKind::RightBrace)?.span;
 
-        let span = start_span.join(&end_span);
-
-        let s = StructDecl {
-            name,
-            fields: fields.into_boxed_slice(),
+        let fields = Block {
+            val: fields.into_boxed_slice(),
+            open_bracket: lb,
+            close_bracket: end_span,
         };
+
+        let span = kw_struct.join(&fields.close_bracket);
 
         Ok(
             Declaration {
-                kind: DeclarationKind::Struct(Rc::new(s)),
-                span
+                kind: DeclarationKind::Struct { kw_struct, name, fields },
+                span,
             }
         )
     }
+    fn param(&mut self) -> Result<Param> {
+        let name = self.consume_ident_spanned()?;
+        self.consume(TokenKind::Colon)?;
+        let ty = self.ty()?;
+        let span = name.span.join(&ty.span);
+        Ok(Param {
+            span,
+            ty,
+            name,
+        })
+    }
     fn function(&mut self) -> Result<Declaration> {
-        let start_span = self.previous_span()?;
-        let name = self.consume_ident()?;
-       self.consume(TokenKind::LeftParen)?;
+        let kw_fn = self.previous_span()?;
 
-        let mut args = Vec::new();
+        let name = self.consume_ident_spanned()?;
+
+        self.consume(TokenKind::LeftParen)?;
+
+        let mut params = Vec::new();
 
         let mut first = true;
         while !self.match_type(TokenKind::RightParen) {
@@ -139,59 +163,54 @@ impl<'src> Parser<'src> {
                 self.consume(TokenKind::Comma)?;
             }
             first = false;
-            let arg_name = self.consume_ident()?;
-            self.consume(TokenKind::Colon)?;
-            let ty = self.ty()?;
 
-            let mut vardecl = VariableDecl::new(
-                arg_name,
-                None,
-                false,
-            );
-            vardecl.ty = Some(ty);
-
-            args.push(Rc::new(vardecl));
+            let p = self.param()?;
+            params.push(p);
         }
 
         let return_type = if self.match_type(TokenKind::Arrow) {
-            self.ty()?
-        } else { Type::empty() };
+            Some(self.ty()?)
+        } else { None };
 
-        let Statement {
-            kind: StatementKind::Block(block),
-            span
-        } = self.block()? else { unreachable!() };
+        let body = self.block()?;
 
-        let fun = FunctionDecl {
-            return_type,
-            name,
-            args: args.into_boxed_slice(),
-            body: block
-        };
-        let span = start_span.join(&span);
+        let span = kw_fn.join(&body.close_bracket);
+
         Ok(Declaration {
-            kind: DeclarationKind::Function(fun.into()),
-            span
+            kind: DeclarationKind::Function {
+                kw_fn,
+                name,
+                params: params.into_boxed_slice(),
+                return_type,
+                body,
+            },
+            span,
         })
     }
     fn try_var_decl(&mut self) -> Option<Result<Declaration>> {
-        if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
+        if self.check_types(&[TokenKind::Let,TokenKind::Const]) {
             Some(self.var_decl())
         } else { None }
     }
     fn var_decl(&mut self) -> Result<Declaration> {
+        let constness =
+        if self.match_type(TokenKind::Let) {
+            VariableConstness::Let(self.previous_span()?)
+        } else if self.match_type(TokenKind::Const) {
+            VariableConstness::Const(self.previous_span()?)
+        } else {
+            return Err(ParseError::new("Expected a let or const keyword"));
+        };
         let prev = self.previous()?;
         let prev_span = prev.span;
         let is_const = prev.kind == TokenKind::Const;
 
-        let name_token = self.consume(TokenKind::Identifier).cloned()?;
-        let name = self.owned_lexem(name_token.span);
-        let name_token_span = name_token.span;
+        let name = self.consume_ident_spanned()?;
 
         let mut span = if is_const {
             prev_span
         } else {
-            name_token_span
+            name.span
         };
 
         let ty =
@@ -209,36 +228,47 @@ impl<'src> Parser<'src> {
         let semicolon = self.consume(TokenKind::Semicolon)?.span;
         let span = span.join(&semicolon);
 
-        let mut vdecl = VariableDecl::new(name, init, is_const);
-        vdecl.ty = ty;
-
         let decl = Declaration {
-            kind: DeclarationKind::Variable(
-                      vdecl.into()
-                  ),
+            kind: DeclarationKind::Variable {
+                constness,
+                name,
+                ty,
+                init,
+                semicolon
+            },
             span
         };
         Ok(decl)
     }
     fn array_type(&mut self) -> Result<Type> {
-        let ty = self.ty()?;
-        self.consume(TokenKind::Semicolon)?;
+        let ob = self.previous_span()?;
+        let ty = Box::new(self.ty()?);
+        let sc = self.consume(TokenKind::Semicolon)?.span;
         self.consume(TokenKind::IntLiteral)?;
         let length = self.previous_parse::<usize>()?;
-        self.consume(TokenKind::RightBracket)?;
-        Ok(Type { kind: TypeKind::Array(
-                ArrayType {
-                    of: Box::new(ty),
-                    length
-                }
-        ) })
+        let cb = self.consume(TokenKind::RightBracket)?.span;
+        let span = ob.join(&cb);
+        Ok(Type {
+            kind: TypeKind::Array {
+                open_brace: ob,
+                ty,
+                semicollon: sc,
+                length,
+                close_brace: cb
+            },
+            span
+        })
     }
     fn ty(&mut self) -> Result<Type> {
         macro_rules! ty {
             ($tk:expr) => {
-                Ok(Type{
-                    kind: $tk,
-                })
+                {
+                    let span = self.previous_span()?;
+                    Ok(Type{
+                        kind: $tk(span),
+                        span,
+                    })
+                }
             };
         }
         if self.match_type(TokenKind::Int) {
@@ -254,39 +284,55 @@ impl<'src> Parser<'src> {
             ty!(TypeKind::Bool)
         }
         else if self.match_type(TokenKind::Identifier) {
-            let name = self.previous_lexem()?;
-            ty!(TypeKind::Struct(StructType::new(name)))
+            let name = self.previous_lexem_spanned()?;
+            let span = name.span;
+            Ok(Type {
+                kind: TypeKind::Struct(name),
+                span
+            })
         }
         else if self.match_type(TokenKind::LeftBracket) {
             self.array_type()
         }
         else if self.match_type(TokenKind::Ampersand) {
+            let aspan = self.previous_span()?;
             let inner = self.ty()?;
-            ty!(TypeKind::Ref(RefType { of: Box::new(inner) }))
+            let span = aspan.join(&inner.span);
+            Ok(Type {
+                kind: TypeKind::Ref { ampersand: aspan , of: Box::new(inner) },
+                span,
+            })
         }
         else if self.match_type(TokenKind::And) {
+            let aspan = self.previous_span()?;
             let inner = self.ty()?;
-            let t = Type { kind: TypeKind::Ref(RefType { of: Box::new(inner) }) };
-            ty!(TypeKind::Ref(RefType { of: Box::new(t) }))
+            let span = aspan.join(&inner.span);
+            let t = Type {
+                kind: TypeKind::Ref { ampersand: aspan, of: Box::new(Type {
+                    kind: TypeKind::Ref { ampersand: aspan, of: Box::new(inner) },
+                    span,
+                })},
+                span,
+            };
+            Ok(t)
         }
         else {
             Err("Expected type".into())
         }
     }
-    fn statement(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
-        let stmt = if let Some(vdecl) = self.try_var_decl() {
+    fn statement(&mut self) -> Result<Statement> {
+        let stmt =
+        if let Some(vdecl) = self.try_var_decl() {
             let vdecl = vdecl?;
             let span = vdecl.span;
             let stmt = Statement {
-                kind: StatementKind::Decl(
-                          DeclarationStmt { inner: vdecl }
-                      ),
+                kind: StatementKind::Decl(vdecl),
                 span
             };
             Ok(stmt)
         }
         else if let Some(block) = self.try_block() {
-            block
+            block.map(Statement::from)
         }
         else if self.match_type(TokenKind::If) {
             self.if_stmt()
@@ -301,90 +347,89 @@ impl<'src> Parser<'src> {
             self.ret_stmt()
         }
         else {
-            self.single_line_stmt(stmts)?;
-            return Ok(())
+            return self.single_line_stmt();
         };
-        stmts.push(stmt?);
-        Ok(())
+        stmt
     }
     fn ret_stmt(&mut self) -> Result<Statement> {
-        let span = self.previous_span()?;
+        let kw_ret = self.previous_span()?;
         let expr = self.try_expression();
-        let endspan = self.consume(TokenKind::Semicolon)?.span;
+        let semmicollon = self.consume(TokenKind::Semicolon)?.span;
         Ok(Statement {
-            kind: StatementKind::Return(ReturnStmt {
-                expr
-            }),
-            span: span.join(&endspan)
+            kind: StatementKind::Return { kw_ret, expr, semmicollon },
+            span: kw_ret.join(&semmicollon)
         })
     }
+
+    fn parenthesized<T>(&mut self, f: impl for <'a> FnOnce(&'a mut Parser<'src>) -> Result<T>) -> Result<Parenthesized<T>> {
+        let op = self.consume(TokenKind::LeftParen)?.span;
+        let val = f(self)?;
+        let cp = self.consume(TokenKind::RightParen)?.span;
+        Ok(Parenthesized {
+            open_paren: op,
+            val,
+            close_paren: cp,
+        })
+    }
+
     fn if_stmt(&mut self) -> Result<Statement> {
-        let mut span = self.consume(TokenKind::LeftParen)?.span;
-        let cond = self.expression()?;
-        self.consume(TokenKind::RightParen)?;
+        let kw_if = self.previous_span()?;
 
-        let if_true = Box::new(self.block()?);
-        span = span.join(&if_true.span);
+        let cond = self.parenthesized(Self::expression)?;
 
-        let mut if_false = None;
+        let if_body = Box::new(self.statement()?);
+        let mut span = kw_if.join(&if_body.span);
+
+        let mut else_body = None;
+        let mut kw_else = None;
         if self.match_type(TokenKind::Else) {
-            if_false = Some(Box::new(self.block()?));
-            span = span.join(&if_false.as_ref().unwrap().span);
+            kw_else = Some(self.previous_span()?);
+            let blk = self.statement()?;
+            span = span.join(&blk.span);
+            else_body = Some(Box::new(blk));
         }
+
         Ok(Statement {
-            kind: StatementKind::If(IfStmt { cond, if_true, if_false }),
+            kind: StatementKind::If { kw_if, cond, if_body, kw_else, else_body },
             span
         })
     }
     fn while_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.consume(TokenKind::LeftParen)?.span;
+        let kw_while = self.consume(TokenKind::LeftParen)?.span;
         let cond = self.expression()?;
         self.consume(TokenKind::RightParen)?;
-        let stmts = Box::new(self.block()?);
-        let span = start_span.join(&stmts.span);
+        let body = Box::new(Statement::from(self.block()?));
+        let span = kw_while.join(&body.span);
         Ok(Statement {
-            kind: StatementKind::While(WhileStmt { cond, stmts }),
+            kind: StatementKind::While { kw_while, cond, body },
             span
         })
     }
     fn block_inner(&mut self) -> Result<Vec<Statement>> {
         let mut stmts = Vec::new();
         while !self.check(TokenKind::RightBrace) && !self.is_finished() {
-            self.statement(&mut stmts)?
+            let stmt = self.statement()?;
+            stmts.push(stmt);
         }
         Ok(stmts)
     }
-    fn try_block(&mut self) -> Option<Result<Statement>> {
-        if self.match_type(TokenKind::LeftBrace) {
+    fn try_block(&mut self) -> Option<Result<Block<Statement>>> {
+        if self.check(TokenKind::LeftBrace) {
            Some(self.block())
         } else { None }
     }
-    fn block(&mut self) -> Result<Statement> {
-        self.consume(TokenKind::LeftBrace)?;
-        let start_span = self.previous_span()?;
+    fn block(&mut self) -> Result<Block<Statement>> {
+        let open = self.consume(TokenKind::LeftBrace)?.span;
         let stmts = self.block_inner()?;
-        let end_span = self.consume(TokenKind::RightBrace).unwrap().span;
-        Ok(Statement {
-            kind: StatementKind::Block(BlockStmt { stmts: stmts.into_boxed_slice() }),
-            span: start_span.join(&end_span)
-        })
-    }
-    fn statement_flatten(&mut self) -> Result<Statement> {
-        let mut stmts = Vec::new();
-        self.statement(&mut stmts)?;
-        Ok(if stmts.len() > 1 {
-            let span = stmts.first().unwrap().span;
-            let end_span = stmts.last().unwrap().span;
-            Statement {
-                kind: StatementKind::Block(BlockStmt { stmts: stmts.into_boxed_slice() }),
-                span: span.join(&end_span),
-            }
-        } else {
-            stmts.pop().unwrap()
+        let close = self.consume(TokenKind::RightBrace)?.span;
+        Ok(Block {
+            open_bracket: open,
+            close_bracket: close,
+            val: stmts.into_boxed_slice()
         })
     }
     fn for_stmt(&mut self) -> Result<Statement> {
-        let span = self.previous()?.span;
+        let kw_for = self.previous_span()?;
         self.consume(TokenKind::LeftParen)?;
         let init = if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
             Some(self.var_decl()?)
@@ -398,98 +443,107 @@ impl<'src> Parser<'src> {
             Some(self.expression()?)
         } else { None };
         self.consume(TokenKind::RightParen)?;
-        let body = Box::new(self.statement_flatten()?);
-        let span =  span.join(&body.span);
+        let body = Box::new(self.statement()?);
+        let span =  kw_for.join(&body.span);
         Ok(Statement {
-            kind: StatementKind::For(ForStmt { init, cond, inc, body }),
+            kind: StatementKind::For { kw_for, init, cond, inc, body },
             span
         })
     }
-    fn single_line_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
+    fn single_line_stmt(&mut self) -> Result<Statement> {
         let ast =
         if self.match_type(TokenKind::Print) {
-            self.print_stmt(stmts)?;
-            return Ok(())
+            return self.print_stmt();
         }
         else if self.match_type(TokenKind::Read) {
-            self.read_stmt(stmts)?;
-            return Ok(())
+            return self.read_stmt();
         }
         else if self.match_type(TokenKind::Semicolon) {
             Statement {
-                kind: StatementKind::Empty(EmptyStmt),
-                span: self.previous_span().unwrap()
+                kind: StatementKind::Empty(self.previous_span()?),
+                span: self.previous_span()?,
             }
         } else if self.match_type(TokenKind::Break) {
             Statement {
-                kind: StatementKind::Break(BreakStmt),
-                span: self.previous_span().unwrap()
+                kind: StatementKind::Break(self.previous_span()?),
+                span: self.previous_span()?,
             }
         } else if self.match_type(TokenKind::Continue) {
             Statement {
-                kind: StatementKind::Continue(ContinueStmt),
-                span: self.previous_span().unwrap()
+                kind: StatementKind::Continue(self.previous_span()?),
+                span: self.previous_span()?,
             }
         } else {
             self.expression_as_stmt()?
         };
-        stmts.push(ast);
-        Ok(())
+        Ok(ast)
     }
-    fn print_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
-        let start_span = self.previous_span().unwrap();
-        let expr = self.expression()?;
-        let span = start_span.join(&expr.span);
+    fn args(&mut self) -> Result<Parenthesized<Box<[Expression]>>> {
+        let op = self.previous_span()?;
 
-        stmts.push(Statement {
-            kind: StatementKind::Print(PrintStmt { expr }),
-            span
-        });
+        let mut exprs = Vec::new();
+
+        let mut first = true;
+        while !self.match_type(TokenKind::RightParen) {
+            if !first {
+                self.consume(TokenKind::Comma)?;
+            }
+            first = false;
+            let expr = self.expression()?;
+            exprs.push(expr);
+        }
+
+        let cp = self.previous_span()?;
+
+        Ok(Parenthesized {
+            val: exprs.into_boxed_slice(),
+            open_paren: op,
+            close_paren: cp,
+        })
+
+    }
+    fn comma_sep_expr(&mut self) -> Result<Box<[Expression]>> {
+        let mut exprs = Vec::new();
+        let expr = self.expression()?;
+        exprs.push(expr);
 
         while self.match_type(TokenKind::Comma) {
             let expr = self.expression()?;
-            let span = expr.span;
-            stmts.push(Statement {
-                kind: StatementKind::Print(PrintStmt { expr }),
-                span
-            });
+            exprs.push(expr);
         }
 
-        self.consume(TokenKind::Semicolon)?;
+        Ok(exprs.into_boxed_slice())
+    }
+    fn print_stmt(&mut self) -> Result<Statement> {
+        let start_span = self.previous_span().unwrap();
+        let exprs = self.comma_sep_expr()?;
+        let semmi = self.consume(TokenKind::Semicolon)?.span;
+        let span = start_span.join(&semmi);
 
-        Ok(())
+        Ok(Statement {
+            kind: StatementKind::Print(start_span, exprs, semmi),
+            span
+        })
     }
 
-    fn read_stmt(&mut self, stmts: &mut Vec<Statement>) -> Result<()> {
+    fn read_stmt(&mut self) -> Result<Statement> {
         let start_span = self.previous_span().unwrap();
-        let expr = self.expression()?;
-        let span = start_span.join(&expr.span);
+        let exprs = self.comma_sep_expr()?;
+        let semmi = self.consume(TokenKind::Semicolon)?.span;
+        let span = start_span.join(&semmi);
 
-        stmts.push(Statement {
-            kind: StatementKind::Read(ReadStmt { expr }),
+        Ok(Statement {
+            kind: StatementKind::Read(start_span, exprs, semmi),
             span
-        });
-
-        while self.match_type(TokenKind::Comma) {
-            let expr = self.expression()?;
-            let span = expr.span;
-            stmts.push(Statement {
-                kind: StatementKind::Read(ReadStmt { expr }),
-                span
-            });
-        }
-
-        self.consume(TokenKind::Semicolon)?;
-
-        Ok(())
+        })
     }
 
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
-        let span = self.consume(TokenKind::Semicolon)?.span;
-        let span = expr.span.join(&span);
+        let semmi = self.consume(TokenKind::Semicolon).unwrap().span;
+        let span = expr.span.join(&semmi);
         Ok(Statement {
-            kind: StatementKind::Expression(ExprAsStmt { expr }),
+            kind: StatementKind::Expression(expr, semmi),
             span
         })
     }
@@ -504,12 +558,16 @@ impl<'src> Parser<'src> {
     fn assignment(&mut self) -> Result<Expression> {
         let left = self.ternary()?;
         let ast = if self.match_type(TokenKind::Equal) {
+            let eq = Spanned {
+                val: BinaryExprOp::Assign,
+                span: self.previous_span()?
+            };
             let right = Box::new(self.assignment()?);
             let span = left.span.join(&right.span);
-            Expression::new(
-                ExpressionKind::Assignment(AssignmentExpr { left: Box::new(left), right }),
+            Expression {
+                kind: ExpressionKind::Binary { op: eq, left: Box::new(left), right },
                 span
-            )
+            }
         } else {
             left
         };
@@ -522,45 +580,54 @@ impl<'src> Parser<'src> {
             self.consume(TokenKind::Colon)?;
             let if_false = Box::new(self.logical()?);
             let span = cond.span.join(&if_false.span);
-            cond = Expression::new(
-                ExpressionKind::Ternary(TernaryExpr { cond: Box::new(cond), if_true, if_false }),
-                span
-            )
+            cond = Expression {
+                kind: ExpressionKind::Ternary { cond: Box::new(cond), if_true, if_false },
+                span,
+            }
         }
         Ok(cond)
     }
     fn logical(&mut self) -> Result<Expression> {
         let mut left = self.equality()?;
         while self.match_types(&[TokenKind::Or, TokenKind::And]) {
-            let op = self.previous()?.kind;
-            let op = BinaryExprOp::try_from(op).map_err(|_| {
+            let op = self.previous()?;
+            let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))
             })?;
-            let right = Box::new(self.logical()?);
+            let op = Spanned {
+                val: ops,
+                span: op.span,
+            };
+            let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Logical }),
-                span
-            )
+            left = Expression {
+                kind: ExpressionKind::Binary { op, left: Box::new(left), right },
+                span,
+            };
         }
         Ok(left)
     }
     fn equality(&mut self) -> Result<Expression> {
         let mut left = self.comparison()?;
         while self.match_types(&[TokenKind::BangEqual, TokenKind::EqualEqual]) {
-            let op = self.previous()?.kind;
-            let op = BinaryExprOp::try_from(op).map_err(|_| {
+            let op = self.previous()?;
+            let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))
             })?;
-            let right = Box::new(self.comparison()?);
+            let op = Spanned {
+                val: ops,
+                span: op.span,
+            };
+            let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comparison }),
-                span
-            )
+            left = Expression {
+                kind: ExpressionKind::Binary { op, left: Box::new(left), right },
+                span,
+            };
         }
         Ok(left)
     }
+
     fn comparison(&mut self) -> Result<Expression> {
         let mut left = self.term()?;
         while self.match_types(&[TokenKind::Greater,
@@ -568,101 +635,108 @@ impl<'src> Parser<'src> {
                                 TokenKind::Less,
                                 TokenKind::LessEqual]
                              ){
-            let op = self.previous()?.kind;
-            let op = BinaryExprOp::try_from(op).map_err(|_| {
+            let op = self.previous()?;
+            let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))
             })?;
-            let right = Box::new(self.term()?);
+            let op = Spanned {
+                val: ops,
+                span: op.span,
+            };
+            let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Comparison }),
-                span
-            )
+            left = Expression {
+                kind: ExpressionKind::Binary { op, left: Box::new(left), right },
+                span,
+            };
         }
         Ok(left)
     }
     fn term(&mut self) -> Result<Expression> {
         let mut left = self.factor()?;
         while self.match_types(&[TokenKind::Minus,TokenKind::Plus]){
-            let op = self.previous()?.kind;
-            let op = BinaryExprOp::try_from(op).map_err(|_| {
+            let op = self.previous()?;
+            let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))
             })?;
+            let op = Spanned {
+                val: ops,
+                span: op.span,
+            };
             let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Arithmetic }),
-                span
-            )
+            left = Expression {
+                kind: ExpressionKind::Binary { op, left: Box::new(left), right },
+                span,
+            };
         }
         Ok(left)
     }
     fn factor(&mut self) -> Result<Expression> {
         let mut left = self.unary()?;
         while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Mod]){
-            let op = self.previous()?.kind;
-            let op = BinaryExprOp::try_from(op).map_err(|_| {
+            let op = self.previous()?;
+            let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Unknown operand {op:#?}"))
             })?;
-            let right = Box::new(self.unary()?);
+            let op = Spanned {
+                val: ops,
+                span: op.span,
+            };
+            let right = Box::new(self.factor()?);
             let span = left.span.join(&right.span);
-            left = Expression::new(
-                ExpressionKind::Binary(BinaryExpr { left: Box::new(left), op, right, kind: BinaryExprKind::Arithmetic }),
-                span
-            )
+            left = Expression {
+                kind: ExpressionKind::Binary { op, left: Box::new(left), right },
+                span,
+            };
         }
         Ok(left)
     }
     fn unary(&mut self) -> Result<Expression> {
-        if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus]) {
-            let start_span = self.previous_span().unwrap();
-            let op = self.previous()?.kind;
-            let op = UnaryExprOp::try_from(op).map_err(|_| {
+        if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus,TokenKind::Ampersand,TokenKind::Star]) {
+            let op = self.previous()?;
+            let opk = UnaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseError::new(format!("Invalid unary operand {op:#?}"))
             })?;
+            let op = Spanned {
+                val: opk,
+                span: op.span,
+            };
             let expr = Box::new(self.unary()?);
-            let span = start_span.join(&expr.span);
-            Ok(Expression::new(
-                ExpressionKind::Unary(UnaryExpr { op, expr }),
-                span
-            ))
-        }
-        else if self.match_type(TokenKind::Ampersand) {
-            let start_span = self.previous_span().unwrap();
-            let expr = Box::new(self.unary()?);
-            let span = start_span.join(&expr.span);
-            Ok(Expression::new(ExpressionKind::Ref(Reference {
-                of: expr,
-            }), span))
-        }
-        else if self.match_type(TokenKind::Star) {
-            let start_span = self.previous_span().unwrap();
-            let expr = Box::new(self.unary()?);
-            let span = start_span.join(&expr.span);
-            Ok(Expression::new(ExpressionKind::Deref(Dereference {
-                of: expr,
-            }), span))
+            let span = op.span.join(&expr.span);
+            Ok(Expression {
+                kind: ExpressionKind::Unary { op, expr },
+                span,
+            })
         }
         else {
             self.primary()
         }
     }
-    fn literal(&mut self) -> Result<Option<LitValue>> {
+    fn literal(&mut self) -> Result<Option<Spanned<LitValue>>> {
+        macro_rules! spanned_lit {
+            ($v:ident, $e:expr) => {
+               Spanned {
+                   val: LitValue::  $v ($e),
+                   span: self.previous_span()?
+               }
+            };
+        }
         Ok(Some(if self.match_type(TokenKind::False) {
-            LitValue::Bool(false)
+            spanned_lit!(Bool, false)
         }
         else if self.match_type(TokenKind::True) {
-            LitValue::Bool(true)
+            spanned_lit!(Bool, true)
         }
         else if self.match_type(TokenKind::String) {
-            LitValue::Str(self.previous_lexem()?)
+            spanned_lit!(Str, self.previous_lexem()?)
         }
         else if self.match_type(TokenKind::IntLiteral) {
-            LitValue::Int(self.previous_parse::<i32>()?)
+            spanned_lit!(Int, self.previous_parse::<i32>()?)
         }
         else if self.match_type(TokenKind::FloatLiteral) {
             let f: f64 = self.previous()?.span.slice(self.src).parse()?;
-            LitValue::Float(f)
+            spanned_lit!(Float, f)
         }
         else if self.match_type(TokenKind::CharLiteral) {
             let prev = self.previous().unwrap();
@@ -670,7 +744,7 @@ impl<'src> Parser<'src> {
                 .strip_prefix('\'').unwrap()
                 .strip_suffix('\'').unwrap();
             let lit = Unescaped::from(lit).next().ok_or_else(|| format!("Invalid escape '{lit}'"))?;
-            LitValue::Char(lit)
+            spanned_lit!(Char, lit)
         }
         else {
             return Ok(None)
@@ -679,23 +753,32 @@ impl<'src> Parser<'src> {
     fn access(&mut self, mut expr: Expression) -> Result<Expression> {
         if self.match_type(TokenKind::LeftBracket) {
             let index = self.expression()?;
-            let span = self.consume(TokenKind::RightBracket)?.span;
-            let span = expr.span.join(&span);
+            let cb = self.consume(TokenKind::RightBracket)?.span;
+            let span = expr.span.join(&cb);
 
-            let acc = ArrayAccess {
-                array: Box::new(expr),
-                index: Box::new(index),
+            expr = Expression {
+                kind: ExpressionKind::ArrayAccess { arr: Box::new(expr), index: Box::new(index), closing_bracket: cb },
+                span
             };
-            expr = Expression::new(ExpressionKind::ArrayAccess(acc), span);
             self.access(expr)
         }
         else if self.match_type(TokenKind::Dot) {
-            let field = self.consume(TokenKind::Identifier)?;
-            let field_span = field.span;
-            let field = self.owned_lexem(field_span);
-            let span = expr.span.join(&field_span);
-            let saccess = StructAccess::new(expr, field);
-            expr = Expression::new(ExpressionKind::StructAccess(saccess), span);
+            let field = self.consume_ident_spanned()?;
+            let span = expr.span.join(&field.span);
+
+            expr = Expression {
+                kind: ExpressionKind::StructAccess { st: Box::new(expr), field },
+                span,
+            };
+            self.access(expr)
+        }
+        else if self.match_type(TokenKind::LeftParen) {
+            let args = self.args()?;
+            let span = expr.span.join(&args.close_paren);
+            expr = Expression {
+                kind: ExpressionKind::Call { callee: Box::new(expr), args },
+                span
+            };
             self.access(expr)
         }
         else {
@@ -708,10 +791,11 @@ impl<'src> Parser<'src> {
     }
     fn __primary(&mut self) -> Result<Expression> {
         if let Some(value) = self.literal()? {
-            return Ok(Expression::new(
-                ExpressionKind::Literal(LitExpr { value }),
-                self.previous_span().unwrap()
-            ));
+            let span = value.span;
+            return Ok(Expression {
+                kind: ExpressionKind::Literal(value),
+                span,
+            })
         }
         if self.match_type(TokenKind::LeftParen) {
             let start = self.previous_span().unwrap();
@@ -721,39 +805,12 @@ impl<'src> Parser<'src> {
             return Ok(expr)
         }
         if self.match_type(TokenKind::Identifier) {
-            let prev_span = self.previous()?.span;
-            let name = self.owned_lexem(prev_span);
-            if self.match_type(TokenKind::LeftParen) {
-                let mut args = Vec::new();
-                let mut first = true;
-                while !self.match_type(TokenKind::RightParen) {
-                    if !first {
-                        self.consume(TokenKind::Comma)?;
-                    }
-                    first = false;
-                    args.push(self.expression()?);
-
-                }
-                let span = prev_span.join(&self.previous_span()?);
-                return Ok(Expression::new(
-                    ExpressionKind::Call(
-                        CallExpr {
-                            callee: name,
-                            args: args.into_boxed_slice(),
-                            decl: AstRef::empty()
-                        }),
-                    span
-                ))
-            } else {
-                return Ok(Expression::new(
-                    ExpressionKind::Variable(
-                              VariableExpr {
-                                  name,
-                                  decl: AstRef::empty()
-                              }),
-                    prev_span,
-                ))
-            }
+            let name = self.previous_lexem_spanned()?;
+            let span = name.span;
+            return Ok(Expression {
+                kind: ExpressionKind::Path(name),
+                span,
+            });
         }
         ParseError::new(
              format!("Expected expression, found: {}", self.peek()?.span.slice(self.src))).err()
@@ -777,6 +834,9 @@ impl<'src> Parser<'src> {
     }
     fn match_types(&mut self, types: &[TokenKind]) -> bool {
         types.iter().any(|t| self.match_type(*t))
+    }
+    fn check_types(&mut self, types: &[TokenKind]) -> bool {
+        types.iter().any(|t| self.check(*t))
     }
     fn check(&mut self, t: TokenKind) -> bool {
         if self.is_finished() { return false; }
@@ -812,6 +872,15 @@ impl<'src> Parser<'src> {
     }
     fn previous_lexem(&mut self) -> Result<Symbol> {
         Ok(self.owned_lexem(self.previous()?.span))
+    }
+
+    fn previous_lexem_spanned(&mut self) -> Result<Spanned<Symbol>> {
+        let span = self.previous()?.span;
+        let lex = self.owned_lexem(span);
+        Ok(Spanned {
+            val: lex,
+            span,
+        })
     }
     fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
         self.bump();

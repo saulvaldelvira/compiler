@@ -94,6 +94,15 @@ pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
     })
 }
 
+#[inline(always)]
+pub fn symbol_into_owned(sym: Symbol) -> String {
+    with_session_interner(|i| {
+        i.resolve_unchecked(sym, |s| {
+            s.to_string()
+        })
+    })
+}
+
 pub fn symbol_equals(sym: Symbol, o: &str) -> bool {
     with_symbol(sym, |s| s == o)
 }

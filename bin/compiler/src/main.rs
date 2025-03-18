@@ -4,12 +4,14 @@ use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
 use ast::Program;
-use ast_passes::{perform_identification, perform_typechecking};
-use codegen::target::MaplTarget;
+/* use ast_passes::{perform_identification, perform_typechecking}; */
+/* use codegen::target::MaplTarget; */
 use config::{Config, Target};
+use error_manager::ErrorManager;
 use lexer::token::Token;
 use lexer::Lexer;
 use parser::Parser;
+use semantic::Semantic;
 
 pub fn tokenize(text: &str) -> Box<[Token]> {
     Lexer::new(text).tokenize().unwrap_or_else(|nerr| {
@@ -33,33 +35,48 @@ pub fn parse(tokens: Box<[Token]>, src: &str) -> Program {
     })
 }
 
-fn process(text: &str, target: Target) -> String {
-    /* println!("*** LEXER ***"); */
+fn step_emit(text: &str, em: &ErrorManager) {
+    em.print_warnings(text,  &mut stderr().lock()).unwrap();
+
+    if em.n_errors() > 0 {
+        em.print_errors(text,  &mut stderr().lock()).unwrap();
+        process::exit(1);
+    }
+}
+
+fn process(text: &str, _target: Target) -> String {
     let tokens = tokenize(text);
-    /* tokens.iter().for_each(|t| println!("{t:#?}")); */
-    /* println!("\n*** PARSER ***"); */
     let program = parse(tokens, text);
 
-    if let Err(em) = perform_identification(&program) {
-        em.print_errors(text, &mut stderr().lock()).unwrap();
-        fail(em.n_errors())
-    }
+    let em = ast_validate::validate_ast(&program);
+    step_emit(text, &em);
 
-    if let Err(em) = perform_typechecking(&program) {
-        em.print_errors(text, &mut stderr().lock()).unwrap();
-        fail(em.n_errors())
-    }
+    let hir_sess = hir::Session::default();
+    ast_lowering::lower(&hir_sess, &program);
+
+    let mut em = ErrorManager::new();
+    hir_passes::identify(&hir_sess, &mut em);
+    step_emit(text, &em);
+
+    let semantic = Semantic::default();
+    hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
+
+    let program = hir_sess.get_root_program();
 
     #[cfg(debug_assertions)]
     eprintln!("\
-================================================================================
-{program:#?}
-================================================================================");
+        ================================================================================
+        {program:#?}
+        ================================================================================");
 
-    match target {
-        Target::Mapl => codegen::process::<MaplTarget>(&program)
-    }
+    step_emit(text, &em);
 
+    /* match target { */
+    /*     Target::Mapl => codegen::process::<MaplTarget>(&program) */
+    /* } */
+
+
+    "".to_string()
 }
 
 fn main() {

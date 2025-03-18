@@ -1,0 +1,9 @@
+[package]
+name = "ast_validate"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ast = { path = "../ast" }
+span = { path = "../span" }
+error_manager = { path = "../error_manager" }

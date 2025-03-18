@@ -1,11 +1,9 @@
 use core::fmt;
-use std::rc::Rc;
 
 use session::Symbol;
-use span::Span;
+use span::{Span, Spanned};
 
-use crate::stmt::BlockStmt;
-use crate::{AstDecorated, Expression};
+use crate::{Block, Expression, Statement};
 use crate::types::Type;
 
 #[derive(Debug,Clone,PartialEq)]
@@ -16,57 +14,46 @@ pub enum MemoryAddress {
 }
 
 #[derive(Debug)]
-pub struct VariableDecl {
-    pub is_const: bool,
-    pub name: Symbol,
-    pub init: Option<Expression>,
-    pub ty: Option<Type>,
-    pub address: AstDecorated<MemoryAddress>,
-}
-
-impl VariableDecl {
-    pub fn new(name: Symbol, init: Option<Expression>, is_const: bool) -> Self {
-        Self { name, init, is_const, ty: None, address: AstDecorated::new() }
-    }
+pub enum VariableConstness {
+    Const(Span),
+    Let(Span),
 }
 
 #[derive(Debug)]
-pub struct FunctionDecl {
-    pub name: Symbol,
-    pub args: Box<[Rc<VariableDecl>]>,
-    pub return_type: Type,
-    pub body: BlockStmt,
-}
-
-
-#[derive(Debug,Clone,PartialEq)]
-pub struct StructField {
+pub struct Field {
+    pub name: Spanned<Symbol>,
     pub ty: Type,
-    pub name: Symbol,
-    pub address: AstDecorated<MemoryAddress>,
+    pub span: Span,
 }
 
-impl StructField {
-    pub fn new(name: Symbol, ty: Type) -> Self {
-        Self {
-            name,
-            ty,
-            address: AstDecorated::new()
-        }
-    }
-}
-
-#[derive(Debug,Clone,PartialEq)]
-pub struct StructDecl {
-    pub name: Symbol,
-    pub fields: Box<[StructField]>
+#[derive(Debug)]
+pub struct Param {
+    pub name: Spanned<Symbol>,
+    pub ty: Type,
+    pub span: Span,
 }
 
 #[derive(Debug)]
 pub enum DeclarationKind {
-    Variable(Rc<VariableDecl>),
-    Function(Rc<FunctionDecl>),
-    Struct(Rc<StructDecl>),
+    Variable {
+        constness: VariableConstness,
+        name: Spanned<Symbol>,
+        ty: Option<Type>,
+        init: Option<Expression>,
+        semicolon: Span,
+    },
+    Function {
+        kw_fn: Span,
+        name: Spanned<Symbol>,
+        params: Box<[Param]>,
+        return_type: Option<Type>,
+        body: Block<Statement>,
+    },
+    Struct {
+        kw_struct: Span,
+        name: Spanned<Symbol>,
+        fields: Block<Field>,
+    },
 }
 
 pub struct Declaration {

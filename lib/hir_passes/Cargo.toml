@@ -1,0 +1,9 @@
+[package]
+name = "hir_passes"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hir = { path = "../hir" }
+session = { path = "../session" }
+error_manager = { path = "../error_manager" }
