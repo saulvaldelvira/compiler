@@ -2,93 +2,46 @@
 //!
 use core::fmt;
 
-use crate::Expression;
+use crate::{Block, Expression, Parenthesized};
 use span::Span;
 
 use super::declaration::Declaration;
 
-type Stmt = Box<Statement>;
-
-/// Wraps an [Expression] as a statement
-#[derive(Debug)]
-pub struct ExprAsStmt {
-    pub expr: Expression,
-}
-
-#[derive(Debug)]
-pub struct PrintStmt {
-    pub expr: Expression,
-}
-
-#[derive(Debug)]
-pub struct ReadStmt {
-    pub expr: Expression,
-}
-
-#[derive(Debug)]
-pub struct DeclarationStmt {
-    pub inner: Declaration,
-}
-
-#[derive(Debug)]
-pub struct BlockStmt {
-    pub stmts: Box<[Statement]>,
-}
-
-#[derive(Debug)]
-pub struct IfStmt {
-    pub cond: Expression,
-    pub if_true: Stmt,
-    pub if_false: Option<Stmt>,
-}
-
-#[derive(Debug)]
-pub struct WhileStmt {
-    pub cond: Expression,
-    pub stmts: Stmt,
-}
-
-#[derive(Debug)]
-pub struct ForStmt {
-    pub init: Option<Declaration>,
-    pub cond: Option<Expression>,
-    pub inc: Option<Expression>,
-    pub body: Stmt,
-}
-
-#[derive(Debug)]
-pub struct EmptyStmt;
-
-#[derive(Debug)]
-pub struct BreakStmt;
-
-#[derive(Debug)]
-pub struct ContinueStmt;
-
-#[derive(Debug)]
-pub struct ReturnStmt {
-    pub expr: Option<Expression>,
-}
-
 #[derive(Debug)]
 pub enum StatementKind {
-    Expression(ExprAsStmt),
-    Print(PrintStmt),
-    Read(ReadStmt),
-    Decl(DeclarationStmt),
-    Block(BlockStmt),
-    If(IfStmt),
-    While(WhileStmt),
-    For(ForStmt),
-    Empty(EmptyStmt),
-    Break(BreakStmt),
-    Continue(ContinueStmt),
-    Return(ReturnStmt),
+    Expression(Expression, Span),
+    Print(Span, Box<[Expression]>, Span),
+    Read(Span, Box<[Expression]>, Span),
+    Decl(Declaration),
+    Block(Block<Statement>),
+    If { kw_if: Span, cond: Parenthesized<Expression>, if_body: Box<Statement>, kw_else: Option<Span>, else_body: Option<Box<Statement>> },
+    While { kw_while: Span, cond: Expression, body: Box<Statement> },
+    For {
+        kw_for: Span,
+        init: Option<Declaration>,
+        cond: Option<Expression>,
+        inc: Option<Expression>,
+        body: Box<Statement>,
+    },
+    Empty(Span),
+    Break(Span),
+    Continue(Span),
+    Return{ kw_ret: Span, expr: Option<Expression>, semmicollon: Span },
 }
 
 pub struct Statement {
     pub kind: StatementKind,
     pub span: Span,
+}
+
+impl From<Block<Statement>> for Statement {
+    fn from(value: Block<Statement>) -> Self {
+        let span = value.open_bracket.join(&value.close_bracket);
+        Statement {
+            kind: StatementKind::Block(value),
+            span
+        }
+    }
 }
 
 impl fmt::Debug for Statement {

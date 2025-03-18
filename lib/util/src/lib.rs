@@ -28,15 +28,20 @@ impl Error {
 
 pub struct ErrorManager {
     errors: Vec<Error>,
+    warnings: Vec<Error>,
 }
 
 impl ErrorManager {
     pub fn new() -> Self {
-        Self { errors: Vec::new() }
+        Self { errors: Vec::new(), warnings: Vec::new() }
     }
 
     pub fn error(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) {
        self.errors.push(Error::new(msg, span));
+    }
+
+    pub fn warning(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) {
+       self.warnings.push(Error::new(msg, span));
     }
 
     pub fn n_errors(&self) -> usize { self.errors.len() }
@@ -46,6 +51,20 @@ impl ErrorManager {
     pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.errors {
+            err.print(src, &mut buf)?;
+            out.write_all(buf.as_bytes()).unwrap();
+            buf.clear();
+        }
+        Ok(())
+    }
+
+    pub fn n_warnings(&self) -> usize { self.warnings.len() }
+
+    pub fn warnings(&self) -> &[Error] { &self.warnings }
+
+    pub fn print_warnings(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
+        let mut buf = String::new();
+        for err in &self.warnings {
             err.print(src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();

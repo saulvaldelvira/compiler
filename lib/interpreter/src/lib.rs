@@ -258,7 +258,7 @@ impl Visitor<'_> for Interpreter {
         self.visit_expression(&a.right)?;
         let right = self.ctx.values.last().unwrap();
         match &a.left.as_ref().kind {
-            ExpressionKind::Variable(VariableExpr{ name, .. }) => {
+            ExpressionKind::Path(VariableExpr{ name, .. }) => {
                 if self.enviroment.is_const(name) {
                     with_symbol(*name, |name| {
                         err!("Assignment to const variable \"{name}\""; a.left.span);

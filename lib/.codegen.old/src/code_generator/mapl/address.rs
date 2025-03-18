@@ -10,7 +10,7 @@ use super::{Address, Eval, MaplCodeGenerator};
 impl Address for Expression {
     fn address(&self, cg: &mut super::MaplCodeGenerator) {
         match &self.kind {
-            ExpressionKind::Variable(variable_expr) => variable_expr.address(cg),
+            ExpressionKind::Path(variable_expr) => variable_expr.address(cg),
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.address(cg),
             ExpressionKind::ArrayAccess(arr) => arr.address(cg),
             ExpressionKind::StructAccess(sa) => sa.address(cg),

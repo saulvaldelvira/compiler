@@ -57,6 +57,7 @@ fn get_type_suffix(t: &Type) -> &str {
     match t.kind {
         TypeKind::Int => "I",
         TypeKind::Char => "B",
+        TypeKind::Float => "F",
         TypeKind::Ref(_) => "I",
         _ => todo!()
     }

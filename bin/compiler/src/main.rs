@@ -1,11 +1,12 @@
 use std::io::stderr;
+use std::mem::ManuallyDrop;
 use std::process::exit;
 use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
 use ast::Program;
-use ast_passes::{perform_identification, perform_typechecking};
-use codegen::target::MaplTarget;
+/* use ast_passes::{perform_identification, perform_typechecking}; */
+/* use codegen::target::MaplTarget; */
 use config::{Config, Target};
 use lexer::token::Token;
 use lexer::Lexer;
@@ -40,15 +41,27 @@ fn process(text: &str, target: Target) -> String {
     /* println!("\n*** PARSER ***"); */
     let program = parse(tokens, text);
 
-    if let Err(em) = perform_identification(&program) {
-        em.print_errors(text, &mut stderr().lock()).unwrap();
-        fail(em.n_errors())
+    let em = ast_validate::validate_ast(&program);
+    em.print_warnings(text,  &mut stderr().lock()).unwrap();
+
+    if em.n_errors() > 0 {
+        em.print_errors(text,  &mut stderr().lock()).unwrap();
     }
 
-    if let Err(em) = perform_typechecking(&program) {
-        em.print_errors(text, &mut stderr().lock()).unwrap();
-        fail(em.n_errors())
-    }
+    let hir_sess = hir::Session::new();
+    ast_lowering::lower(&hir_sess, &program);
+
+    let program = hir_sess.get_root_program();
+
+    /*     em.priint_errors(text, &mut stderr().lock()).unwrap(); */
+    /* if let Err(em) = perform_identification(&program) { */
+    /*     fail(em.n_errors()) */
+    /* } */
+
+    /* if let Err(em) = perform_typechecking(&program) { */
+    /*     em.print_errors(text, &mut stderr().lock()).unwrap(); */
+    /*     fail(em.n_errors()) */
+    /* } */
 
     #[cfg(debug_assertions)]
     eprintln!("\
@@ -56,10 +69,13 @@ fn process(text: &str, target: Target) -> String {
 {program:#?}
 ================================================================================");
 
-    match target {
-        Target::Mapl => codegen::process::<MaplTarget>(&program)
-    }
 
+    /* match target { */
+    /*     Target::Mapl => codegen::process::<MaplTarget>(&program) */
+    /* } */
+
+
+    "".to_string()
 }
 
 fn main() {

@@ -1,7 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "bin/*",
-    "lib/*",
+    "lib/lexer",
+    "lib/span",
+    "lib/parser",
+    "lib/ast",
+    "lib/ast_validate",
+    "lib/ast_lowering",
+    "lib/session",
+    "lib/hir",
+    "bin/*"
 ]
 

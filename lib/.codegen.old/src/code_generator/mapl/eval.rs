@@ -15,7 +15,7 @@ impl Eval for Expression {
             ExpressionKind::Binary(binary_expr) => binary_expr.eval(cg),
             ExpressionKind::Ternary(ternary_expr) => ternary_expr.eval(cg),
             ExpressionKind::Assignment(assignment_expr) => assignment_expr.eval(cg),
-            ExpressionKind::Variable(variable_expr) => variable_expr.eval(cg),
+            ExpressionKind::Path(variable_expr) => variable_expr.eval(cg),
             ExpressionKind::Call(call_expr) => call_expr.eval(cg),
             ExpressionKind::ArrayAccess(arr) => arr.eval(cg),
             ExpressionKind::StructAccess(sa) => sa.eval(cg),
