@@ -1,0 +1,6 @@
+Compiler
+========
+This is a toy compiler I'm working on
+
+== Documentation ==
+To build the documentation, run `cargo doc`
