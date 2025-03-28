@@ -1,0 +1,16 @@
+[package]
+name = "compiler_driver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lexer = { path = "../../lib/lexer" }
+parser = { path = "../../lib/parser" }
+ast = { path = "../../lib/ast" }
+ast_validate = { path = "../../lib/ast_validate" }
+ast_lowering = { path = "../../lib/ast_lowering" }
+hir = { path = "../../lib/hir" }
+hir_passes = { path = "../../lib/hir_passes" }
+hir_typecheck = { path = "../../lib/hir_typecheck" }
+semantic = { path = "../../lib/semantic" }
+error_manager = { path = "../../lib/error_manager" }
