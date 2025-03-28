@@ -14,9 +14,7 @@ impl PartialEq<&str> for Symbol {
     /// NOTE: If the symbol doesn't exist in the session
     /// storage, it returns false.
     fn eq(&self, other: &&str) -> bool {
-        try_with_symbol(*self, |s| {
-            s.is_some_and(|s| s == *other)
-        })
+        symbol_equals(*self, other)
     }
 }
 
@@ -34,10 +32,12 @@ impl Debug for Symbol {
 pub struct Interner(RwLock<StringInterner>);
 
 impl Interner {
+    #[inline]
     pub fn get_or_intern(&self, src: &str) -> Symbol {
         Symbol(self.0.write().unwrap().get_or_intern(src))
     }
 
+    #[inline]
     pub fn resolve<R>(&self, sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
         f(self.0.read().unwrap().resolve(sym.0))
     }
@@ -71,23 +71,27 @@ thread_local! {
     static SESSION: Session = Session::new();
 }
 
+#[inline(always)]
 pub fn with_session<R>(f: impl FnOnce(&Session) -> R) -> R {
     SESSION.with(|sess| f(sess))
 }
 
 
+#[inline(always)]
 pub fn with_session_interner<R>(f: impl FnOnce(&Interner) -> R) -> R {
     with_session(|sess| {
         f(&sess.string_interner)
     })
 }
 
+#[inline(always)]
 pub fn try_with_symbol<R>(sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
     with_session_interner(|i| {
         i.resolve(sym,f)
     })
 }
 
+#[inline(always)]
 pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
     with_session_interner(|i| {
         i.resolve_unchecked(sym, f)
@@ -103,10 +107,12 @@ pub fn symbol_into_owned(sym: Symbol) -> String {
     })
 }
 
+#[inline(always)]
 pub fn symbol_equals(sym: Symbol, o: &str) -> bool {
     with_symbol(sym, |s| s == o)
 }
 
+#[inline(always)]
 pub fn intern_str(src: &str) -> Symbol {
     with_session_interner(|i| i.get_or_intern(src))
 }
