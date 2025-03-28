@@ -15,6 +15,7 @@ pub enum SemanticErrorKind {
     CallToNonFunction,
     MismatchedArgsNum { expected: usize, received: usize },
     FunctionNeedsReturn(Symbol),
+    MistmatchedReturn { expected: String, got: String },
 }
 
 pub struct SemanticError {
@@ -39,6 +40,7 @@ impl error_manager::Error for SemanticError {
             SemanticErrorKind::CallToNonFunction => write!(out, "Call to non-function type"),
             SemanticErrorKind::MismatchedArgsNum { expected, received } => write!(out, "Mismatched number of arguments on function call. Expected {expected} received {received}"),
             SemanticErrorKind::FunctionNeedsReturn(name) => write!(out, "Some branches of '{name:#?}' won't return"),
+            SemanticErrorKind::MistmatchedReturn { expected, got } => write!(out, "Mistmatched retun type. Expected {expected}, got {got}"),
         }
     }
 }

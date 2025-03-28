@@ -6,6 +6,9 @@ use crate::{hir, stmt, Constness, Definition, Expression, Ident, Path, Program, 
 
 pub trait Visitor<'hir> {
     type Result: VisitorResult;
+    type Ctx: VisitorCtx<'hir>;
+
+    fn get_ctx(&mut self) -> &mut Self::Ctx;
 
     fn visit_program(&mut self, prog: &'hir Program<'hir>) -> Self::Result {
         walk_program(self, prog)
@@ -80,11 +83,11 @@ pub trait Visitor<'hir> {
 
     fn visit_function_definition(
         &mut self,
-        _base: &'hir Definition<'hir>,
+        base: &'hir Definition<'hir>,
         params: &'hir [Definition<'hir>],
         body: &'hir [Statement<'hir>]
     ) -> Self::Result {
-        walk_function_definition(self, params, body)
+        walk_function_definition(self, base, params, body)
     }
 
     fn visit_struct_definition(
@@ -267,18 +270,21 @@ where
 
 pub fn walk_function_definition<'hir, V>(
     v: &mut V,
+    base: &'hir Definition<'hir>,
     params: &'hir [Definition<'hir>],
     body: &'hir [Statement<'hir>]
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {
+    v.get_ctx().enter_function(base);
     for p in params {
         v.visit_definition(p);
     }
     for stmt in body {
         v.visit_statement(stmt);
     }
+    v.get_ctx().exit_function();
     V::Result::output()
 }
 
@@ -671,3 +677,10 @@ impl<T> VisitorResult for Option<T> {
         }
     }
 }
+
+pub trait VisitorCtx<'ast> {
+    fn enter_function(&mut self, _func: &'ast hir::Definition<'ast>) {}
+    fn exit_function(&mut self) {}
+}
+
+impl VisitorCtx<'_> for () { }

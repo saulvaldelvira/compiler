@@ -38,6 +38,7 @@ pub struct Identification<'ident, 'hir> {
     hir_sess: &'ident hir::Session<'hir>,
     em: &'ident mut ErrorManager,
     st: SymbolTable,
+    ctx: (),
 }
 
 impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
@@ -46,6 +47,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             st: SymbolTable::default(),
             hir_sess,
             em,
+            ctx: (),
         };
         ident.st.enter_scope();
         ident
@@ -54,6 +56,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
 
 impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     type Result = ();
+    type Ctx = ();
 
     fn visit_pathdef(&mut self, def: &'hir hir::Definition<'hir>, pdef: &'hir hir::def::PathDef) -> Self::Result {
         self.st.define(pdef.ident.sym, def.id);
@@ -61,12 +64,12 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
     fn visit_function_definition(
             &mut self,
-            _def: &'hir hir::Definition<'hir>,
+            def: &'hir hir::Definition<'hir>,
             params: &'hir [hir::Definition<'hir>],
             body: &'hir [hir::Statement<'hir>]
     ) -> Self::Result {
         self.st.enter_scope();
-        walk_function_definition(self, params, body);
+        walk_function_definition(self, def, params, body);
         self.st.exit_scope();
     }
 
@@ -86,6 +89,8 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
             }
         }
     }
+
+    fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 }
 
 

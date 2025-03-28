@@ -1,4 +1,3 @@
-
 use ast::declaration::VariableConstness;
 use hir::def::DefinitionKind;
 use hir::{Constness, Ident};
@@ -66,7 +65,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let params = params.iter().map(|p| &p.ty);
                 let params = self.lower_types(params);
 
-                let ret_ty = return_type.as_ref().map(|t| self.lower_type(t));
+                let ret_ty = return_type.as_ref()
+                                        .map(|t| self.lower_type(t))
+                                        .unwrap_or_else(|| {
+                                            hir::Type::empty()
+                                        });
 
                 let tk = hir::types::TypeKind::Function { params, ret_ty };
                 let ty: &'hir hir::Type<'hir> =

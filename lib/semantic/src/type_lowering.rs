@@ -75,7 +75,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             },
             HTK::Function { params, ret_ty } => {
                 let params = self.lower_hir_types(params);
-                let ret_ty = ret_ty.as_ref().map(|ty| self.lower_hir_type(ty));
+                let ret_ty = self.lower_hir_type(&ret_ty);
                 TypeKind::Function { params, ret_ty }
             }
         };

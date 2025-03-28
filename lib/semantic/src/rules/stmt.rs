@@ -1,8 +1,8 @@
-use hir::{Definition, Statement};
+use hir::{Definition, Expression, Statement};
 use span::Span;
 
 use crate::errors::{SemanticError, SemanticErrorKind};
-use crate::Ty;
+use crate::{PrimitiveType, Ty};
 
 use super::SemanticRule;
 
@@ -13,7 +13,7 @@ pub struct CheckFunctionReturns<'hir, 'sem> {
     pub span: Span,
 }
 
-impl SemanticRule for CheckFunctionReturns<'_,'_> {
+impl SemanticRule<'_> for CheckFunctionReturns<'_,'_> {
     type Result = ();
 
     fn apply(&self, _sem: &crate::Semantic<'_>, em: &mut error_manager::ErrorManager) -> Self::Result {
@@ -22,6 +22,35 @@ impl SemanticRule for CheckFunctionReturns<'_,'_> {
         {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::FunctionNeedsReturn(self.def.name.ident.sym),
+                span: self.span,
+            });
+        }
+    }
+}
+
+pub struct CheckReturnStmt<'sem> {
+    pub definition: &'sem Definition<'sem>,
+    pub found: Option<&'sem Expression<'sem>>,
+    pub span: Span,
+}
+
+impl SemanticRule<'_> for CheckReturnStmt<'_> {
+    type Result = ();
+
+    fn apply(&self, sem: &crate::Semantic<'_>, em: &mut error_manager::ErrorManager) -> Self::Result {
+
+        let Some(found) = self.found.map_or_else(
+                        ||     Some(sem.get_primitive_type(PrimitiveType::Empty)),
+                        |expr| sem.type_of(&expr.id)) else { return };
+
+        let def_ty = sem.type_of(&self.definition.id).unwrap();
+        let (_, expected) = def_ty.as_function_type().unwrap();
+
+        if !found.kind.can_be_promoted_to(&expected.kind) {
+            let expected = format!("{:?}", expected.kind);
+            let got = format!("{:?}", found.kind);
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::MistmatchedReturn { expected, got },
                 span: self.span,
             });
         }

@@ -38,7 +38,7 @@ pub struct ValidateArrayAccess<'hir> {
     pub index: &'hir Expression<'hir>,
 }
 
-impl SemanticRule for ValidateArrayAccess<'_> {
+impl SemanticRule<'_> for ValidateArrayAccess<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -74,7 +74,7 @@ pub struct ValidateAssignment<'hir> {
     pub span: Span,
 }
 
-impl SemanticRule for ValidateAssignment<'_> {
+impl SemanticRule<'_> for ValidateAssignment<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -105,7 +105,7 @@ pub struct ValidateFieldAccess<'hir> {
     pub field: Ident,
 }
 
-impl SemanticRule for ValidateFieldAccess<'_> {
+impl SemanticRule<'_> for ValidateFieldAccess<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -131,7 +131,7 @@ pub struct ValidateArithmetic<'hir> {
     pub span: Span,
 }
 
-impl SemanticRule for ValidateArithmetic<'_> {
+impl SemanticRule<'_> for ValidateArithmetic<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -156,7 +156,7 @@ pub struct ValidateLogical<'hir> {
     pub span: Span,
 }
 
-impl SemanticRule for ValidateLogical<'_> {
+impl SemanticRule<'_> for ValidateLogical<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -181,7 +181,7 @@ pub struct ValidateCall<'hir> {
     pub span: Span,
 }
 
-impl SemanticRule for ValidateCall<'_> {
+impl SemanticRule<'_> for ValidateCall<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
@@ -224,9 +224,7 @@ impl SemanticRule for ValidateCall<'_> {
         if error {
             Default::default()
         } else {
-            Some(ret_ty.map(|ty| ty.id).unwrap_or_else(|| {
-                sem.get_primitive_type(PrimitiveType::Empty).id
-            }))
+            Some(ret_ty.id)
         }
 
     }

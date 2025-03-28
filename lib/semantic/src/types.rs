@@ -39,7 +39,7 @@ pub enum TypeKind<'ty> {
     Ref(&'ty Ty<'ty>),
     Array(&'ty Ty<'ty>, usize),
     Struct { name: Symbol, fields: &'ty [Field<'ty>] },
-    Function { params: &'ty [Ty<'ty>], ret_ty: Option<&'ty Ty<'ty>> },
+    Function { params: &'ty [Ty<'ty>], ret_ty: &'ty Ty<'ty> },
 }
 
 impl<'ty> TypeKind<'ty> {
@@ -78,7 +78,7 @@ impl<'ty> Ty<'ty> {
     }
 
     #[inline(always)]
-    pub const fn as_function_type(&self) -> Option<(&'ty [Ty<'ty>], Option<&'ty Ty<'ty>>)> {
+    pub const fn as_function_type(&self) -> Option<(&'ty [Ty<'ty>], &'ty Ty<'ty>)> {
         match self.kind {
             TypeKind::Function { params, ret_ty } => Some((params, ret_ty)),
             _ => None

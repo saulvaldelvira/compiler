@@ -1,12 +1,12 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_function_definition, walk_logical, walk_struct_access, Visitor};
-use hir::{Expression, Type};
-use semantic::rules::stmt::CheckFunctionReturns;
+use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_definition, walk_function_definition, walk_logical, walk_return, walk_struct_access, Visitor, VisitorCtx};
+use hir::{Definition, Expression, Type};
+use semantic::rules::stmt::{CheckFunctionReturns, CheckReturnStmt};
 use semantic::rules::{
     SemanticRule,
     expr::{ValidateArithmetic, ValidateArrayAccess, ValidateAssignment, ValidateCall, ValidateFieldAccess, ValidateLogical}
 };
-use semantic::{PrimitiveType, Semantic};
+use semantic::Semantic;
 use semantic::TypeLowering;
 
 pub fn type_checking(
@@ -20,6 +20,7 @@ pub fn type_checking(
         semantic,
         em,
         lowerer: &mut tl,
+        ctx: TypeCheckingCtx::default(),
     };
 
     tc.visit_program(sess.get_root_program());
@@ -29,10 +30,19 @@ struct TypeChecking<'tc, 'hir, 'sem> {
     em: &'tc mut ErrorManager,
     lowerer: &'tc mut TypeLowering<'tc, 'sem, 'hir>,
     semantic: &'tc Semantic<'sem>,
+    ctx: TypeCheckingCtx<'hir>,
+}
+
+#[derive(Default)]
+struct TypeCheckingCtx<'hir> {
+    funcs: Vec<&'hir Definition<'hir>>,
 }
 
 impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     type Result = ();
+    type Ctx = TypeCheckingCtx<'hir>;
+
+    fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 
     fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path<'hir>) {
         if let Some(def) = path.def.get() {
@@ -134,7 +144,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     }
 
     fn visit_logical(&mut self,
-        base: &'hir Expression<'hir>,
+       base: &'hir Expression<'hir>,
         left: &'hir Expression<'hir>,
         op: &hir::expr::LogicalOp,
         right: &'hir Expression<'hir>
@@ -151,6 +161,14 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         .inspect(|&id| {
             self.semantic.set_type_of(base.id, id);
         });
+    }
+
+    fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
+        if let Some(ty) = def.ty {
+            let ty = self.lowerer.lower_hir_type(ty);
+            self.semantic.set_type_of(def.id, ty.id);
+        }
+        walk_definition(self, def);
     }
 
     fn visit_assignment(
@@ -179,14 +197,10 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
             params: &'hir [hir::Definition<'hir>],
             body: &'hir [hir::Statement<'hir>]
     ) -> Self::Result {
-        walk_function_definition(self, params, body);
+        walk_function_definition(self, def, params, body);
 
         let ty = self.lowerer.lower_hir_type(def.ty.unwrap());
-        let (_, ret_ty) = ty.as_function_type().unwrap();
-
-        let ret_type = ret_ty.unwrap_or_else(|| {
-            self.semantic.get_primitive_type(PrimitiveType::Empty)
-        });
+        let (_, ret_type) = ty.as_function_type().unwrap();
 
         CheckFunctionReturns {
             def,
@@ -195,6 +209,29 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
             span: def.span,
         }
         .apply(self.semantic, self.em);
-
     }
+
+    fn visit_return(&mut self, base: &'hir hir::Statement<'hir>, ret: Option<&'hir Expression<'hir>>) -> Self::Result {
+        walk_return(self, ret);
+
+        let definition = self.ctx.funcs.last().unwrap_or_else(|| {
+            unreachable!("If we had a return outside a function we would've detected that in the syntactic analysis phase.");
+        });
+
+        CheckReturnStmt {
+            definition,
+            found: ret,
+            span: base.span,
+        }
+        .apply(self.semantic, self.em);
+    }
+}
+
+impl<'hir> VisitorCtx<'hir> for TypeCheckingCtx<'hir> {
+
+    fn enter_function(&mut self, func: &'hir hir::Definition<'hir>) {
+        self.funcs.push(func);
+    }
+
+    fn exit_function(&mut self) {}
 }

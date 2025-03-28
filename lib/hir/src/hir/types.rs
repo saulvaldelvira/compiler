@@ -21,7 +21,7 @@ pub enum TypeKind<'hir> {
     Ref(&'hir Type<'hir>),
     Array(&'hir Type<'hir>, usize),
     Struct(Path<'hir>),
-    Function { params: &'hir [Type<'hir>], ret_ty: Option<&'hir Type<'hir>> }
+    Function { params: &'hir [Type<'hir>], ret_ty: &'hir Type<'hir> }
 }
 
 impl Hash for TypeKind<'_> {
@@ -65,6 +65,7 @@ impl<'ty> Type<'ty> {
     pub const fn float() -> &'ty Self { &Self::FLOAT }
     pub const fn char() -> &'ty Self { &Self::CHAR }
     pub const fn bool() -> &'ty Self { &Self::BOOL }
+    pub const fn empty() -> &'ty Self { &Self::EMPTY }
 
     pub fn primitive_array() -> &'ty [Self] {
         &[
