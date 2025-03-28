@@ -79,7 +79,10 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {
-                self.em.error(format!("Undefined variable '{:#?}'", path.ident.sym), path.ident.span);
+                self.em.emit_error(error_manager::StringError {
+                    msg: format!("Undefined symbol '{:#?}'", path.ident.sym).into(),
+                    span: path.ident.span,
+                });
             }
         }
     }

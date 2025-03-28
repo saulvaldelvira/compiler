@@ -2,28 +2,29 @@ use ast::expr::ExpressionKind;
 use ast::{visitor, Expression, Program, Visitor};
 use error_manager::ErrorManager;
 
-struct AstValidator {
-    errors: ErrorManager,
+struct AstValidator<'v> {
+    em: &'v mut ErrorManager,
 }
 
-pub fn validate_ast(prog: &Program) -> ErrorManager {
-    let mut v = AstValidator { errors: ErrorManager::new() };
+pub fn validate_ast(prog: &Program, em: &mut ErrorManager) {
+    let mut v = AstValidator { em };
     v.visit_program(prog);
-    let AstValidator { errors } = v;
-    errors
 }
 
-impl AstValidator {
+impl AstValidator<'_> {
     fn warn_unnecesary_paren(&mut self, expr: &Expression) {
         let ExpressionKind::Paren(paren) = &expr.kind else { return };
         let can_ignore = matches!(paren.val.kind, ExpressionKind::Path(_) | ExpressionKind::Literal(_));
         if can_ignore {
-            self.errors.warning("Unnecesary parenthesis", paren.span());
+            self.em.emit_warning(error_manager::StringError {
+                msg:  "Unnecesary parenthesis".into(),
+                span: paren.span(),
+            });
         }
     }
 }
 
-impl Visitor<'_> for AstValidator {
+impl Visitor<'_> for AstValidator<'_> {
     type Result = ();
 
     fn visit_expression(&mut self, expr: &'_ Expression) -> Self::Result {

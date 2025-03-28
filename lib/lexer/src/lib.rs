@@ -1,5 +1,5 @@
 mod cursor;
-
+mod error;
 pub mod unescaped;
 
 use std::collections::HashMap;
@@ -9,11 +9,31 @@ pub use cursor::Cursor;
 use delay_init::delay;
 
 pub mod token;
+use error::{LexerError, LexerErrorKind};
+use error_manager::ErrorManager;
 use token::{Token,TokenKind};
 
-pub struct Lexer<'lex> {
-    c: Cursor<'lex>,
-    n_errors: u32,
+pub struct TokenStream<'lex, 'src>{
+    lexer: Lexer<'lex, 'src>,
+    prev: Option<Token>,
+    next: Option<Token>,
+}
+
+impl TokenStream<'_,'_> {
+    pub fn is_finished(&self) -> bool { self.lexer.c.is_finished() }
+
+    pub fn previous(&self) -> Option<&Token> {
+        self.prev.as_ref()
+    }
+
+    pub fn peek(&self) -> Option<&Token> {
+        self.next.as_ref()
+    }
+}
+
+pub struct Lexer<'lex, 'src> {
+    c: Cursor<'src>,
+    em: &'lex mut ErrorManager,
 }
 
 delay! {
@@ -43,27 +63,53 @@ delay! {
     };
  }
 
-impl<'lex> Lexer<'lex> {
-    /* PUBLIC */
-    pub fn new(text: &'lex str) -> Self {
-        Self { c: Cursor::new(text), n_errors:0 }
+impl<'lex, 'src> Iterator for TokenStream<'lex, 'src> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let ret = self.next.take();
+        self.prev = ret.clone();
+        self.next = self.lexer.next_token();
+
+        ret
     }
-    pub fn tokenize(mut self) -> Result<Box<[Token]>,u32> {
-        let mut tokens: Vec<Token> = Vec::new();
-        while !self.c.is_finished() {
-            self.c.step();
-            if let Some(t) = self.scan_token() {
-                tokens.push(t);
-            }
+}
+
+impl<'lex, 'src> IntoIterator for Lexer<'lex, 'src> {
+    type Item = Token;
+
+    type IntoIter = TokenStream<'lex, 'src>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_token_stream()
+    }
+}
+
+impl<'lex, 'src> Lexer<'lex, 'src> {
+    pub fn new(text: &'src str, em: &'lex mut ErrorManager) -> Self {
+        Self { c: Cursor::new(text), em }
+    }
+
+    pub fn into_token_stream(mut self) -> TokenStream<'lex, 'src> {
+        let next = self.next_token();
+        TokenStream {
+            lexer: self,
+            prev: None,
+            next
         }
-        if self.has_errors() {
-            Err(self.n_errors())
+    }
+
+    pub fn next_token(&mut self) -> Option<Token> {
+        if self.c.is_finished() {
+            return None
+        }
+        self.c.step();
+        if let Some(t) = self.scan_token() {
+            Some(t)
         } else {
-            Ok(tokens.into_boxed_slice())
+            self.next_token()
         }
     }
-    pub const fn has_errors(&self) -> bool { self.n_errors > 0 }
-    pub const fn n_errors(&self) -> u32 { self.n_errors }
     /* PRIVATE */
     fn add_token(&self, kind: TokenKind) -> Option<Token> {
         Some(Token {
@@ -82,7 +128,7 @@ impl<'lex> Lexer<'lex> {
             ',' => self.add_token(TokenKind::Comma),
             '.' => {
                 if self.c.peek().is_numeric() {
-                    self.error("Float literal must have an integral part");
+                    self.error(LexerErrorKind::FloatLitWithoutIntegralPart);
                     None
                 } else {
                     self.add_token(TokenKind::Dot)
@@ -156,10 +202,7 @@ impl<'lex> Lexer<'lex> {
                 } else if c.is_alphabetic() || c == '_' {
                     self.identifier()
                 } else{
-                    let mut msg = "Unexpected character [".to_string();
-                    msg += &c.to_string();
-                    msg += "]";
-                    self.error(&msg);
+                    self.error(LexerErrorKind::UnexpectedCharacter(c));
                     None
                 }
         }
@@ -169,7 +212,7 @@ impl<'lex> Lexer<'lex> {
             self.c.advance();
         };
         if !self.c.match_next('\'') {
-            self.error("Expected closing ', on char literal");
+            self.error(LexerErrorKind::ExpectedClosingTickOnCharLiteral);
         }
         self.add_token(TokenKind::CharLiteral)
     }
@@ -180,7 +223,7 @@ impl<'lex> Lexer<'lex> {
     fn ml_comment(&mut self) -> Option<Token> {
         while self.c.advance() != '*' || self.c.peek() != '/' {
             if self.c.is_finished() {
-                self.error("Non terminated comment block.");
+                self.error(LexerErrorKind::UnterminatedComment);
             }
         }
         self.c.advance(); /* Consume the / */
@@ -189,7 +232,7 @@ impl<'lex> Lexer<'lex> {
     fn string(&mut self) -> Option<Token> {
         while self.c.advance() != '"' {
             if self.c.is_finished() {
-                self.error("Unterminated string");
+                self.error(LexerErrorKind::UnterminatedString);
                 return None;
             }
             if self.c.peek() == '\\' {
@@ -202,7 +245,7 @@ impl<'lex> Lexer<'lex> {
     fn floating(&mut self) -> Option<Token> {
         self.c.advance(); /* Consume the . */
         if !self.c.peek().is_numeric() {
-            self.error("Float literal must have an floating part");
+            self.error(LexerErrorKind::FloatLitWithoutFloatingPart);
             None
         } else {
             self.c.advance_while(char::is_ascii_digit);
@@ -223,8 +266,10 @@ impl<'lex> Lexer<'lex> {
         let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenKind::Identifier);
         self.add_token(token_type)
     }
-    fn error(&mut self, msg: &str) {
-        eprintln!("[{}:{}] ERROR: {}", self.c.line(), self.c.col(), msg);
-        self.n_errors += 1;
+    fn error(&mut self, kind: LexerErrorKind) {
+        self.em.emit_error(LexerError {
+            kind,
+            span: self.c.current_span()
+        });
     }
 }

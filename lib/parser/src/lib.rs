@@ -1,14 +1,18 @@
 pub mod error;
 
 use core::str;
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use ast::declaration::{VariableConstness, DeclarationKind, Field, Param};
 use ast::expr::{BinaryExprOp, ExpressionKind, UnaryExprOp};
-use ast::stmt::{StatementKind};
+use ast::stmt::StatementKind;
 use ast::types::{Type, TypeKind};
 use ast::{Block, Declaration, Expression, Parenthesized};
 use ast::{expr::LitValue, Statement, Program};
+use error::ParseErrorKind;
+use error_manager::ErrorManager;
+use lexer::TokenStream;
 use session::Symbol;
 use lexer::token::{Token, TokenKind};
 
@@ -17,41 +21,42 @@ use span::{Span, Spanned};
 use session::{with_session, with_session_interner};
 use self::error::ParseError;
 
-type Result<T> = std::result::Result<T,ParseError>;
+type Result<T> = std::result::Result<T,ParseErrorKind>;
 
-pub struct Parser<'src> {
-    tokens: &'src [Token],
-    src: &'src str,
-    current: usize,
-    n_errors: u32,
+pub fn parse<'src>(stream: TokenStream<'_,'src>, src: &'src str, em: &mut ErrorManager) -> Option<Program> {
+    Parser {
+        stream,
+        src,
+        em
+    }.parse()
 }
 
-impl<'src> Parser<'src> {
-    /* PUBLIC */
-    pub fn new(tokens: &'src [Token], src: &'src str) -> Self {
-        Self { tokens, src, current:0, n_errors:0 }
-    }
-    pub fn parse(mut self) -> std::result::Result<Program,u32> {
+struct Parser<'sess, 'src> {
+    stream: TokenStream<'sess, 'src>,
+    src: &'src str,
+    em: &'sess mut ErrorManager,
+}
+
+impl<'sess, 'src> Parser<'sess, 'src> {
+    fn parse(mut self) -> Option<Program> {
         let mut decls = Vec::new();
         while !self.is_finished() {
             match self.declaration() {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
-                    self.error(e.get_message());
+                    self.error(e);
                     self.synchronize_with(&[
                         TokenKind::Let, TokenKind::Const, TokenKind::Fn
                     ]);
                 }
             }
         }
-        if self.has_errors() {
-            Err(self.n_errors())
+        if self.em.has_errors() {
+            None
         } else {
-            Ok( Program { decls: decls.into_boxed_slice() } )
+            Some( Program { decls: decls.into_boxed_slice() } )
         }
     }
-    pub fn has_errors(&self) -> bool { self.n_errors > 0 }
-    pub fn n_errors(&self) -> u32 { self.n_errors }
 
     fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
         let span = self.consume(TokenKind::Identifier)?.span;
@@ -76,7 +81,7 @@ impl<'src> Parser<'src> {
             s
         }
         else {
-            Err("Expected declaration".into())
+            Err(ParseErrorKind::ExpectedNode("declaration"))
         }
     }
     fn try_function(&mut self) -> Option<Result<Declaration>> {
@@ -192,6 +197,10 @@ impl<'src> Parser<'src> {
             Some(self.var_decl())
         } else { None }
     }
+    fn expected_err<T>(&self, tokens: &'static [TokenKind]) -> Result<T> {
+        let found = self.peek()?.kind;
+        Err(ParseErrorKind::ExpectedToken { tokens: tokens.into(), found })
+    }
     fn var_decl(&mut self) -> Result<Declaration> {
         let constness =
         if self.match_type(TokenKind::Let) {
@@ -199,7 +208,7 @@ impl<'src> Parser<'src> {
         } else if self.match_type(TokenKind::Const) {
             VariableConstness::Const(self.previous_span()?)
         } else {
-            return Err(ParseError::new("Expected a let or const keyword"));
+            return self.expected_err(&[TokenKind::Let, TokenKind::Const])
         };
         let prev = self.previous()?;
         let prev_span = prev.span;
@@ -317,7 +326,7 @@ impl<'src> Parser<'src> {
             Ok(t)
         }
         else {
-            Err("Expected type".into())
+            Err(ParseErrorKind::ExpectedNode("type"))
         }
     }
     fn statement(&mut self) -> Result<Statement> {
@@ -361,7 +370,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn parenthesized<T>(&mut self, f: impl for <'a> FnOnce(&'a mut Parser<'src>) -> Result<T>) -> Result<Parenthesized<T>> {
+    fn parenthesized<T>(&mut self, f: impl for <'a> FnOnce(&'a mut Parser<'sess, 'src>) -> Result<T>) -> Result<Parenthesized<T>> {
         let op = self.consume(TokenKind::LeftParen)?.span;
         let val = f(self)?;
         let cp = self.consume(TokenKind::RightParen)?.span;
@@ -515,7 +524,7 @@ impl<'src> Parser<'src> {
         Ok(exprs.into_boxed_slice())
     }
     fn print_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.previous_span().unwrap();
+        let start_span = self.previous_span()?;
         let exprs = self.comma_sep_expr()?;
         let semmi = self.consume(TokenKind::Semicolon)?.span;
         let span = start_span.join(&semmi);
@@ -527,7 +536,7 @@ impl<'src> Parser<'src> {
     }
 
     fn read_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.previous_span().unwrap();
+        let start_span = self.previous_span()?;
         let exprs = self.comma_sep_expr()?;
         let semmi = self.consume(TokenKind::Semicolon)?.span;
         let span = start_span.join(&semmi);
@@ -540,7 +549,7 @@ impl<'src> Parser<'src> {
 
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
-        let semmi = self.consume(TokenKind::Semicolon).unwrap().span;
+        let semmi = self.consume(TokenKind::Semicolon)?.span;
         let span = expr.span.join(&semmi);
         Ok(Statement {
             kind: StatementKind::Expression(expr, semmi),
@@ -592,7 +601,7 @@ impl<'src> Parser<'src> {
         while self.match_types(&[TokenKind::Or, TokenKind::And]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Unknown operand {op:#?}"))
+                ParseErrorKind::InvalidBinaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: ops,
@@ -612,7 +621,7 @@ impl<'src> Parser<'src> {
         while self.match_types(&[TokenKind::BangEqual, TokenKind::EqualEqual]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Unknown operand {op:#?}"))
+                ParseErrorKind::InvalidBinaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: ops,
@@ -637,7 +646,7 @@ impl<'src> Parser<'src> {
                              ){
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Unknown operand {op:#?}"))
+                ParseErrorKind::InvalidBinaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: ops,
@@ -657,7 +666,7 @@ impl<'src> Parser<'src> {
         while self.match_types(&[TokenKind::Minus,TokenKind::Plus]){
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Unknown operand {op:#?}"))
+                ParseErrorKind::InvalidBinaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: ops,
@@ -677,7 +686,7 @@ impl<'src> Parser<'src> {
         while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Mod]){
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Unknown operand {op:#?}"))
+                ParseErrorKind::InvalidBinaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: ops,
@@ -696,7 +705,7 @@ impl<'src> Parser<'src> {
         if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus,TokenKind::Ampersand,TokenKind::Star]) {
             let op = self.previous()?;
             let opk = UnaryExprOp::try_from(op.kind).map_err(|_| {
-                ParseError::new(format!("Invalid unary operand {op:#?}"))
+                ParseErrorKind::InvalidUnaryOp(op.kind)
             })?;
             let op = Spanned {
                 val: opk,
@@ -735,15 +744,15 @@ impl<'src> Parser<'src> {
             spanned_lit!(Int, self.previous_parse::<i32>()?)
         }
         else if self.match_type(TokenKind::FloatLiteral) {
-            let f: f64 = self.previous()?.span.slice(self.src).parse()?;
+            let f: f64 = self.previous()?.span.slice(self.src).parse().unwrap();
             spanned_lit!(Float, f)
         }
         else if self.match_type(TokenKind::CharLiteral) {
-            let prev = self.previous().unwrap();
+            let prev = self.previous()?;
             let lit = prev.span.slice(self.src)
                 .strip_prefix('\'').unwrap()
                 .strip_suffix('\'').unwrap();
-            let lit = Unescaped::from(lit).next().ok_or_else(|| format!("Invalid escape '{lit}'"))?;
+            let lit = Unescaped::from(lit).next().ok_or_else(|| ParseErrorKind::InvalidEscape(lit.to_string()))?;
             spanned_lit!(Char, lit)
         }
         else {
@@ -798,7 +807,7 @@ impl<'src> Parser<'src> {
             })
         }
         if self.match_type(TokenKind::LeftParen) {
-            let start = self.previous_span().unwrap();
+            let start = self.previous_span()?;
             let mut expr = self.expression()?;
             let end = self.consume(TokenKind::RightParen)?.span;
             expr.span = start.join(&end);
@@ -812,8 +821,10 @@ impl<'src> Parser<'src> {
                 span,
             });
         }
-        ParseError::new(
-             format!("Expected expression, found: {}", self.peek()?.span.slice(self.src))).err()
+        Err(ParseErrorKind::ExpectedConstruct {
+            expected: "expression",
+            found: self.peek()?.span.slice(self.src).to_string()
+        })
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
         let slice = span.slice(self.src);
@@ -823,11 +834,14 @@ impl<'src> Parser<'src> {
     }
     fn consume(&mut self, t: TokenKind) -> Result<&Token> {
         if self.check(t) { return self.advance(); }
-        ParseError::new(format!("Expected {t:?}")).err()
+        Err(ParseErrorKind::ExpectedToken {
+            tokens: Cow::from(&[t]).into_owned().into(),
+            found: self.peek()?.kind
+        })
     }
     fn match_type(&mut self, t: TokenKind) -> bool {
         if self.check(t) {
-            self.advance().unwrap();
+            self.advance().unwrap_or_else(|_| unreachable!());
             return true;
         }
         false
@@ -840,34 +854,32 @@ impl<'src> Parser<'src> {
     }
     fn check(&mut self, t: TokenKind) -> bool {
         if self.is_finished() { return false; }
-        self.peek().unwrap().kind == t
+        self.peek().unwrap_or_else(|_| unreachable!()).kind == t
     }
     fn bump(&mut self) {
-        if !self.is_finished() {
-            self.current += 1;
-        }
+        self.stream.next();
     }
     fn advance(&mut self) -> Result<&Token> {
         self.bump();
         self.previous()
     }
     pub fn is_finished(&self) -> bool {
-        self.current >= self.tokens.len()
+        self.stream.is_finished()
     }
     fn peek(&self) -> Result<&Token> {
-        self.tokens.get(self.current)
-                   .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
+        self.stream.peek()
+                   .ok_or_else(|| ParseErrorKind::CantPeek)
     }
     fn previous(&self) -> Result<&Token> {
-        self.tokens.get(self.current - 1)
-                   .ok_or_else(|| ParseError::new("Index should be valid when calling peek"))
+        self.stream.previous()
+                   .ok_or_else(|| ParseErrorKind::NoPreviousToken)
     }
     fn previous_span(&self) -> Result<Span> {
         self.previous().map(|s| s.span)
     }
     fn previous_parse<T: FromStr>(&self) -> Result<T> {
         self.previous()?.span.slice(self.src).parse::<T>().map_err(|_| {
-            ParseError::from("Error parsing lexem")
+            ParseErrorKind::LexemParseError
         })
     }
     fn previous_lexem(&mut self) -> Result<Symbol> {
@@ -885,32 +897,23 @@ impl<'src> Parser<'src> {
     fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
         self.bump();
         while !self.is_finished() {
-            if safe.contains(&self.peek().unwrap().kind) {
+            if safe.contains(&self.peek().unwrap_or_else(|_| unreachable!()).kind) {
                 return true;
             }
             self.bump();
         }
         false
     }
-    fn error(&mut self, err: &str) {
-        use span::FilePosition;
-
+    fn error(&mut self, kind: ParseErrorKind) {
         let tok = if self.is_finished() {
             self.previous()
         } else {
             self.peek()
-        }.unwrap();
+        }.unwrap_or_else(|_| unreachable!());
 
-        let FilePosition {
-            start_line,
-            start_col,
-            ..
-        } = tok.span.file_position(self.src);
-
-        eprintln!("\nParser: [{start_line},{start_col}] {err}");
-        let line = self.src.lines().nth(start_line).unwrap_or("").trim();
-        eprintln!("|-> {line}");
-
-        self.n_errors += 1;
+        self.em.emit_error(ParseError {
+            kind,
+            span: tok.span,
+        });
     }
 }

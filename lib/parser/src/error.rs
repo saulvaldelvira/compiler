@@ -1,57 +1,39 @@
-use std::num::{ParseFloatError, ParseIntError};
-use std::{borrow::Cow, error::Error, fmt::{Debug, Display}};
+use std::borrow::Cow;
+
+use lexer::token::TokenKind;
+use span::Span;
+
+pub enum ParseErrorKind {
+    ExpectedToken { tokens: Cow<'static, [TokenKind]>, found: TokenKind },
+    ExpectedNode(&'static str),
+    ExpectedConstruct { expected: &'static str, found: String },
+    InvalidBinaryOp(TokenKind),
+    InvalidUnaryOp(TokenKind),
+    InvalidEscape(String),
+    CantPeek,
+    NoPreviousToken,
+    LexemParseError,
+}
 
 pub struct ParseError {
-    msg: Cow<'static,str>,
+    pub kind: ParseErrorKind,
+    pub span: Span,
 }
 
-impl ParseError {
-    #[inline]
-    pub fn new(msg: impl Into<Cow<'static,str>>) -> Self {
-        Self { msg: msg.into() }
-    }
-    #[inline]
-    pub fn err<T>(self) -> Result<T,Self> {
-        Err(self)
-    }
-    #[inline]
-    pub fn get_message(&self) -> &str { &self.msg }
-}
+impl error_manager::Error for ParseError {
+    fn get_span(&self) -> Span { self.span }
 
-impl From<&'static str> for ParseError {
-    fn from(value: &'static str) -> Self {
-        ParseError::new(value)
-    }
-}
-
-impl From<String> for ParseError {
-    fn from(value: String) -> Self {
-        ParseError::new(value)
+    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+        match &self.kind {
+            ParseErrorKind::ExpectedToken { tokens, found } => write!(out, "Expected {tokens:?}, found {found}"),
+            ParseErrorKind::ExpectedNode(name) => write!(out, "Expected {name}"),
+            ParseErrorKind::ExpectedConstruct { expected, found } => write!(out, "Expected {expected}, found '{found}'"),
+            ParseErrorKind::InvalidBinaryOp(op) => write!(out, "Invalid binary operand '{op}'"),
+            ParseErrorKind::InvalidUnaryOp(op) => write!(out, "Invalid unary operand '{op}'"),
+            ParseErrorKind::InvalidEscape(lit) => write!(out, "Invalid escape '{lit}'"),
+            ParseErrorKind::CantPeek => write!(out, "Can't peek"),
+            ParseErrorKind::NoPreviousToken => write!(out, "No previous token"),
+            ParseErrorKind::LexemParseError => write!(out, "Error parsing lexem"),
+        }
     }
 }
-
-impl From<ParseFloatError> for ParseError {
-    fn from(value: ParseFloatError) -> Self {
-        ParseError::new(value.to_string())
-    }
-}
-
-impl From<ParseIntError> for ParseError {
-    fn from(value: ParseIntError) -> Self {
-        ParseError::new(value.to_string())
-    }
-}
-
-impl Debug for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-       write!(f, "{}", self.get_message())
-    }
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-       write!(f, "{}", self.get_message())
-    }
-}
-
-impl Error for ParseError { }

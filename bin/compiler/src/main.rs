@@ -3,37 +3,11 @@ use std::process::exit;
 use std::{env, fs, io::{stdin, Read}, process};
 
 pub mod config;
-use ast::Program;
-/* use ast_passes::{perform_identification, perform_typechecking}; */
-/* use codegen::target::MaplTarget; */
 use config::{Config, Target};
 use error_manager::ErrorManager;
-use lexer::token::Token;
 use lexer::Lexer;
-use parser::Parser;
+use parser::parse;
 use semantic::Semantic;
-
-pub fn tokenize(text: &str) -> Box<[Token]> {
-    Lexer::new(text).tokenize().unwrap_or_else(|nerr| {
-        println!("Compilation failed with {nerr} error{}",
-            if nerr > 1 { "s" } else { "" }
-        );
-        exit(1);
-    })
-}
-
-fn fail(n: usize) -> ! {
-    println!("Compilation failed with {n} error{}",
-        if n > 1 { "s" } else { "" }
-    );
-    exit(1);
-}
-
-pub fn parse(tokens: Box<[Token]>, src: &str) -> Program {
-    Parser::new(&tokens, src).parse().unwrap_or_else(|nerr| {
-        fail(nerr as usize)
-    })
-}
 
 fn step_emit(text: &str, em: &ErrorManager) {
     em.print_warnings(text,  &mut stderr().lock()).unwrap();
@@ -45,10 +19,20 @@ fn step_emit(text: &str, em: &ErrorManager) {
 }
 
 fn process(text: &str, _target: Target) -> String {
-    let tokens = tokenize(text);
-    let program = parse(tokens, text);
+    let mut lexer_errs = ErrorManager::new();
+    let mut parse_errs = ErrorManager::new();
 
-    let em = ast_validate::validate_ast(&program);
+    let stream = Lexer::new(text, &mut lexer_errs).into_token_stream();
+    let program = parse(stream, text, &mut parse_errs);
+
+    step_emit(text, &lexer_errs);
+    step_emit(text, &parse_errs);
+
+    let program = program.unwrap();
+
+    let mut em = ErrorManager::new();
+
+    ast_validate::validate_ast(&program, &mut em);
     step_emit(text, &em);
 
     let hir_sess = hir::Session::default();
@@ -70,11 +54,6 @@ fn process(text: &str, _target: Target) -> String {
         ================================================================================");
 
     step_emit(text, &em);
-
-    /* match target { */
-    /*     Target::Mapl => codegen::process::<MaplTarget>(&program) */
-    /* } */
-
 
     "".to_string()
 }

@@ -11,8 +11,8 @@ pub trait Error {
 }
 
 pub struct StringError {
-    msg: Cow<'static, str>,
-    span: Span,
+    pub msg: Cow<'static, str>,
+    pub span: Span,
 }
 
 impl Error for StringError {
@@ -46,15 +46,13 @@ impl ErrorManager {
         self.errors.push(Box::new(err));
     }
 
-    pub fn error(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) {
-       self.errors.push(Box::new(StringError { msg: msg.into(), span: span.into().unwrap() }));
-    }
-
-    pub fn warning(&mut self, msg: impl Into<Cow<'static, str>>, span: impl Into<Option<Span>>) {
-       self.warnings.push(Box::new(StringError { msg: msg.into(), span: span.into().unwrap() }));
+    pub fn emit_warning(&mut self, err: impl Error + 'static) {
+        self.warnings.push(Box::new(err));
     }
 
     pub fn n_errors(&self) -> usize { self.errors.len() }
+
+    pub fn has_errors(&self) -> bool { !self.errors.is_empty() }
 
     pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();

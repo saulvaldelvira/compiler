@@ -10,3 +10,4 @@ lexer = { path = "../lexer" }
 ast = { path = "../ast" }
 session = { path = "../session" }
 span = { path = "../span" }
+error_manager = { path = "../error_manager" }
