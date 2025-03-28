@@ -40,7 +40,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
                 todo!("Infer types")
             });
             let ty = self.lowerer.lower_hir_type(ty).id;
-            self.semantic.set_type_of(base, ty);
+            self.semantic.set_type_of(base.id, ty);
         }
     }
 
@@ -59,7 +59,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(expr, id);
+            self.semantic.set_type_of(expr.id, id);
         });
     }
 
@@ -78,7 +78,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(expr, id);
+            self.semantic.set_type_of(expr.id, id);
         });
     }
 
@@ -96,7 +96,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(expr, id);
+            self.semantic.set_type_of(expr.id, id);
         });
     }
 
@@ -110,7 +110,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
             LitValue::Str(_) => todo!(),
         };
         let ty = self.lowerer.lower_hir_type(ty);
-        self.semantic.set_type_of(expr, ty.id);
+        self.semantic.set_type_of(expr.id, ty.id);
     }
 
     fn visit_arithmetic(
@@ -129,7 +129,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(base, id);
+            self.semantic.set_type_of(base.id, id);
         });
     }
 
@@ -149,7 +149,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(base, id);
+            self.semantic.set_type_of(base.id, id);
         });
     }
 
@@ -169,7 +169,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         }
         .apply(self.semantic, self.em)
         .inspect(|&id| {
-            self.semantic.set_type_of(base, id);
+            self.semantic.set_type_of(base.id, id);
         });
     }
 

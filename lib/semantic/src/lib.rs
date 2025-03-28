@@ -10,7 +10,6 @@ use __arena::Arena;
 pub mod types;
 pub use types::*;
 pub mod type_lowering;
-use hir::hir_id::HirNode;
 use hir::HirId;
 pub use type_lowering::*;
 pub mod errors;
@@ -23,7 +22,7 @@ pub struct Semantic<'sem> {
     kind_to_id_assoc: RefCell<HashMap<TypeKind<'sem>, TypeId>>,
 }
 
-impl<'sem> Default for Semantic<'sem> {
+impl Default for Semantic<'_> {
     fn default() -> Self {
         Self {
             arena: Arena::new(),
@@ -37,9 +36,9 @@ impl<'sem> Default for Semantic<'sem> {
 impl<'sem> Semantic<'sem> {
     pub fn get_arena(&self) -> &Arena<'sem> { &self.arena }
 
-    pub fn set_type_of(&self, node: &dyn HirNode<'_>, id: TypeId) {
-        debug_assert!(!self.hir_to_typeid_assoc.borrow().contains_key(&node.get_hir_id()));
-        self.hir_to_typeid_assoc.borrow_mut().insert(node.get_hir_id(), id);
+    pub fn set_type_of(&self, hir_id: HirId, id: TypeId) {
+        debug_assert!(!self.hir_to_typeid_assoc.borrow().contains_key(&hir_id));
+        self.hir_to_typeid_assoc.borrow_mut().insert(hir_id, id);
     }
 
     pub fn resolve_type(&self, id: &TypeId) -> Option<&'sem Ty<'sem>> {

@@ -43,7 +43,7 @@ pub struct Program<'hir> {
 }
 
 impl<'hir> Program<'hir> {
-    pub fn new(defs: &'hir [Definition<'hir>]) -> Self {
+    pub const fn new(defs: &'hir [Definition<'hir>]) -> Self {
         Self {
             defs,
             id: HirId::DUMMY,
