@@ -47,8 +47,8 @@ impl SemanticRule<'_> for CheckReturnStmt<'_> {
         let (_, expected) = def_ty.as_function_type().unwrap();
 
         if !found.kind.can_be_promoted_to(&expected.kind) {
-            let expected = format!("{:?}", expected.kind);
-            let got = format!("{:?}", found.kind);
+            let expected = format!("{}", expected.kind);
+            let got = format!("{}", found.kind);
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::MistmatchedReturn { expected, got },
                 span: self.span,

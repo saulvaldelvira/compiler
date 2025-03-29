@@ -89,8 +89,8 @@ impl SemanticRule<'_> for ValidateAssignment<'_> {
         let right_ty = sem.type_of(&self.right.id)?;
 
         right_ty.promote_to(left_ty).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{:?}", left_ty.kind);
-            let r = format!("{:?}", right_ty.kind);
+            let l = format!("{}", left_ty.kind);
+            let r = format!("{}", right_ty.kind);
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::CantPromote(r, l),
                 span: self.span,
@@ -139,8 +139,8 @@ impl SemanticRule<'_> for ValidateArithmetic<'_> {
         let right_ty = sem.type_of(&self.right.id)?;
 
         left_ty.arithmetic(right_ty).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{:?}", left_ty.kind);
-            let r = format!("{:?}", right_ty.kind);
+            let l = format!("{}", left_ty.kind);
+            let r = format!("{}", right_ty.kind);
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::Arithmetic(l, r),
                 span: self.span
@@ -164,8 +164,8 @@ impl SemanticRule<'_> for ValidateLogical<'_> {
         let right_ty = sem.type_of(&self.right.id)?;
 
         left_ty.logical(right_ty, sem).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{:?}", left_ty.kind);
-            let r = format!("{:?}", right_ty.kind);
+            let l = format!("{}", left_ty.kind);
+            let r = format!("{}", right_ty.kind);
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::Logical(l, r),
                 span: self.span
@@ -211,8 +211,8 @@ impl SemanticRule<'_> for ValidateCall<'_> {
             let Some((arg,arg_span)) = arg else { return Default::default() };
 
             if !arg.kind.can_be_promoted_to(&param.kind) {
-                let l = format!("{:?}", param.kind);
-                let r = format!("{:?}", arg.kind);
+                let l = format!("{}", param.kind);
+                let r = format!("{}", arg.kind);
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::CantPromote(l, r),
                     span: arg_span

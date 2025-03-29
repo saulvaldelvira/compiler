@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use session::Symbol;
 
 use crate::errors::SemanticErrorKind;
@@ -12,6 +14,20 @@ pub enum PrimitiveType {
     Float,
     Bool,
     Empty,
+}
+
+impl Display for PrimitiveType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",
+            match self {
+                PrimitiveType::Int => "int",
+                PrimitiveType::Char => "char",
+                PrimitiveType::Float => "float",
+                PrimitiveType::Bool => "bool",
+                PrimitiveType::Empty => "()",
+            }
+        )
+    }
 }
 
 impl From<&hir::types::PrimitiveType> for PrimitiveType {
@@ -42,6 +58,30 @@ pub enum TypeKind<'ty> {
     Function { params: &'ty [Ty<'ty>], ret_ty: &'ty Ty<'ty> },
 }
 
+impl Display for TypeKind<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeKind::Primitive(pt) => write!(f, "{pt}"),
+            TypeKind::Ref(inner) => write!(f, "&{inner}"),
+            TypeKind::Array(of, len) => write!(f, "[{of}; {len}]"),
+            TypeKind::Struct {name, .. } => write!(f, "{name:#?}"),
+            TypeKind::Function { params, ret_ty } => {
+                write!(f, "fn(")?;
+                let mut first = true;
+                for param in *params {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    first = false;
+                    write!(f, "{param}")?;
+                }
+                write!(f, ") -> {ret_ty}")
+            }
+        }
+    }
+}
+
+
 impl<'ty> TypeKind<'ty> {
     const BOOL: Self = Self::Primitive(PrimitiveType::Bool);
 
@@ -68,6 +108,12 @@ impl<'ty> TypeKind<'ty> {
 pub struct Ty<'ty> {
     pub kind: TypeKind<'ty>,
     pub id: TypeId,
+}
+
+impl Display for Ty<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.kind)
+    }
 }
 
 impl<'ty> Ty<'ty> {
