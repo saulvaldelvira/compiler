@@ -13,14 +13,19 @@ pub fn validate_ast(prog: &Program, em: &mut ErrorManager) {
 
 impl AstValidator<'_> {
     fn warn_unnecesary_paren(&mut self, expr: &Expression) {
-        let ExpressionKind::Paren(paren) = &expr.kind else { return };
-        let can_ignore = matches!(paren.val.kind, ExpressionKind::Path(_) | ExpressionKind::Literal(_));
-        if can_ignore {
+        if let ExpressionKind::Paren(_) = &expr.kind {
             self.em.emit_warning(error_manager::StringError {
                 msg:  "Unnecesary parenthesis".into(),
-                span: paren.span(),
+                span: expr.span,
             });
-        }
+        };
+        /* let can_ignore = matches!(paren.val.kind, ExpressionKind::Path(_) | ExpressionKind::Literal(_)); */
+        /* if can_ignore { */
+        /*     self.em.emit_warning(error_manager::StringError { */
+        /*         msg:  "Unnecesary parenthesis".into(), */
+        /*         span: paren.span(), */
+        /*     }); */
+        /* } */
     }
 }
 

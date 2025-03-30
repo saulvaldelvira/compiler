@@ -808,10 +808,15 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
         if self.match_type(TokenKind::LeftParen) {
             let start = self.previous_span()?;
-            let mut expr = self.expression()?;
+            let expr = self.expression()?;
             let end = self.consume(TokenKind::RightParen)?.span;
-            expr.span = start.join(&end);
-            return Ok(expr)
+            let span = start.join(&end);
+            let expr = Parenthesized {
+                val: Box::new(expr),
+                open_paren: start,
+                close_paren: end,
+            };
+            return Ok(Expression { kind: ExpressionKind::Paren(expr), span })
         }
         if self.match_type(TokenKind::Identifier) {
             let name = self.previous_lexem_spanned()?;

@@ -57,6 +57,7 @@ impl ErrorManager {
     pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.errors {
+            out.write_all("ERROR ".as_bytes()).unwrap();
             print_error(err.deref(), src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();
@@ -66,9 +67,12 @@ impl ErrorManager {
 
     pub fn n_warnings(&self) -> usize { self.warnings.len() }
 
+    pub fn clear_warnings(&mut self) { self.warnings.clear(); }
+
     pub fn print_warnings(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.warnings {
+            out.write_all("WARNING ".as_bytes()).unwrap();
             print_error(err.deref(), src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();

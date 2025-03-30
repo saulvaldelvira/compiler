@@ -9,8 +9,9 @@ pub struct Compiler {
     source: String,
 }
 
-fn step_emit(text: &str, em: &ErrorManager) -> Option<()> {
+fn step_emit(text: &str, em: &mut ErrorManager) -> Option<()> {
     em.print_warnings(text,  &mut stderr().lock()).unwrap();
+    em.clear_warnings();
 
     if em.has_errors() {
         em.print_errors(text,  &mut stderr().lock()).unwrap();
@@ -43,22 +44,26 @@ impl Compiler {
         let stream = Lexer::new(&self.source, &mut lexer_errs).into_token_stream();
         let program = parser::parse(stream, &self.source, &mut parse_errs);
 
-        step_emit(&self.source, &lexer_errs)?;
-        step_emit(&self.source, &parse_errs)?;
+        step_emit(&self.source, &mut lexer_errs)?;
+        step_emit(&self.source, &mut parse_errs)?;
 
         let program = program.unwrap();
+
+        let mut em = ErrorManager::new();
+
+        ast_validate::validate_ast(&program, &mut em);
+        step_emit(&self.source, &mut em)?;
 
         let hir_sess = hir::Session::default();
         ast_lowering::lower(&hir_sess, &program);
 
-        let mut em = ErrorManager::new();
         hir_passes::identify(&hir_sess, &mut em);
-        step_emit(&self.source, &em)?;
+        step_emit(&self.source, &mut em)?;
 
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
 
-        step_emit(&self.source, &em)?;
+        step_emit(&self.source, &mut em)?;
 
         Some(hir_sess)
     }
