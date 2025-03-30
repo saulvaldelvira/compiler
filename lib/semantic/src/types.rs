@@ -4,6 +4,7 @@ use session::Symbol;
 
 use crate::errors::SemanticErrorKind;
 
+/// A TypeId uniquely identifies a type
 #[derive(Debug,Hash,PartialEq,Eq,Clone,Copy)]
 pub struct TypeId(pub (crate) usize);
 

@@ -1,3 +1,27 @@
+//! Type lowering
+//!
+//! Hir types hold no semantic meaning, they just represent a Type
+//! that has been written in the program.
+//!
+//! # Example
+//! ```text
+//!
+//! fn foo() -> int {
+//!   let a: int;
+//!   ...
+//! }
+//! ```
+//!
+//! In the example above, we have a funtion 'foo' that returns int, and
+//! inside it, a variable 'a' with type int.
+//!
+//! In the HIR, those two types are different HIR nodes, and have different
+//! [HirId](hir::HirId)s.
+//!
+//! Prior to type checking, we need to lower all those HIR Types into the
+//! semantic types.
+//! So foo's return type and a's type will have the same [TypeId].
+
 use std::collections::HashMap;
 
 use crate::{PrimitiveType, Ty, TypeId, TypeKind};

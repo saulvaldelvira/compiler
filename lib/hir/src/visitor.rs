@@ -203,12 +203,8 @@ pub trait Visitor<'hir> {
         walk_struct_access(self, st, field)
     }
 
-    fn visit_type(&mut self, _ty: &'hir Type<'hir>) -> Self::Result {
-        use hir::types::TypeKind;
-        match &_ty.kind {
-            TypeKind::Struct(path) => self.visit_path(path),
-            _ => Self::Result::output()
-        }
+    fn visit_type(&mut self, ty: &'hir Type<'hir>) -> Self::Result {
+        walk_type(self, ty)
     }
 }
 
@@ -235,6 +231,22 @@ where
     V: Visitor<'hir> + ?Sized
 {
     walk_iter!(v, prog.defs, visit_definition);
+    V::Result::output()
+}
+
+pub fn walk_type<'hir, V>(v: &mut V, ty: &'hir Type<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized
+{
+    use hir::types::TypeKind;
+    match &ty.kind {
+        TypeKind::Struct(path) => { v.visit_path(path); },
+        TypeKind::Function { params, ret_ty } => {
+            walk_iter!(v, params, visit_type);
+            v.visit_type(&ret_ty);
+        },
+        _ => {}
+    }
     V::Result::output()
 }
 

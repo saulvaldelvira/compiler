@@ -199,13 +199,9 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     ) -> Self::Result {
         walk_function_definition(self, def, params, body);
 
-        let ty = self.lowerer.lower_hir_type(def.ty.unwrap());
-        let (_, ret_type) = ty.as_function_type().unwrap();
-
         CheckFunctionReturns {
             def,
             body,
-            ret_type,
             span: def.span,
         }
         .apply(self.semantic, self.em);

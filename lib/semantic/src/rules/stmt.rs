@@ -2,22 +2,25 @@ use hir::{Definition, Expression, Statement};
 use span::Span;
 
 use crate::errors::{SemanticError, SemanticErrorKind};
-use crate::{PrimitiveType, Ty};
+use crate::PrimitiveType;
 
 use super::SemanticRule;
 
-pub struct CheckFunctionReturns<'hir, 'sem> {
+pub struct CheckFunctionReturns<'hir> {
     pub def: &'hir Definition<'hir>,
     pub body: &'hir [Statement<'hir>],
-    pub ret_type: &'sem Ty<'sem>,
     pub span: Span,
 }
 
-impl SemanticRule<'_> for CheckFunctionReturns<'_,'_> {
+impl SemanticRule<'_> for CheckFunctionReturns<'_> {
     type Result = ();
 
-    fn apply(&self, _sem: &crate::Semantic<'_>, em: &mut error_manager::ErrorManager) -> Self::Result {
-        if !self.ret_type.is_empty_type()
+    fn apply(&self, sem: &crate::Semantic<'_>, em: &mut error_manager::ErrorManager) -> Self::Result {
+
+        let Some(ty) = sem.type_of(&self.def.id) else { return };
+        let (_, ret_type) = ty.as_function_type().expect("Expected function's type to be of FuncType");
+
+        if !ret_type.is_empty_type()
          && !self.body.iter().any(HasReturn::has_return)
         {
             em.emit_error(SemanticError {
