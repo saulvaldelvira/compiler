@@ -68,7 +68,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let ret_ty = return_type.as_ref()
                                         .map(|t| self.lower_type(t))
                                         .unwrap_or_else(|| {
-                                            hir::Type::empty()
+                                            let ty = hir::Type::empty().clone();
+                                            self.sess.alloc(ty)
                                         });
 
                 let tk = hir::types::TypeKind::Function { params, ret_ty };

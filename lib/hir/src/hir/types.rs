@@ -6,7 +6,7 @@ use crate::HirId;
 
 use super::Path;
 
-#[derive(Debug,Hash,PartialEq,Eq)]
+#[derive(Debug,Hash,PartialEq,Eq,Clone)]
 pub enum PrimitiveType {
     Int,
     Char,
@@ -15,7 +15,7 @@ pub enum PrimitiveType {
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum TypeKind<'hir> {
     Primitive(PrimitiveType),
     Ref(&'hir Type<'hir>),
@@ -48,7 +48,7 @@ impl PartialEq for TypeKind<'_> {
 
 impl Eq for TypeKind<'_> { }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Type<'hir> {
     pub id: HirId,
     pub kind: TypeKind<'hir>
