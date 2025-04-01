@@ -37,6 +37,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 }
             }
             EK::Paren(parenthesized) => return self.lower_expression_owned(&parenthesized.val),
+            EK::Cast { expr, ty, .. } => {
+                let expr = self.lower_expression(expr);
+                let to = self.lower_type(ty);
+                HExprKind::Cast { expr, to }
+            }
             EK::Binary { op, left, right } => {
                 let left = self.lower_expression(left);
                 let right = self.lower_expression(right);

@@ -440,10 +440,9 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn for_stmt(&mut self) -> Result<Statement> {
         let kw_for = self.previous_span()?;
         self.consume(TokenKind::LeftParen)?;
-        let init = if self.match_types(&[TokenKind::Let,TokenKind::Const]) {
+        let init = if self.check_types(&[TokenKind::Let,TokenKind::Const]) {
             Some(self.var_decl()?)
         } else { None };
-        self.consume(TokenKind::Semicolon)?;
         let cond = if !self.check(TokenKind::Semicolon) {
             Some(self.expression()?)
         } else { None };
@@ -682,7 +681,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         Ok(left)
     }
     fn factor(&mut self) -> Result<Expression> {
-        let mut left = self.unary()?;
+        let mut left = self.cast()?;
         while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Mod]){
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
@@ -700,6 +699,19 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             };
         }
         Ok(left)
+    }
+    fn cast(&mut self) -> Result<Expression> {
+        let mut expr = self.unary()?;
+        while self.match_type(TokenKind::As){
+            let kw_as = self.previous_span()?;
+            let ty = self.ty()?;
+            let span = expr.span.join(&ty.span);
+            expr = Expression {
+                kind: ExpressionKind::Cast { expr: Box::new(expr), kw_as, ty },
+                span,
+            };
+        }
+        Ok(expr)
     }
     fn unary(&mut self) -> Result<Expression> {
         if self.match_types(&[TokenKind::Bang,TokenKind::Minus,TokenKind::Plus,TokenKind::Ampersand,TokenKind::Star]) {

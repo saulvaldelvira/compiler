@@ -28,6 +28,7 @@ use crate::{PrimitiveType, Ty, TypeId, TypeKind};
 
 pub struct TypeLowering<'low, 'ty, 'hir> {
     map: HashMap<&'hir hir::Type<'hir>, TypeId>,
+    reverse_map: HashMap<TypeId, &'hir hir::Type<'hir>>,
     sem: &'low crate::Semantic<'ty>,
     next_id: usize,
 }
@@ -36,6 +37,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
     pub fn new(sem: &'low crate::Semantic<'ty>) -> Self {
         let mut tl = Self {
             map: HashMap::new(),
+            reverse_map: HashMap::new(),
             next_id: 100,
             sem
         };
@@ -63,12 +65,19 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
                 unreachable!("We should NEVER add a TypeId to map that hasn't been interned into types.");
             })
         };
-        let ty = self.lower_hir_type_owned(ty);
-        let ty = self.sem.arena.alloc(ty);
-        self.sem.register_type(ty);
-        ty
+        let sem_ty = self.lower_hir_type_owned(ty);
+        let sem_ty = self.sem.arena.alloc(sem_ty);
+        self.sem.register_type(sem_ty);
+        self.map.insert(ty, sem_ty.id);
+        self.reverse_map.insert(sem_ty.id, ty);
+        sem_ty
     }
 
+    pub fn get_hir_type_from_semantic_id(&self, id: &TypeId) -> &'hir hir::Type<'hir> {
+        self.reverse_map.get(id).unwrap_or_else(|| {
+            unreachable!("If we have a TypeId, it must've been interned, thus it MUST BE HERE!")
+        })
+    }
 
     fn lower_fields(&mut self, fields: &'hir [hir::def::Field<'hir>]) -> &'ty [crate::Field<'ty>] {
         self.sem.arena.alloc_iter(

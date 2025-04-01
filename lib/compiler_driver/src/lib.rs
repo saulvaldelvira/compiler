@@ -4,9 +4,29 @@ use std::path::Path;
 use error_manager::ErrorManager;
 use lexer::Lexer;
 use semantic::Semantic;
+use span::{FilePosition, Span};
 
 pub struct Compiler {
-    source: String,
+    source: CompilerSource,
+}
+
+pub struct CompilerSource {
+    filename: String,
+    text: String,
+}
+
+impl CompilerSource {
+    pub fn new(filename: String, text: String) -> Self {
+        Self { filename, text }
+    }
+
+    pub fn filename(&self) -> &str { &self.filename }
+
+    pub fn text(&self) -> &str { &self.text }
+
+    pub fn get_file_position(&self, span: Span) -> FilePosition {
+        span.file_position(&self.text)
+    }
 }
 
 fn step_emit(text: &str, em: &mut ErrorManager) -> Option<()> {
@@ -23,9 +43,9 @@ fn step_emit(text: &str, em: &mut ErrorManager) -> Option<()> {
 
 impl Compiler {
     pub fn from_filename<P: AsRef<Path>>(fname: P) -> io::Result<Self> {
-        let source = std::fs::read_to_string(fname)?;
+        let source = std::fs::read_to_string(&fname)?;
         Ok(Self {
-            source
+            source: CompilerSource::new(fname.as_ref().to_str().unwrap().to_string(), source)
         })
     }
 
@@ -33,39 +53,48 @@ impl Compiler {
         let mut source = String::new();
         stdin().read_to_string(&mut source)?;
         Ok(Self {
-            source
+            source: CompilerSource::new("/dev/stdin".to_string(), source),
         })
     }
 
-    pub fn process(&self) -> Option<hir::Session<'_>> {
+    pub fn process(&self) -> Option<String> {
         let mut lexer_errs = ErrorManager::new();
         let mut parse_errs = ErrorManager::new();
 
-        let stream = Lexer::new(&self.source, &mut lexer_errs).into_token_stream();
-        let program = parser::parse(stream, &self.source, &mut parse_errs);
+        let stream = Lexer::new(&self.source.text, &mut lexer_errs).into_token_stream();
+        let program = parser::parse(stream, &self.source.text, &mut parse_errs);
 
-        step_emit(&self.source, &mut lexer_errs)?;
-        step_emit(&self.source, &mut parse_errs)?;
+        step_emit(&self.source.text, &mut lexer_errs)?;
+        step_emit(&self.source.text, &mut parse_errs)?;
 
         let program = program.unwrap();
 
         let mut em = ErrorManager::new();
 
         ast_validate::validate_ast(&program, &mut em);
-        step_emit(&self.source, &mut em)?;
+        step_emit(&self.source.text, &mut em)?;
 
         let hir_sess = hir::Session::default();
         ast_lowering::lower(&hir_sess, &program);
 
         hir_passes::identify(&hir_sess, &mut em);
-        step_emit(&self.source, &mut em)?;
+        step_emit(&self.source.text, &mut em)?;
 
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
 
-        step_emit(&self.source, &mut em)?;
+        let program = hir_sess.get_root_program();
 
-        Some(hir_sess)
+        #[cfg(debug_assertions)]
+        eprintln!("\
+================================================================================
+{program:#?}
+================================================================================");
+
+        step_emit(&self.source.text, &mut em)?;
+
+        let mapl = mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename);
+        Some(mapl)
     }
 
 }

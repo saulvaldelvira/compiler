@@ -28,6 +28,7 @@ impl Lvalue for hir::Expression<'_> {
             ExpressionKind::Arithmetic { .. } |
             ExpressionKind::Ternary { .. } |
             ExpressionKind::Literal(_) |
+            ExpressionKind::Cast { .. } |
             ExpressionKind::Call { .. } => false,
         }
     }
@@ -175,6 +176,31 @@ impl SemanticRule<'_> for ValidateLogical<'_> {
     }
 }
 
+pub struct ValidateComparison<'hir> {
+    pub left: &'hir Expression<'hir>,
+    pub right: &'hir Expression<'hir>,
+    pub span: Span,
+}
+
+impl SemanticRule<'_> for ValidateComparison<'_> {
+    type Result = Option<TypeId>;
+
+    fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
+        let left_ty = sem.type_of(&self.left.id)?;
+        let right_ty = sem.type_of(&self.right.id)?;
+
+        left_ty.comparison(right_ty, sem).map(|t| Some(t.id)).unwrap_or_else(|| {
+            let l = format!("{}", left_ty.kind);
+            let r = format!("{}", right_ty.kind);
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::Compare(l, r),
+                span: self.span
+            });
+            Default::default()
+        })
+    }
+}
+
 pub struct ValidateCall<'hir> {
     pub callee: &'hir Expression<'hir>,
     pub args: &'hir [hir::Expression<'hir>],
@@ -229,3 +255,44 @@ impl SemanticRule<'_> for ValidateCall<'_> {
 
     }
 }
+
+pub struct ValidateCast<'hir, 'sem> {
+    pub expr: &'hir Expression<'hir>,
+    pub to: &'sem Ty<'sem>,
+    pub span: Span,
+}
+
+impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
+    type Result = Option<TypeId>;
+
+    fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
+        let to_ty = sem.type_of(&self.expr.id)?;
+
+        if !matches!(to_ty.kind, TypeKind::Primitive(_)) {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::NonPrimitiveCast(to_ty.kind.to_string()),
+                span: self.span
+            });
+        }
+
+        if !matches!(self.to.kind, TypeKind::Primitive(_)) {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::NonPrimitiveCast(self.to.kind.to_string()),
+                span: self.span
+            });
+        }
+
+        let ty = to_ty.promote_to(self.to);
+        if ty.is_none() {
+            let from = format!("{}", to_ty.kind);
+            let to = format!("{}", self.to.kind);
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::InvalidCast { from, to },
+                span: self.span,
+            });
+        }
+
+        ty.map(|t| t.id)
+    }
+}
+

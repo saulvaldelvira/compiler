@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::sync::RwLock;
 
 use interner::StringInterner;
@@ -25,6 +25,14 @@ impl Debug for Symbol {
                 Some(s) => write!(f, "{s}"),
                 None => write!(f, "{:?}", self.0)
             }
+        })
+    }
+}
+
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        with_symbol(*self, |s| {
+            write!(f, "{s}")
         })
     }
 }

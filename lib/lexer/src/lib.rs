@@ -55,6 +55,7 @@ delay! {
         map.insert("this",TokenKind::This);
         map.insert("true",TokenKind::True);
         map.insert("let",TokenKind::Let);
+        map.insert("as",TokenKind::As);
         map.insert("const",TokenKind::Const);
         map.insert("while",TokenKind::While);
         map.insert("break",TokenKind::Break);

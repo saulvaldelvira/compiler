@@ -157,6 +157,9 @@ pub enum TokenKind {
     /// "continue"
     Continue,
 
+    /// "as"
+    As,
+
     /// "&"
     Ampersand,
 

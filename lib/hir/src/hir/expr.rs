@@ -4,22 +4,21 @@ use span::Span;
 use crate::hir_id::{HirId, HirNode};
 use crate::node_map::HirNodeKind;
 
-use super::{Definition, Ident, NodeRef};
+use super::{Definition, Ident, NodeRef, Type};
 
 #[derive(Debug)]
 pub enum UnaryOp {
     Not,
     Neg,
-    Deref,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub enum LogicalOp {
     And,
     Or,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub enum ArithmeticOp {
     Add,
     Sub,
@@ -28,7 +27,7 @@ pub enum ArithmeticOp {
     Mod,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub enum CmpOp {
     Gt,
     Ge,
@@ -53,7 +52,7 @@ impl Path<'_> {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Copy)]
 pub enum LitValue {
     Int(i32),
     Float(f64),
@@ -76,6 +75,7 @@ pub enum ExpressionKind<'hir> {
     Variable(Path<'hir>),
     Literal(LitValue),
     Call { callee: &'hir Expression<'hir>, args: &'hir [Expression<'hir>] },
+    Cast { expr: &'hir Expression<'hir>, to: &'hir Type<'hir> },
     ArrayAccess { arr: &'hir Expression<'hir>, index: &'hir Expression<'hir> },
     StructAccess { st: &'hir Expression<'hir>, field: Ident },
 }

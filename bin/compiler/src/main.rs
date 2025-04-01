@@ -1,20 +1,8 @@
-use std::{env, process};
+use std::{env, fs, process};
 
 pub mod config;
 use compiler_driver::Compiler;
 use config::Config;
-
-fn run_compiler(comp: &Compiler) {
-    comp.process().inspect(|_sess| {
-        #[cfg(debug_assertions)]
-        eprintln!("\
-            ================================================================================
-            {:#?}
-            ================================================================================",
-            _sess.get_root_program()
-        );
-    });
-}
 
 fn main() {
     let conf = Config::parse(env::args());
@@ -23,14 +11,28 @@ fn main() {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
-        run_compiler(&comp);
+        let prog = comp.process().unwrap();
+        let fname = conf.out_file.clone().unwrap_or_else(|| {
+            let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
+            let start = &file[..ext];
+            format!("{start}.out")
+        });
+        fs::write(&fname, prog).unwrap();
+        println!("Program written to {fname}");
     }
     if conf.files.is_empty() {
         let comp = Compiler::from_stdin().unwrap_or_else(|err| {
             eprintln!("Error reading stdin: {err}");
             process::exit(1);
         });
-        run_compiler(&comp);
+        let out = comp.process().unwrap();
+        match conf.out_file {
+            Some(f) => {
+                fs::write(&f, out).unwrap();
+                println!("Program written to {f}");
+            },
+            None => println!("{out}")
+        }
     }
 }
 

@@ -152,6 +152,10 @@ where
         match &expr.kind {
             ExpressionKind::Unary { expr, .. } => v.visit_expression(expr),
             ExpressionKind::Paren(pexpr) => v.visit_expression(&pexpr.val),
+            ExpressionKind::Cast { expr, ty, .. } => {
+                v.visit_expression(expr);
+                v.visit_type(ty)
+            }
             ExpressionKind::Binary { left, right, .. } => {
                 v.visit_expression(left);
                 v.visit_expression(right);

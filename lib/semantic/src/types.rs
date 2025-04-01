@@ -86,7 +86,15 @@ impl Display for TypeKind<'_> {
 impl<'ty> TypeKind<'ty> {
     const BOOL: Self = Self::Primitive(PrimitiveType::Bool);
 
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, TypeKind::Primitive(PrimitiveType::Float | PrimitiveType::Int))
+    }
+
     pub fn can_be_promoted_to(&self, o: &TypeKind<'ty>) -> bool {
+        if let (Self::Ref(r1), Self::Ref(r2)) = (self, o) {
+            return r1.kind.can_be_promoted_to(&r2.kind)
+        }
+
         let (Self::Primitive(p1), Self::Primitive(p2)) = (self, o) else {
             return false
         };
@@ -168,6 +176,14 @@ impl<'ty> Ty<'ty> {
             None
         } else {
             Some(sem.get_primitive_type(PrimitiveType::Bool))
+        }
+    }
+
+    pub fn comparison(&'ty self, o: &'ty Ty<'ty>, sem: &crate::Semantic<'ty>) -> Option<&'ty Ty<'ty>> {
+        if self.kind.is_numeric() && o.kind.is_numeric() {
+            Some(sem.get_primitive_type(PrimitiveType::Bool))
+        } else {
+            None
         }
     }
 }

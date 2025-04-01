@@ -7,6 +7,7 @@ edition = "2024"
 lexer = { path = "../../lib/lexer" }
 parser = { path = "../../lib/parser" }
 ast = { path = "../../lib/ast" }
+span = { path = "../../lib/span" }
 ast_validate = { path = "../../lib/ast_validate" }
 ast_lowering = { path = "../../lib/ast_lowering" }
 hir = { path = "../../lib/hir" }
@@ -14,3 +15,4 @@ hir_passes = { path = "../../lib/hir_passes" }
 hir_typecheck = { path = "../../lib/hir_typecheck" }
 semantic = { path = "../../lib/semantic" }
 error_manager = { path = "../../lib/error_manager" }
+mapl_codegen = { path = "../../lib/mapl_codegen" }

@@ -31,11 +31,20 @@ pub trait Visitor<'hir> {
         walk_expression(self, expr)
     }
 
-    fn visit_ref(&mut self, r: &'hir Expression<'hir>) -> Self::Result {
+    fn visit_ref(&mut self, _base: &'hir Expression<'hir>, r: &'hir Expression<'hir>) -> Self::Result {
         walk_ref(self, r)
     }
 
-    fn visit_deref(&mut self, r: &'hir Expression<'hir>) -> Self::Result {
+    fn visit_cast(
+        &mut self,
+        _base: &'hir Expression<'hir>,
+        expr: &'hir Expression<'hir>,
+        to: &'hir Type<'hir>,
+    ) -> Self::Result {
+        walk_cast(self, expr, to)
+    }
+
+    fn visit_deref(&mut self, _base: &'hir Expression<'hir>, r: &'hir Expression<'hir>) -> Self::Result {
         walk_deref(self, r)
     }
 
@@ -52,7 +61,13 @@ pub trait Visitor<'hir> {
         walk_logical(self, left, op, right)
     }
 
-    fn visit_comparison(&mut self, left: &'hir Expression<'hir>, op: &CmpOp, right: &'hir Expression<'hir>) -> Self::Result {
+    fn visit_comparison(
+        &mut self,
+        _base: &'hir Expression<'hir>,
+        left: &'hir Expression<'hir>,
+        op: &CmpOp,
+        right: &'hir Expression<'hir>
+    ) -> Self::Result {
         walk_comparison(self, left, op, right)
     }
 
@@ -330,6 +345,15 @@ where
     V::Result::output()
 }
 
+pub fn walk_cast<'hir, V>(v: &mut V, expr: &'hir Expression<'hir>, to: &'hir Type<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized
+{
+    v.visit_expression(expr);
+    v.visit_type(to);
+    V::Result::output()
+}
+
 pub fn walk_print<'hir, V>(v: &mut V, pr: &'hir Expression<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
@@ -541,11 +565,15 @@ where
         ExpressionKind::Array(expressions) => {
             walk_iter!(v, expressions, visit_expression);
         },
-        ExpressionKind::Ref(expr) => { v.visit_ref(expr); },
-        ExpressionKind::Deref(expr) => { v.visit_ref(expr); },
+        ExpressionKind::Cast { expr, to } => {
+            v.visit_expression(expr);
+            v.visit_type(to);
+        },
+        ExpressionKind::Ref(e) => { v.visit_ref(expr, e); },
+        ExpressionKind::Deref(e) => { v.visit_deref(expr, e); },
         ExpressionKind::Unary { op, expr } => { v.visit_unary(op, expr); },
         ExpressionKind::Logical { left, op, right } => { v.visit_logical(expr, left, op, right); },
-        ExpressionKind::Comparison { left, op, right } => { v.visit_comparison(left, op, right); }
+        ExpressionKind::Comparison { left, op, right } => { v.visit_comparison(expr, left, op, right); }
         ExpressionKind::Arithmetic { left, op, right } => { v.visit_arithmetic(expr, left, op, right);  },
         ExpressionKind::Ternary { cond, if_true, if_false } => { v.visit_ternary(cond, if_true, if_false); }
         ExpressionKind::Assignment { left, right } => { v.visit_assignment(expr, left, right); }
@@ -696,3 +724,23 @@ pub trait VisitorCtx<'ast> {
 }
 
 impl VisitorCtx<'_> for () { }
+
+pub struct BaseVisitorCtx<'hir> {
+    funcs: Vec<&'hir Definition<'hir>>,
+}
+
+impl<'hir> BaseVisitorCtx<'hir> {
+    pub fn current_function(&self) -> Option<&'hir Definition<'hir>> {
+        self.funcs.last().cloned()
+    }
+}
+
+impl<'hir> VisitorCtx<'hir> for BaseVisitorCtx<'hir> {
+    fn enter_function(&mut self, func: &'hir hir::Definition<'hir>) {
+        self.funcs.push(func);
+    }
+
+    fn exit_function(&mut self) {
+        self.funcs.pop().unwrap();
+    }
+}
