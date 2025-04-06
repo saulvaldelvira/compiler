@@ -1,0 +1,190 @@
+@startuml
+
+class Definition {
+    kind: DefinitionKind
+    id: HirId
+    name: PathDef
+    ty: Type
+}
+
+Definition <-- DefinitionKind
+
+interface HirNode {
+    get_hir_id(): HirId
+    set_hir_id(HirId)
+}
+
+HirNode <|-- Definition
+
+class Variable {
+    constness: Constness
+    init: Expression
+}
+
+Variable -u-|> DefinitionKind
+Function -u-|> DefinitionKind
+Struct -u-|> DefinitionKind
+
+Struct -d-* "0..*" Field
+
+Function ---r---* "0..*" Definition: Params
+
+enum Constness {
+    Default
+    Const
+}
+
+class Expression {
+
+}
+
+Arithmetic --|> Expression
+Arithmetic --* "2" Expression
+
+class Arithmetic {
+    op: ArithmeticOp
+}
+
+enum ArithmeticOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+}
+
+Logical --|> Expression
+Logical --* "2" Expression
+
+class Logical {
+    op: LogicalOp
+}
+
+enum LogicalOp {
+    And,
+    Or,
+}
+
+Comparison --|> Expression
+Comparison --* "2" Expression
+
+class Comparison {
+    op: CmpOp
+}
+
+enum CmpOp {
+    Gt,
+    Ge,
+    Lt,
+    Le,
+    Eq,
+    Neq,
+}
+
+class ArrayAccess {}
+
+ArrayAccess --|> Expression
+ArrayAccess --* "2" Expression
+
+class StructAccess {
+    field: Symbol
+}
+
+StructAccess --|> Expression
+StructAccess --* "1" Expression
+
+class Cast {}
+Cast --* Type
+Cast --* Expression
+Cast --|> Expression
+
+interface Type {
+
+}
+
+class ArrayType {
+    len: usize
+}
+
+ArrayType --|> Type
+ArrayType --* Type
+
+class Field {
+    name: Symbol
+    type: Type
+}
+
+class StructType {
+    path: Path
+}
+
+StructType --|> Type
+StructType --* "*" Field
+
+class Path {
+    ident: Ident,
+}
+
+Path ..> PathDef: Links
+
+Path -u-|> HirNode
+PathDef -u-|> HirNode
+Expression -u-|> HirNode
+Type -u-|> HirNode
+
+HirNode <|- Statement
+
+class PrintStmt {
+    expr: Expression
+}
+PrintStmt --|> Statement
+
+class ReadStmt {
+    expr: Expression
+}
+ReadStmt --|> Statement
+
+BlockStmt --|> Statement
+BlockStmt --* "*" Statement
+
+class ForStmt {
+    init: Definition
+    cond: Expression
+    inc: Expression
+    body: Statement
+}
+ForStmt --|> Statement
+
+class WhileStmt {
+    cond: Expression
+    body: Statement
+}
+WhileStmt --|> Statement
+
+class IfStmt {
+    cond: Expression
+    if_true: Statement
+    if_false: Option<Statement>
+}
+IfStmt --|> Statement
+
+class ReturnStmt {
+    expr: Expression
+}
+ReturnStmt --|> Statement
+
+ContinueStmt --|> Statement
+BreakStmt --|> Statement
+Empty --|> Statement
+
+class DefStmt {
+    inner: Definition
+}
+DefStmt -|> Statement
+
+class ExprStmt {
+    inner: Expression
+}
+ExprStmt -|> Statement
+
+@enduml

@@ -1,0 +1,46 @@
+@startuml
+
+class Parser { }
+
+Parser -> AST : Produces
+
+class Lexer { }
+
+class TokenStream {
+    next(): Token
+}
+
+TokenStream ..|> Lexer: From
+
+Parser ..> TokenStream: Reads
+
+class Token {
+    kind: TokenKind
+    span: Span
+}
+
+Token --|> TokenKind
+Token --|> Span
+
+enum TokenKind {
+    Int
+    Identifier
+    IntLiteral
+    ...
+}
+
+class Span {
+    offset: usize
+    length: usize
+
+    file_position(src: &str): FilePosition
+}
+
+class FilePosition {
+    start_line: usize
+    start_col: usize
+    end_line: usize
+    end_col: usize
+}
+
+@enduml

@@ -1,0 +1,42 @@
+@startuml
+
+(Source Code) -> [Lexer]
+[Lexer] -> [Parser]
+
+[Parser] -> [AST]
+
+node "HIR" {
+    [HIR tree]
+    [HIR Session]
+}
+
+node "AST Lowering" {
+    [AST Validation] -l-> [AST Lowerer]
+}
+
+[AST] --> [AST Validation]
+
+[AST Lowerer] --l--> "HIR" : Produces
+
+node "Semantic Analysis" {
+    [Identification] --> [TypeChecking]
+    [Semantic]
+}
+
+[AST Lowering] --> [Identification]
+[Semantic] ..l..> "HIR": uses
+
+node "Code Generation" {
+
+}
+
+[TypeChecking] --d-> "Code Generation"
+
+
+"Code Generation" -d-> (MAPL)
+"Code Generation" .....> "HIR" : uses
+
+[HIR Session] .....> [Memory Arena]: uses
+[Semantic] ....l..> [Memory Arena]
+
+@enduml

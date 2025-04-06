@@ -1,0 +1,13 @@
+[book]
+authors = ["Saúl Valdelvira"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Compiler Documentation"
+
+[preprocessor]
+
+[preprocessor.plantuml]
+plantuml-cmd="plantuml"
+
+[output]

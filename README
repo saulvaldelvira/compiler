@@ -3,4 +3,5 @@ Compiler
 This is a toy compiler I'm working on
 
 == Documentation ==
-To build the documentation, run `cargo doc`
+To build the code documentation, run `cargo doc`
+There's a markdown book on the /doc folder

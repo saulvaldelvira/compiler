@@ -1,0 +1,11 @@
+Documentation
+=============
+This documentation is written using MdBook.
+
+Dependencies:
+- MdBook: https://github.com/rust-lang/mdBook
+- MdBook-plantuml: https://github.com/sytsereitsma/mdbook-plantuml
+- Plantuml
+- graphviz
+
+To build the book, run `mdbook build`.
