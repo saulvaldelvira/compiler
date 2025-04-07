@@ -119,7 +119,7 @@ impl Expression {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum LitValue {
     Int(i32),
     Float(f64),

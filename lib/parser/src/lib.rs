@@ -752,7 +752,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         else if self.match_type(TokenKind::String) {
             spanned_lit!(Str, self.previous_lexem()?)
         }
-        else if self.match_type(TokenKind::IntLiteral) {
+        else if dbg!(self.match_type(TokenKind::IntLiteral)) {
             spanned_lit!(Int, self.previous_parse::<i32>()?)
         }
         else if self.match_type(TokenKind::FloatLiteral) {
@@ -811,7 +811,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         self.access(expr)
     }
     fn __primary(&mut self) -> Result<Expression> {
-        if let Some(value) = self.literal()? {
+        if let Some(value) = dbg!(self.literal())? {
             let span = value.span;
             return Ok(Expression {
                 kind: ExpressionKind::Literal(value),
@@ -840,7 +840,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
         Err(ParseErrorKind::ExpectedConstruct {
             expected: "expression",
-            found: self.peek()?.span.slice(self.src).to_string()
+            found: dbg!(self.peek()?).span.slice(self.src).to_string()
         })
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
@@ -934,3 +934,6 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         });
     }
 }
+
+#[cfg(test)]
+mod test;
