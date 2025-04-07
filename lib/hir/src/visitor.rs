@@ -570,10 +570,7 @@ where
         ExpressionKind::Array(expressions) => {
             walk_iter!(v, expressions, visit_expression);
         },
-        ExpressionKind::Cast { expr, to } => {
-            v.visit_expression(expr);
-            v.visit_type(to);
-        },
+        ExpressionKind::Cast { expr: casted_expr, to } => { v.visit_cast(expr, casted_expr, to); },
         ExpressionKind::Ref(e) => { v.visit_ref(expr, e); },
         ExpressionKind::Deref(e) => { v.visit_deref(expr, e); },
         ExpressionKind::Unary { op, expr } => { v.visit_unary(op, expr); },

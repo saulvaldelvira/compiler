@@ -7,6 +7,38 @@ use crate::mir::{MaplArithmetic, MaplComparison, MaplInstruction, MaplLiteral, M
 
 use super::Eval;
 
+fn cast(semantic: &Semantic<'_>, ins: MaplInstruction, from: &Expression, to: &Expression) -> MaplInstruction {
+    let from_ty = semantic.type_of(&from.id).unwrap();
+    let to_ty = semantic.type_of(&to.id).unwrap();
+
+    let from_ty = MaplType::from(from_ty);
+    let to_ty = MaplType::from(to_ty);
+
+    if from_ty == to_ty {
+        return ins
+    }
+
+    match (from_ty, to_ty) {
+        (MaplType::Float, MaplType::Byte) => {
+            let c1 = MaplInstruction::Cast { mapl: Box::new(ins), from: MaplType::Float, to: MaplType::Int };
+            MaplInstruction::Cast {
+                mapl: Box::new(c1),
+                from: MaplType::Int,
+                to: MaplType::Byte,
+            }
+        }
+        (MaplType::Byte, MaplType::Float) => {
+            let c1 = MaplInstruction::Cast { mapl: Box::new(ins), from: MaplType::Byte, to: MaplType::Int };
+            MaplInstruction::Cast {
+                mapl: Box::new(c1),
+                from: MaplType::Int,
+                to: MaplType::Float,
+            }
+        }
+        _ => MaplInstruction::Cast { mapl: Box::new(ins), from: from_ty, to: to_ty }
+    }
+}
+
 impl Eval for Expression<'_> {
     fn eval(&self, cg: &mut CodeGenerator, sem: &Semantic<'_>) -> MaplInstruction {
         use hir::expr::ExpressionKind;
@@ -118,15 +150,8 @@ impl Eval for Expression<'_> {
                 MaplInstruction::Compose(vec.into_boxed_slice())
             },
             ExpressionKind::Cast { expr, .. } => {
-                let from_ty = sem.type_of(&expr.id).unwrap();
-                let from_ty = MaplType::from(from_ty);
-                let to = sem.type_of(&self.id).unwrap();
-                let to = MaplType::from(to);
-                MaplInstruction::Cast {
-                    mapl: Box::new(expr.eval(cg, sem)),
-                    from: from_ty,
-                    to,
-                }
+                let ins = expr.eval(cg, sem);
+                cast(sem, ins, expr, self)
             },
             ExpressionKind::Variable(_) |
             ExpressionKind::ArrayAccess { .. } |

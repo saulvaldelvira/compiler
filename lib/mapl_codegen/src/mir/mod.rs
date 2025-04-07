@@ -102,7 +102,7 @@ impl Display for MaplLogical {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MaplType {
     Int,
     Float,
@@ -114,7 +114,7 @@ impl Display for MaplType {
         write!(f, "{}",
             match self {
                 Self::Int => "I",
-                Self::Float => "I",
+                Self::Float => "F",
                 Self::Byte => "B",
             })
     }
@@ -156,7 +156,7 @@ impl From<&'_ Ty<'_>> for MaplType {
                     PrimitiveType::Int => MaplType::Int,
                     PrimitiveType::Char => MaplType::Byte,
                     PrimitiveType::Float => MaplType::Float,
-                    PrimitiveType::Bool => MaplType::Byte,
+                    PrimitiveType::Bool => MaplType::Int,
                     PrimitiveType::Empty => todo!()
                 }
             },

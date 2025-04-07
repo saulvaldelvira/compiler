@@ -80,17 +80,15 @@ impl Compiler {
         hir_passes::identify(&hir_sess, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
-        let semantic = Semantic::default();
-        hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
-
-        let program = hir_sess.get_root_program();
-
         #[cfg(debug_assertions)]
         eprintln!("\
 ================================================================================
-{program:#?}
-================================================================================");
+{:#?}
+================================================================================",
+        hir_sess.get_root_program());
 
+        let semantic = Semantic::default();
+        hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.text, &mut em)?;
 
         let mapl = mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename);

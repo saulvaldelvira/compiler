@@ -99,17 +99,21 @@ impl<'ty> TypeKind<'ty> {
             return false
         };
 
-        if p1 == p2 { return true };
+        p1 == p2
 
-        use PrimitiveType as P;
-        matches!(
-            (p1,p2),
-            (P::Int, P::Float) |
-            (P::Char, P::Int) |
-            (P::Bool, P::Int) |
-            (P::Char, P::Float) |
-            (P::Bool, P::Float)
-        )
+        /* use PrimitiveType as P; */
+        /* matches!( */
+        /*     (p1,p2), */
+        /*     (P::Int, P::Float) | */
+        /*     (P::Char, P::Int) | */
+        /*     (P::Bool, P::Int) | */
+        /*     (P::Char, P::Float) | */
+        /*     (P::Bool, P::Float) */
+        /* ) */
+    }
+
+    pub fn can_cast(&self, o: &TypeKind<'ty>) -> bool {
+        matches!((self,o), (Self::Primitive(_), Self::Primitive(_)))
     }
 }
 
@@ -130,6 +134,10 @@ impl<'ty> Ty<'ty> {
     #[inline(always)]
     pub const fn is_empty_type(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
+    }
+
+    pub const fn is_boolean(&self) -> bool {
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Bool))
     }
 
     #[inline(always)]

@@ -135,6 +135,7 @@ impl Execute for Statement<'_> {
                 MaplInstruction::Compose(Box::new([
                         expr.address(cg, sem),
                         MaplInstruction::In(ty),
+                        MaplInstruction::Store(ty),
                 ]))
             },
             StatementKind::Def(definition) => definition.define(cg, sem)

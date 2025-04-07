@@ -302,13 +302,16 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
-        let to_ty = sem.type_of(&self.expr.id)?;
+        let from_ty = sem.type_of(&self.expr.id)?;
 
-        if !matches!(to_ty.kind, TypeKind::Primitive(_)) {
+        let mut errored = false;
+
+        if !matches!(from_ty.kind, TypeKind::Primitive(_)) {
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::NonPrimitiveCast(to_ty.kind.to_string()),
+                kind: SemanticErrorKind::NonPrimitiveCast(from_ty.kind.to_string()),
                 span: self.span
             });
+            errored = true;
         }
 
         if !matches!(self.to.kind, TypeKind::Primitive(_)) {
@@ -316,11 +319,11 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
                 kind: SemanticErrorKind::NonPrimitiveCast(self.to.kind.to_string()),
                 span: self.span
             });
+            errored = true;
         }
 
-        let ty = to_ty.promote_to(self.to);
-        if ty.is_none() {
-            let from = format!("{}", to_ty.kind);
+        if !errored && !from_ty.kind.can_cast(&self.to.kind) {
+            let from = format!("{}", from_ty.kind);
             let to = format!("{}", self.to.kind);
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::InvalidCast { from, to },
@@ -328,7 +331,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
             });
         }
 
-        ty.map(|t| t.id)
+        Some(self.to.id)
     }
 }
 

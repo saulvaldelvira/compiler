@@ -20,6 +20,7 @@ pub enum SemanticErrorKind {
     InvalidCast { from: String, to: String },
     NonPrimitiveCast(String),
     DereferenceNonRef(String),
+    NonBooleanCondition(&'static str),
 }
 
 pub struct SemanticError {
@@ -49,6 +50,7 @@ impl error_manager::Error for SemanticError {
             SemanticErrorKind::InvalidCast { from, to } => write!(out, "Invalid cast from {from} to {to}"),
             SemanticErrorKind::NonPrimitiveCast(t) => write!(out, "Can't perform cast on non primitive type {t}"),
             SemanticErrorKind::DereferenceNonRef(t) => write!(out, "Attempt to dereference non-ref type {t}"),
+            SemanticErrorKind::NonBooleanCondition(name) => write!(out, "Non boolean condition on {name} statement"),
         }
     }
 }

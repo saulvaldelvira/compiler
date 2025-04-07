@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_definition, walk_deref, walk_expression, walk_field, walk_function_definition, walk_logical, walk_ref, walk_return, walk_struct_access, walk_ternary, Visitor, VisitorCtx};
+use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_definition, walk_deref, walk_expression, walk_field, walk_for, walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access, walk_ternary, walk_while, Visitor, VisitorCtx};
 use hir::{Definition, Expression, Type};
 use semantic::errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind};
 use semantic::rules::expr::{SideEffect, ValidateCast, ValidateComparison, ValidateTernary};
@@ -35,6 +35,17 @@ struct TypeChecking<'tc, 'hir, 'sem> {
     lowerer: &'tc mut TypeLowering<'tc, 'sem, 'hir>,
     semantic: &'tc Semantic<'sem>,
     ctx: TypeCheckingCtx<'hir>,
+}
+
+impl<'tc, 'hir, 'sem> TypeChecking<'tc, 'hir, 'sem> {
+    fn check_boolean_condition(&mut self, cond: &'hir Expression<'hir>, name: &'static str) {
+        if self.semantic.type_of(&cond.id).is_some_and(|ty| !ty.is_boolean()) {
+            self.em.emit_error(SemanticError {
+                kind: SemanticErrorKind::NonBooleanCondition(name),
+                span: cond.span
+            });
+        }
+    }
 }
 
 #[derive(Default)]
@@ -86,6 +97,41 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
            let id = self.lowerer.lower_hir_type(ty).id;
            self.semantic.set_type_of(base.id, id);
        }
+    }
+
+    fn visit_while(
+        &mut self,
+        _base: &'hir hir::Statement,
+        cond: &'hir Expression<'hir>,
+        body: &'hir hir::Statement<'hir>,
+    ) -> Self::Result {
+        walk_while(self, cond, body);
+        self.check_boolean_condition(cond, "while");
+    }
+
+    fn visit_for(
+        &mut self,
+        _base: &'hir hir::Statement,
+        init: Option<&'hir Definition<'hir>>,
+        cond: Option<&'hir Expression<'hir>>,
+        inc: Option<&'hir Expression<'hir>>,
+        body: &'hir hir::Statement<'hir>,
+    ) -> Self::Result {
+        walk_for(self, init, cond, inc, body);
+        if let Some(cond) = cond {
+            self.check_boolean_condition(cond, "for");
+        }
+    }
+
+    fn visit_if(
+        &mut self,
+        _base: &'hir hir::Statement,
+        cond: &'hir Expression<'hir>,
+        if_true: &'hir hir::Statement<'hir>,
+        if_false: Option<&'hir hir::Statement<'hir>>,
+    ) -> Self::Result {
+        walk_if(self, cond, if_true, if_false);
+        self.check_boolean_condition(cond, "if");
     }
 
     fn visit_deref(&mut self, base: &'hir Expression<'hir>, r: &'hir Expression<'hir>) -> Self::Result {
@@ -348,5 +394,7 @@ impl<'hir> VisitorCtx<'hir> for TypeCheckingCtx<'hir> {
         self.funcs.push(func);
     }
 
-    fn exit_function(&mut self) {}
+    fn exit_function(&mut self) {
+        self.funcs.pop();
+    }
 }

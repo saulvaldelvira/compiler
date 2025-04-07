@@ -13,6 +13,7 @@ pub fn gen_code_mapl(hir: &hir::Session<'_>, sem: &Semantic<'_>, source: &str, f
     let mut cg = CodeGenerator::new(source);
     let mut ins = Vec::new();
 
+    let fname = std::path::absolute(fname).map(|pb| pb.to_str().unwrap().to_owned()).unwrap_or_else(|_| fname.to_owned());
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
     let prog = hir.get_root_program();

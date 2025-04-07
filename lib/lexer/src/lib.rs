@@ -50,6 +50,7 @@ delay! {
         map.insert("int",TokenKind::Int);
         map.insert("char",TokenKind::Char);
         map.insert("float",TokenKind::Float);
+        map.insert("bool",TokenKind::Bool);
         map.insert("return",TokenKind::Return);
         map.insert("super",TokenKind::Super);
         map.insert("this",TokenKind::This);
