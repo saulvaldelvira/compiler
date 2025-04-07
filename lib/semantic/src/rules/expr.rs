@@ -34,6 +34,42 @@ impl Lvalue for hir::Expression<'_> {
     }
 }
 
+pub trait SideEffect {
+    fn has_side_effect(&self) -> bool;
+}
+
+impl SideEffect for hir::Expression<'_> {
+    fn has_side_effect(&self) -> bool {
+        match &self.kind {
+            ExpressionKind::Assignment { .. } |
+            ExpressionKind::Call { .. } => true,
+
+            ExpressionKind::ArrayAccess { arr, index } => arr.has_side_effect() || index.has_side_effect(),
+            ExpressionKind::Deref(e) => e.has_side_effect(),
+            ExpressionKind::StructAccess { st, .. } => st.has_side_effect(),
+            ExpressionKind::Array(arr) => arr.iter().any(SideEffect::has_side_effect),
+            ExpressionKind::Unary { expr, .. } => expr.has_side_effect(),
+            ExpressionKind::Ref(r) => r.has_side_effect(),
+            ExpressionKind::Logical { left, right, .. } => {
+                left.has_side_effect() || right.has_side_effect()
+            }
+            ExpressionKind::Comparison { left, right, .. } => {
+                left.has_side_effect() || right.has_side_effect()
+            }
+            ExpressionKind::Arithmetic { left, right, .. } => {
+                left.has_side_effect() || right.has_side_effect()
+            }
+            ExpressionKind::Ternary { cond, if_true, if_false, .. } => {
+                cond.has_side_effect() || if_true.has_side_effect()
+                    || if_false.has_side_effect()
+            }
+            ExpressionKind::Cast { expr, .. } => expr.has_side_effect(),
+            ExpressionKind::Literal(_) |
+            ExpressionKind::Variable(_) => false,
+        }
+    }
+}
+
 pub struct ValidateArrayAccess<'hir> {
     pub arr: &'hir Expression<'hir>,
     pub index: &'hir Expression<'hir>,
@@ -296,3 +332,36 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
     }
 }
 
+pub struct ValidateTernary<'hir> {
+    pub cond: &'hir Expression<'hir>,
+    pub if_true: &'hir Expression<'hir>,
+    pub if_false: &'hir Expression<'hir>,
+    pub span: Span,
+}
+
+impl<'sem> SemanticRule<'sem> for ValidateTernary<'_> {
+    type Result = Option<TypeId>;
+
+    fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
+        let cond_ty = sem.type_of(&self.cond.id)?;
+        let ift_ty = sem.type_of(&self.if_true.id)?;
+        let iff_ty = sem.type_of(&self.if_false.id)?;
+
+        if !cond_ty.kind.can_be_promoted_to(&TypeKind::Primitive(PrimitiveType::Bool)) {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::CantPromote(cond_ty.kind.to_string(), "bool".to_string()),
+                span: self.span,
+            });
+        }
+
+        let ty = iff_ty.promote_to(ift_ty);
+        if ty.is_none() {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::CantPromote(iff_ty.kind.to_string(), ift_ty.to_string()),
+                span: self.span,
+            });
+        }
+
+        ty.map(|ty| ty.id)
+    }
+}

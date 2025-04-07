@@ -31,6 +31,10 @@ pub trait Visitor<'hir> {
         walk_expression(self, expr)
     }
 
+    fn visit_expression_as_stmt(&mut self, _base: &'hir Statement<'hir>, expr: &'hir Expression<'hir>) -> Self::Result {
+        walk_expression(self, expr)
+    }
+
     fn visit_ref(&mut self, _base: &'hir Expression<'hir>, r: &'hir Expression<'hir>) -> Self::Result {
         walk_ref(self, r)
     }
@@ -76,6 +80,7 @@ pub trait Visitor<'hir> {
     }
 
     fn visit_ternary(&mut self,
+        _base: &'hir Expression<'hir>,
         cond: &'hir Expression<'hir>,
         if_true: &'hir Expression<'hir>,
         if_false: &'hir Expression<'hir>
@@ -575,7 +580,7 @@ where
         ExpressionKind::Logical { left, op, right } => { v.visit_logical(expr, left, op, right); },
         ExpressionKind::Comparison { left, op, right } => { v.visit_comparison(expr, left, op, right); }
         ExpressionKind::Arithmetic { left, op, right } => { v.visit_arithmetic(expr, left, op, right);  },
-        ExpressionKind::Ternary { cond, if_true, if_false } => { v.visit_ternary(cond, if_true, if_false); }
+        ExpressionKind::Ternary { cond, if_true, if_false } => { v.visit_ternary(expr, cond, if_true, if_false); }
         ExpressionKind::Assignment { left, right } => { v.visit_assignment(expr, left, right); }
         ExpressionKind::Variable(path) => { v.visit_variable(expr, path); }
         ExpressionKind::Literal(lit_value) => { v.visit_literal(expr, lit_value); },
@@ -593,7 +598,7 @@ where
 {
     use stmt::StatementKind;
     match &stmt.kind {
-        StatementKind::Expr(expression) => v.visit_expression(expression),
+        StatementKind::Expr(expression) => v.visit_expression_as_stmt(stmt, expression),
         StatementKind::Def(definition) => v.visit_definition(definition),
         StatementKind::Block(statements) => v.visit_block(stmt, statements),
         StatementKind::If { cond, if_true, if_false } => v.visit_if(stmt, cond, if_true, *if_false),

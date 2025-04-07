@@ -52,3 +52,22 @@ impl error_manager::Error for SemanticError {
         }
     }
 }
+
+pub enum SemanticWarningKind {
+    UselessExpressionAsStmt
+}
+
+pub struct SemanticWarning {
+    pub kind: SemanticWarningKind,
+    pub span: Span,
+}
+
+impl error_manager::Error for SemanticWarning {
+    fn get_span(&self) -> Span { self.span }
+
+    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+        match &self.kind {
+            SemanticWarningKind::UselessExpressionAsStmt => write!(out, "This expression has no side-effects and can be elided"),
+        }
+    }
+}

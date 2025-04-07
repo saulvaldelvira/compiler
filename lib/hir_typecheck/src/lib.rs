@@ -1,8 +1,8 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_definition, walk_deref, walk_field, walk_function_definition, walk_logical, walk_ref, walk_return, walk_struct_access, Visitor, VisitorCtx};
+use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_definition, walk_deref, walk_expression, walk_field, walk_function_definition, walk_logical, walk_ref, walk_return, walk_struct_access, walk_ternary, Visitor, VisitorCtx};
 use hir::{Definition, Expression, Type};
-use semantic::errors::{SemanticError, SemanticErrorKind};
-use semantic::rules::expr::{ValidateCast, ValidateComparison};
+use semantic::errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind};
+use semantic::rules::expr::{SideEffect, ValidateCast, ValidateComparison, ValidateTernary};
 use semantic::rules::stmt::{CheckFunctionReturns, CheckReturnStmt};
 use semantic::rules::{
     SemanticRule,
@@ -123,6 +123,27 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         .inspect(|&id| {
             self.semantic.set_type_of(expr.id, id);
         });
+    }
+
+    fn visit_ternary(&mut self,
+        base: &'hir Expression<'hir>,
+        cond: &'hir Expression<'hir>,
+        if_true: &'hir Expression<'hir>,
+        if_false: &'hir Expression<'hir>
+    ) -> Self::Result {
+        walk_ternary(self, cond, if_true, if_false);
+
+        ValidateTernary {
+            cond,
+            if_true,
+            if_false,
+            span: base.span
+        }
+        .apply(self.semantic, self.em)
+        .inspect(|&id| {
+            self.semantic.set_type_of(base.id, id);
+        });
+
     }
 
     fn visit_array_access(
@@ -287,6 +308,22 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
             span: def.span,
         }
         .apply(self.semantic, self.em);
+    }
+
+    fn visit_expression_as_stmt(
+        &mut self,
+        _base: &'hir hir::Statement<'hir>,
+        expr: &'hir Expression<'hir>
+    ) -> Self::Result {
+        walk_expression(self, expr);
+
+        if !expr.has_side_effect() {
+            self.em.emit_warning(SemanticWarning {
+                kind: SemanticWarningKind::UselessExpressionAsStmt,
+                span: expr.span,
+            });
+        }
+
     }
 
     fn visit_return(&mut self, base: &'hir hir::Statement<'hir>, ret: Option<&'hir Expression<'hir>>) -> Self::Result {
