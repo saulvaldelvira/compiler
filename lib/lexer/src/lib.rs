@@ -52,7 +52,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
         map.insert("bool",TokenKind::Bool);
         map.insert("return",TokenKind::Return);
         map.insert("super",TokenKind::Super);
-        map.insert("this",TokenKind::This);
+        map.insert("impl",TokenKind::Impl);
         map.insert("true",TokenKind::True);
         map.insert("let",TokenKind::Let);
         map.insert("as",TokenKind::As);

@@ -7,6 +7,7 @@ pub mod stmt;
 
 use std::fmt::Debug;
 
+use declaration::ImplBlock;
 pub use expr::Expression;
 use span::Span;
 pub use stmt::Statement;
@@ -41,4 +42,6 @@ impl<T> Parenthesized<T> {
 #[derive(Debug)]
 pub struct Program {
     pub decls: Box<[Declaration]>,
+    pub impls: Box<[ImplBlock]>,
 }
+

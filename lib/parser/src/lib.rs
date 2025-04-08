@@ -4,7 +4,7 @@ use core::str;
 use std::borrow::Cow;
 use std::str::FromStr;
 
-use ast::declaration::{VariableConstness, DeclarationKind, Field, Param};
+use ast::declaration::{DeclarationKind, Field, Ident, ImplBlock, Param, ParamType, VariableConstness};
 use ast::expr::{BinaryExprOp, ExpressionKind, UnaryExprOp};
 use ast::stmt::StatementKind;
 use ast::types::{Type, TypeKind};
@@ -37,12 +37,19 @@ struct Parser<'sess, 'src> {
     em: &'sess mut ErrorManager,
 }
 
+enum ModuleItem {
+    Def(Declaration),
+    Impl(ImplBlock),
+}
+
 impl<'sess, 'src> Parser<'sess, 'src> {
     fn parse(mut self) -> Option<Program> {
-        let mut decls = Vec::new();
+        let mut defs = Vec::new();
+        let mut impls = Vec::new();
         while !self.is_finished() {
-            match self.declaration() {
-                Ok(stmt) => decls.push(stmt),
+            match self.module_item() {
+                Ok(ModuleItem::Def(def)) => defs.push(def),
+                Ok(ModuleItem::Impl(im)) => impls.push(im),
                 Err(e) => {
                     self.error(e);
                     self.synchronize_with(&[
@@ -54,34 +61,46 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         if self.em.has_errors() {
             None
         } else {
-            Some( Program { decls: decls.into_boxed_slice() } )
+            Some( Program {
+                decls: defs.into_boxed_slice(),
+                impls: impls.into_boxed_slice(),
+            } )
         }
     }
 
-    fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
+    fn consume_ident_spanned(&mut self) -> Result<Ident> {
         let span = self.consume(TokenKind::Identifier)?.span;
         Ok(with_session_interner(|i| {
             let sym = i.get_or_intern(span.slice(self.src));
-            Spanned {
-                val: sym,
+            Ident {
+                sym,
                 span,
             }
         }))
     }
 
     /* ===== DECLARATION ===== */
-    fn declaration(&mut self) -> Result<Declaration> {
+    fn module_item(&mut self) -> Result<ModuleItem> {
+        if let Some(decl) = self.try_declaration() {
+            Ok(ModuleItem::Def(decl?))
+        } else if let Some(im) = self.try_impl() {
+            Ok(ModuleItem::Impl(im?))
+        } else {
+            Err(ParseErrorKind::ExpectedNode("module item"))
+        }
+    }
+    fn try_declaration(&mut self) -> Option<Result<Declaration>> {
         if let Some(vdecl) = self.try_var_decl() {
-            vdecl
+            Some(vdecl)
         }
         else if let Some(func) = self.try_function() {
-            func
+            Some(func)
         }
         else if let Some(s) = self.try_struct() {
-            s
+            Some(s)
         }
         else {
-            Err(ParseErrorKind::ExpectedNode("declaration"))
+            None
         }
     }
     fn try_function(&mut self) -> Option<Result<Declaration>> {
@@ -142,11 +161,72 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             }
         )
     }
-    fn param(&mut self) -> Result<Param> {
+    fn try_impl(&mut self) -> Option<Result<ImplBlock>> {
+        if self.check(TokenKind::Impl) {
+            Some(self.impl_block())
+        } else { None }
+    }
+    fn impl_block(&mut self) -> Result<ImplBlock> {
+        let kw_impl = self.consume(TokenKind::Impl)?.span;
+
         let name = self.consume_ident_spanned()?;
-        self.consume(TokenKind::Colon)?;
-        let ty = self.ty()?;
-        let span = name.span.join(&ty.span);
+
+        let open_bracket = self.consume(TokenKind::LeftBrace)?.span;
+
+        let mut decls = Vec::new();
+        while let Some(d) = self.try_declaration() {
+            decls.push(d?);
+        }
+        let close_bracket = self.consume(TokenKind::RightBrace)?.span;
+
+        let body = Block {
+            open_bracket,
+            close_bracket,
+            val: decls.into_boxed_slice(),
+        };
+        let span = kw_impl.join(&close_bracket);
+        Ok(ImplBlock {
+            kw_impl,
+            name,
+            body,
+            span,
+        })
+    }
+
+    fn try_qself(&mut self) -> Result<Option<Span>> {
+        if self.match_type(TokenKind::Ampersand) {
+            let span = self.previous_span()?;
+            if self.match_type(TokenKind::Identifier) && self.previous_lexem()? == "self" {
+                let span = span.join(&self.previous_span()?);
+                return Ok(Some(span))
+            }
+        }
+        Ok(None)
+    }
+
+    fn param(&mut self) -> Result<Param> {
+        let name;
+        let ty;
+        let span;
+
+        if let Some(s) = self.try_qself()? {
+            span = s;
+            name = with_session_interner(|i| {
+                let sym = i.get_or_intern(span.slice(self.src));
+                Ident {
+                    sym,
+                    span,
+                }
+            });
+            ty = ParamType::QSelf;
+        } else {
+            name = self.consume_ident_spanned()?;
+            self.consume(TokenKind::Colon)?;
+            let t = self.ty()?;
+            span = name.span.join(&t.span);
+            ty = ParamType::Typed(t);
+        }
+
         Ok(Param {
             span,
             ty,
@@ -897,11 +977,11 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         Ok(self.owned_lexem(self.previous()?.span))
     }
 
-    fn previous_lexem_spanned(&mut self) -> Result<Spanned<Symbol>> {
+    fn previous_lexem_spanned(&mut self) -> Result<Ident> {
         let span = self.previous()?.span;
-        let lex = self.owned_lexem(span);
-        Ok(Spanned {
-            val: lex,
+        let sym = self.owned_lexem(span);
+        Ok(Ident {
+            sym,
             span,
         })
     }

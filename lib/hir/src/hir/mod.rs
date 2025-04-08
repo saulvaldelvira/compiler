@@ -35,17 +35,21 @@ pub use def::Definition;
 pub mod def;
 mod node_ref;
 pub use node_ref::{NodeRef, NodeRefKind};
+pub mod impl_block;
+pub use impl_block::ImplBlock;
 
 #[derive(Debug)]
 pub struct Program<'hir> {
     pub id: HirId,
     pub defs: &'hir [Definition<'hir>],
+    pub impls: &'hir [ImplBlock<'hir>],
 }
 
 impl<'hir> Program<'hir> {
-    pub const fn new(defs: &'hir [Definition<'hir>]) -> Self {
+    pub const fn new(defs: &'hir [Definition<'hir>], impls: &'hir [ImplBlock<'hir>]) -> Self {
         Self {
             defs,
+            impls,
             id: HirId::DUMMY,
         }
     }

@@ -61,9 +61,33 @@ impl<'hir> Field<'hir> {
 }
 
 #[derive(Debug,Clone,Copy)]
+pub enum ParamType<'hir> {
+    QSelf,
+    Ty(&'hir Type<'hir>),
+}
+
+#[derive(Debug,Clone,Copy)]
+pub struct Param<'hir> {
+    pub name: &'hir PathDef,
+    pub ty: ParamType<'hir>,
+    pub id: HirId,
+    pub span: Span,
+}
+
+impl_hir_node!(Param<'hir>, Param);
+
+impl<'hir> Param<'hir> {
+
+    #[inline(always)]
+    pub fn new(name: &'hir PathDef, ty: ParamType<'hir>, span: Span) -> Self {
+        Self { name, ty, span, id: HirId::DUMMY }
+    }
+}
+
+#[derive(Debug,Clone,Copy)]
 pub enum DefinitionKind<'hir> {
     Variable { constness: Constness, init: Option<&'hir Expression<'hir>> },
-    Function { params: &'hir [Definition<'hir>], body: &'hir [Statement<'hir>] },
+    Function { params: &'hir [Param<'hir>], body: &'hir [Statement<'hir>] },
     Struct { fields: &'hir [Field<'hir>] },
 }
 
@@ -124,3 +148,4 @@ impl<'hir> HirNode<'hir> for Definition<'hir> {
         self.id = id;
     }
 }
+

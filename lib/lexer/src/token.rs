@@ -136,8 +136,8 @@ pub enum TokenKind {
     /// "super"
     Super,
 
-    /// "this"
-    This,
+    /// "impl"
+    Impl,
 
     /// "true"
     True,

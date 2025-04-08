@@ -1,6 +1,6 @@
 use std::ops::ControlFlow;
 
-use crate::declaration::DeclarationKind;
+use crate::declaration::{DeclarationKind, ImplBlock, ParamType};
 use crate::expr::ExpressionKind;
 use crate::stmt::{Statement, StatementKind};
 use crate::types::{Type, TypeKind};
@@ -27,6 +27,10 @@ pub trait Visitor<'ast> {
     fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
         walk_program(self, prog)
     }
+
+    fn visit_impl_block(&mut self, im: &'ast ImplBlock) -> Self::Result {
+        walk_impl_block(self, im)
+    }
 }
 
 pub fn walk_type<'ast, V>(v: &mut V, ty: &'ast Type) -> V::Result
@@ -45,6 +49,16 @@ where
         }
 }
 
+pub fn walk_impl_block<'ast, V>(v: &mut V, i: &'ast ImplBlock) -> V::Result
+where
+    V: Visitor<'ast> + ?Sized
+{
+    for def in &i.body.val {
+        v.visit_declaration(def);
+    }
+    V::Result::output()
+}
+
 pub fn walk_declaration<'ast, V>(v: &mut V, decl: &'ast Declaration) -> V::Result
 where
     V: Visitor<'ast> + ?Sized
@@ -61,7 +75,9 @@ where
             },
             DeclarationKind::Function { params: args, return_type, body, .. } => {
                 for param in args {
-                    v.visit_type(&param.ty);
+                    if let ParamType::Typed(ty) = &param.ty {
+                        v.visit_type(ty);
+                    }
                 }
                 if let Some(rty) = return_type {
                     v.visit_type(rty);
@@ -190,7 +206,8 @@ pub fn walk_program<'ast, V>(v: &mut V, program: &'ast Program) -> V::Result
 where
     V: Visitor<'ast> + ?Sized
 {
-        program.decls.iter().for_each(|decl| { v.visit_declaration(decl); });
+        program.decls.iter().for_each(|item| { v.visit_declaration(item); });
+        program.impls.iter().for_each(|item| { v.visit_impl_block(item); });
         V::Result::output()
 }
 

@@ -1,5 +1,5 @@
 use ast::declaration::VariableConstness;
-use hir::def::DefinitionKind;
+use hir::def::{DefinitionKind, ParamType};
 use hir::{Constness, Ident};
 
 use crate::ident;
@@ -14,21 +14,9 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         )
     }
 
-    fn lower_params(&mut self, params: &[ast::declaration::Param]) -> &'hir [hir::Definition<'hir>] {
+    fn lower_params(&mut self, params: &[ast::declaration::Param]) -> &'hir [hir::def::Param<'hir>] {
         self.sess.alloc_iter(
             params.iter().map(|p| self.lower_param_owned(p))
-        )
-    }
-
-    fn lower_param_owned(&mut self, param: &ast::declaration::Param) -> hir::Definition<'hir> {
-        let ty = self.lower_type(&param.ty);
-        let name = self.lower_pathdef(ident(&param.name));
-
-        hir::def::Definition::new(
-            DefinitionKind::Variable { constness: Constness::Default, init: None },
-            name,
-            ty,
-            param.span
         )
     }
 
@@ -50,6 +38,29 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     pub (super) fn lower_definition(&mut self, def: &ast::Declaration) -> &'hir hir::Definition<'hir> {
         self.sess.alloc(self.lower_definition_owned(def))
+    }
+
+    pub (super) fn lower_impls(&mut self, impls: &[ast::declaration::ImplBlock]) -> &'hir [hir::ImplBlock<'hir>] {
+        self.sess.alloc_iter(
+            impls.iter().map(|im| self.lower_impl_owned(im))
+        )
+    }
+
+    fn lower_impl_owned(&mut self, im: &ast::declaration::ImplBlock) -> hir::ImplBlock<'hir> {
+        let path = self.lower_path(&im.name);
+        let defs = self.lower_definitions(&im.body.val);
+
+        hir::ImplBlock::new(path, defs)
+    }
+
+    fn lower_param_owned(&mut self, p: &ast::declaration::Param) -> hir::def::Param<'hir> {
+        let path = self.lower_pathdef(ident(&p.name));
+        let ty = match &p.ty {
+            ast::declaration::ParamType::QSelf => ParamType::QSelf,
+            ast::declaration::ParamType::Typed(t) => ParamType::Ty(self.lower_type(t)),
+        };
+
+        hir::def::Param::new(path, ty, p.span)
     }
 
     fn lower_definition_owned(&mut self, def: &ast::Declaration) -> hir::Definition<'hir> {

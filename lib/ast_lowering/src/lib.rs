@@ -8,9 +8,7 @@ mod stmt;
 mod def;
 mod ty;
 
-use ast::Symbol;
 use hir::Ident;
-use span::Spanned;
 
 pub fn lower(sess: &hir::Session<'_>, prog: &ast::Program) {
     let lowering = AstLowering::new(sess);
@@ -18,8 +16,8 @@ pub fn lower(sess: &hir::Session<'_>, prog: &ast::Program) {
     sess.set_root(p);
 }
 
-fn ident(spanned: &Spanned<Symbol>) -> Ident {
-    Ident { sym: spanned.val, span: spanned.span }
+fn ident(spanned: &ast::declaration::Ident) -> Ident {
+    Ident { sym: spanned.sym, span: spanned.span }
 }
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
@@ -32,7 +30,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     fn lower(mut self, prog: &ast::Program) -> &'hir hir::Program<'hir> {
         let defs = self.lower_definitions(&prog.decls);
-        let prog = hir::Program::new(defs);
+        let impls = self.lower_impls(&prog.impls);
+        let prog = hir::Program::new(defs, impls);
         self.sess.alloc(prog)
     }
 

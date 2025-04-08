@@ -5,6 +5,7 @@ use lexer::token::TokenKind;
 use session::Symbol;
 use span::{Span, Spanned};
 
+use crate::declaration::Ident;
 use crate::types::Type;
 use crate::Parenthesized;
 type Expr = Box<Expression>;
@@ -96,12 +97,12 @@ pub enum ExpressionKind {
     Paren(Parenthesized<Expr>),
     Binary { op: Spanned<BinaryExprOp>, left: Expr, right: Expr },
     Ternary { cond: Expr, if_true: Expr, if_false: Expr },
-    Path(Spanned<Symbol>),
+    Path(Ident),
     Literal(Spanned<LitValue>),
     Cast { expr: Box<Expression>, kw_as: Span, ty: Type },
     Call { callee: Expr, args: Parenthesized<Box<[Expression]>> },
     ArrayAccess { arr: Expr, index: Expr, closing_bracket: Span },
-    StructAccess { st: Expr, field: Spanned<Symbol> },
+    StructAccess { st: Expr, field: Ident },
 }
 
 #[derive(Debug)]

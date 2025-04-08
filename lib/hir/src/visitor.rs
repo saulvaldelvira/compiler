@@ -1,8 +1,8 @@
 use std::ops::ControlFlow;
 
-use crate::def::{Field, PathDef};
+use crate::def::{Field, Param, PathDef};
 use crate::expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp};
-use crate::{hir, stmt, Constness, Definition, Expression, Ident, Path, Program, Statement, Type};
+use crate::{hir, stmt, Constness, Definition, Expression, HirId, Ident, ImplBlock, Path, Program, Statement, Type};
 
 pub trait Visitor<'hir> {
     type Result: VisitorResult;
@@ -12,6 +12,10 @@ pub trait Visitor<'hir> {
 
     fn visit_program(&mut self, prog: &'hir Program<'hir>) -> Self::Result {
         walk_program(self, prog)
+    }
+
+    fn visit_impl_block(&mut self, im: &'hir ImplBlock<'hir>) -> Self::Result {
+        walk_impl_block(self, im)
     }
 
     fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
@@ -104,10 +108,14 @@ pub trait Visitor<'hir> {
     fn visit_function_definition(
         &mut self,
         base: &'hir Definition<'hir>,
-        params: &'hir [Definition<'hir>],
+        params: &'hir [Param<'hir>],
         body: &'hir [Statement<'hir>]
     ) -> Self::Result {
         walk_function_definition(self, base, params, body)
+    }
+
+    fn visit_param(&mut self, base: &'hir Definition<'hir>, param: &'hir Param<'hir>) -> Self::Result {
+        walk_param(self, param)
     }
 
     fn visit_struct_definition(
@@ -158,7 +166,7 @@ pub trait Visitor<'hir> {
         Self::Result::output()
     }
 
-    fn visit_pathdef(&mut self, _def: &'hir Definition<'hir>, _pdef: &'hir PathDef) -> Self::Result {
+    fn visit_pathdef(&mut self, _def: HirId, _pdef: &'hir PathDef) -> Self::Result {
         Self::Result::output()
     }
 
@@ -251,6 +259,16 @@ where
     V: Visitor<'hir> + ?Sized
 {
     walk_iter!(v, prog.defs, visit_definition);
+    walk_iter!(v, prog.impls, visit_impl_block);
+    V::Result::output()
+}
+
+pub fn walk_impl_block<'hir, V>(v: &mut V, im: &'hir ImplBlock<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized
+{
+    v.visit_path(&im.path);
+    walk_iter!(v, im.defs, visit_definition);
     V::Result::output()
 }
 
@@ -263,7 +281,7 @@ where
         TypeKind::Struct(path) => { v.visit_path(path); },
         TypeKind::Function { params, ret_ty } => {
             walk_iter!(v, params, visit_type);
-            v.visit_type(&ret_ty);
+            v.visit_type(ret_ty);
         },
         _ => {}
     }
@@ -274,7 +292,7 @@ pub fn walk_definition<'hir, V>(v: &mut V, def: &'hir Definition<'hir>) -> V::Re
 where
     V: Visitor<'hir> + ?Sized
 {
-    v.visit_pathdef(def, def.name);
+    v.visit_pathdef(def.id, def.name);
     walk_opt!(v, def.ty, visit_type);
 
     use crate::def::DefinitionKind;
@@ -303,7 +321,7 @@ where
 pub fn walk_function_definition<'hir, V>(
     v: &mut V,
     base: &'hir Definition<'hir>,
-    params: &'hir [Definition<'hir>],
+    params: &'hir [Param<'hir>],
     body: &'hir [Statement<'hir>]
 ) -> V::Result
 where
@@ -311,13 +329,27 @@ where
 {
     v.get_ctx().enter_function(base);
     for p in params {
-        v.visit_definition(p);
+        v.visit_param(base, p);
     }
     for stmt in body {
         v.visit_statement(stmt);
     }
     v.get_ctx().exit_function();
     V::Result::output()
+}
+
+
+pub fn walk_param<'hir, V>(v: &mut V, param: &'hir Param<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized
+{
+    use hir::def::ParamType;
+
+    v.visit_pathdef(param.id, &param.name);
+    match param.ty {
+        ParamType::Ty(ty) => v.visit_type(ty),
+        ParamType::QSelf => V::Result::output(),
+    }
 }
 
 pub fn walk_struct_definition<'hir, V>(
@@ -338,7 +370,7 @@ pub fn walk_field<'hir, V>(v: &mut V, def: &'hir Definition<'hir>, f: &'hir Fiel
 where
     V: Visitor<'hir> + ?Sized
 {
-    v.visit_pathdef(def, f.name);
+    v.visit_pathdef(def.id, f.name);
     V::Result::output()
 }
 

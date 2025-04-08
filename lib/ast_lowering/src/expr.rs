@@ -1,13 +1,12 @@
-use ast::Symbol;
+use ast::declaration::Ident;
 use hir::expr::{ArithmeticOp, CmpOp, UnaryOp};
-use span::Spanned;
 use hir::expr::{ExpressionKind as HExprKind, LogicalOp};
 
 use crate::{ident, AstLowering};
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
-    pub (super) fn lower_path(&self, spanned: &Spanned<Symbol>) -> hir::expr::Path<'hir> {
+    pub (super) fn lower_path(&self, spanned: &Ident) -> hir::expr::Path<'hir> {
         hir::expr::Path::new(ident(spanned))
     }
 

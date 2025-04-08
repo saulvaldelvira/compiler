@@ -21,7 +21,8 @@ mod _arena {
         types: Type<'ctx>,
         fields: Field<'ctx>,
         stmts: Statement<'ctx>,
-        prog: Program<'ctx>
+        prog: Program<'ctx>,
+        impl_blocks: ImplBlock<'ctx>
     );
 }
 
