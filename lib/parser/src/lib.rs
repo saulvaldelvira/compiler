@@ -397,7 +397,8 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
     fn while_stmt(&mut self) -> Result<Statement> {
-        let kw_while = self.consume(TokenKind::LeftParen)?.span;
+        let kw_while = self.previous_span()?;
+        self.consume(TokenKind::LeftParen)?;
         let cond = self.expression()?;
         self.consume(TokenKind::RightParen)?;
         let body = Box::new(Statement::from(self.block()?));
