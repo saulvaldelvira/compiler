@@ -1,18 +1,17 @@
+use error_manager::ErrorManager;
 use lexer::Lexer;
-use parser::Parser;
+use parser::parse;
 
-fn find_errors(src: &str) -> u32 {
-    let lexer = Lexer::new(src);
-    let tokens = lexer.tokenize().expect("");
+fn find_errors(src: &str) -> usize {
+    let mut em = ErrorManager::new();
+    let stream = Lexer::new(src, &mut em).into_token_stream();
     /* We shouldn't test lexer here
        Only test the parser phase */
     /* assert!(!lexer.has_errors()); */
 
-    let parser = Parser::new(&tokens, src);
-    match parser.parse() {
-        Ok(_) => 0,
-        Err(n) => n
-    }
+    let mut perr = ErrorManager::new();
+    parse(stream, src, &mut perr);
+    perr.n_errors()
 }
 
 #[test]
