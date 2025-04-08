@@ -10,6 +10,7 @@ pub enum Node {
     Collapse(Box<Node>,Box<Node>),
     Text(Cow<'static,str>),
     Title(&'static str),
+    DefId(HirId),
     Id(HirId),
     Span(Span),
     Empty,
@@ -60,7 +61,8 @@ impl Node {
                 v.__write_to(f, src, span_count)?;
                 write!(f, "</details>")
             },
-            Node::Id(id) => writeln!(f, "({id}) "),
+            Node::DefId(id) => writeln!(f, "<span id=\"node_{id}\">({id})</span>"),
+            Node::Id(id) => writeln!(f, "<a href=\"#node_{id}\">{id}</a>"),
             Node::Title(v) => writeln!(f, "<b>{v}</b>"),
             Node::Text(txt) => write!(f, "{txt}"),
             Node::Empty => Ok(()),
@@ -115,6 +117,7 @@ impl Node {
                 t.__write_spans_full(f, src, span_count)?;
                 v.__write_spans_full(f, src, span_count)
             },
+            Node::DefId(_) |
             Node::Id(_) |
             Node::Title(_) |
             Node::Text(_) |

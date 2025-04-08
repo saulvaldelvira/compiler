@@ -16,4 +16,4 @@ hir_typecheck = { path = "../../lib/hir_typecheck" }
 semantic = { path = "../../lib/semantic" }
 error_manager = { path = "../../lib/error_manager" }
 mapl_codegen = { path = "../../lib/mapl_codegen" }
-hir_serialize = { path = "../../lib/hir_serialize" }
+hir_print = { path = "../../lib/hir_print" }

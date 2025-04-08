@@ -99,7 +99,7 @@ impl Compiler {
 
         Some(match emit {
             Emit::Hir => {
-                hir_serialize::hir_serialize(&hir_sess, &semantic, &self.source.text)
+                hir_print::hir_print_html(&hir_sess, &semantic, &self.source.text)
             }
             Emit::Mapl => {
                 mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename)
