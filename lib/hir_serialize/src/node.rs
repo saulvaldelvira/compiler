@@ -47,11 +47,16 @@ impl Node {
             Node::Empty => Ok(()),
             Node::Span(span) => {
                 let FilePosition { start_line, start_col, .. } = span.file_position(src);
-                let txt = &src[span.offset..];
-                let n = txt.chars().take(span.len).take_while(|&c| c != '\n').map(|c| c.len_utf8()).sum();
-                let txt = &txt[..n];
+                write!(f, "[{start_line}:{start_col}]: \"")?;
 
-                write!(f, "[{start_line}:{start_col}]: \"{txt}\"")
+                let n = span.len.min(50);
+                for c in span.slice(src).chars().filter(|&c| c != '\n').take(n) {
+                    write!(f, "{c}")?;
+                }
+                if n < span.len {
+                    write!(f, "... ")?;
+                }
+                write!(f, "\"")
             }
         }
     }
