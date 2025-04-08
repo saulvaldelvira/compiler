@@ -1,5 +1,8 @@
 #![feature(test)]
 extern crate test;
+use std::hint;
+
+use error_manager::ErrorManager;
 use lexer::Lexer;
 use test::Bencher;
 
@@ -18,7 +21,14 @@ int main(){
 // UTF8 characters: ɞ
 // Unc@mm3nt this line to trigger an error
 ";
+
     b.iter(|| {
-        let _tokens = Lexer::new(INPUT).tokenize();
+        Lexer::new(INPUT, &mut ErrorManager::new())
+        .into_token_stream()
+        .for_each(|token| {
+            let _ = hint::black_box(|| {
+                token
+            });
+        });
     });
 }
