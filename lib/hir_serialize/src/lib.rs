@@ -10,7 +10,21 @@ use node::Node;
 pub fn hir_serialize(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> String {
     let prog = hir.get_root_program();
     let node = prog.serialize(sem);
-    let mut html = String::from("<html><body>");
+    let mut html = String::from(r#"<html>
+        <script>
+        function expandAll() {
+            document.querySelectorAll("details")
+                    .forEach((n) => n.setAttribute("open", ""))
+        }
+        function collapseAll() {
+            document.querySelectorAll("details")
+                    .forEach((n) => n.removeAttribute("open"))
+        }
+        </script>
+        <body>
+
+        <button onclick="expandAll();"> Expand all </button>
+        <button onclick="collapseAll();"> Collapse all </button>"#);
     node.write_to(&mut html, src).unwrap();
     node.write_spans_full(&mut html, src).unwrap();
     html.push_str("</body></html>");
@@ -76,33 +90,30 @@ impl HirSerialize for Definition<'_> {
                 if !params.is_empty() {
                     let mut p = vec![];
                     for param in *params {
-                        p.push(Node::Text(format!("{name} : {ty:?}",
+                        p.push(Node::text(format!("{name} : {ty:?}",
                                     name = param.name.ident.sym,
                                     ty = param.ty.unwrap()
                         )));
                     }
 
-                    ul.push(Node::KeyVal("params", Node::Ul(p).into()));
+                    ul.push(Node::collapse("params", Node::Ul(p)));
                 }
                 let mut b = vec![];
                 for stmt in *body {
                     b.push(stmt.serialize(sem));
                 }
-                ul.push(Node::KeyVal("body", Node::Ul(b).into()));
+                ul.push(Node::collapse("body", Node::Ul(b)));
             },
             DefinitionKind::Struct { fields } => {
                 let mut flist = vec![];
                 for field in *fields {
-                    flist.push(Node::Text(format!("{} : {:?}", field.name.ident.sym, field.ty)));
+                    flist.push(Node::text(format!("{} : {:?}", field.name.ident.sym, field.ty)));
                 }
-                ul.push(Node::KeyVal("fields", Node::Ul(flist).into()));
+                ul.push(Node::collapse("fields", Node::Ul(flist)));
             },
         }
 
-        nodes.push(Node::Ul(ul));
-
-        Node::List(nodes)
-
+        Node::Collapse(Node::List(nodes).into(), Node::Ul(ul).into())
     }
 }
 
@@ -114,8 +125,8 @@ impl HirSerialize for Statement<'_> {
         let attr = match self.kind {
             StatementKind::Expr(expr) => {
                 list.push(Node::Title("ExprAsStmt"));
-                let expr = expr.serialize(sem);
-                Node::KeyVal("expr", expr.into())
+                let expr = expr.serialize(sem).into();
+                Node::KeyVal("expr", expr)
             }
             StatementKind::Block(stmts) => {
                 list.push(Node::Title("BlockStmt"));
@@ -124,7 +135,7 @@ impl HirSerialize for Statement<'_> {
                     stmts_list.push(stmt.serialize(sem));
                 }
                 let stmts = Node::Ul(stmts_list);
-                Node::KeyVal("stmts", stmts.into())
+                Node::collapse("stmts", stmts)
             }
             StatementKind::If { cond, if_true, if_false } => {
                 list.push(Node::Title("IfStmt"));
@@ -132,38 +143,38 @@ impl HirSerialize for Statement<'_> {
                 attrs.push(Node::KeyVal("cond", cond.serialize(sem).into()));
                 attrs.push(Node::KeyVal("true_branch", if_true.serialize(sem).into()));
 
-                Node::KeyVal("false_branch", match if_false {
-                    Some(fb) => fb.serialize(sem),
-                    None => Node::Text("None".into()),
-                }.into())
+                match if_false {
+                    Some(fb) => Node::KeyVal("false_branch", fb.serialize(sem).into()),
+                    None => Node::KeyVal("false_branch", Node::Text("None".into()).into()),
+                }
             }
             StatementKind::While { cond, body } => {
                 list.push(Node::Title("WhileStmt"));
 
                 attrs.push(Node::KeyVal("cond", cond.serialize(sem).into()));
-                Node::KeyVal("body", body.serialize(sem).into())
+                Node::collapse("body", body.serialize(sem))
             },
             StatementKind::For { init, cond, inc, body } => {
                 list.push(Node::Title("ForStmt"));
 
                 macro_rules! serialize_expr {
-                    ($e:expr) => {
+                    ($n:literal, $e:expr) => {
                         match $e {
-                            Some(e) => e.serialize(sem),
-                            None => Node::Text("None".into())
-                        }.into()
+                            Some(e) => Node::KeyVal($n, e.serialize(sem).into()),
+                            None => Node::KeyVal($n, Node::Text("None".into()).into()),
+                        }
                     };
                 }
 
-                attrs.push(Node::KeyVal("init", serialize_expr!(init)));
-                attrs.push(Node::KeyVal("cond", serialize_expr!(cond)));
-                attrs.push(Node::KeyVal("inc", serialize_expr!(inc)));
+                attrs.push(serialize_expr!("init", init));
+                attrs.push(serialize_expr!("cond", cond));
+                attrs.push(serialize_expr!("inc", inc));
 
                 Node::KeyVal("body", body.serialize(sem).into())
             },
             StatementKind::Empty => Node::Empty,
-            StatementKind::Break => Node::Text("break".to_string()),
-            StatementKind::Continue => Node::Text("continue".to_string()),
+            StatementKind::Break => Node::text("break"),
+            StatementKind::Continue => Node::text("continue"),
             StatementKind::Return(expr) => {
                 list.push(Node::Title("Return"));
                 if let Some(expr) = expr {
@@ -174,13 +185,13 @@ impl HirSerialize for Statement<'_> {
             }
             StatementKind::Print(expr) => {
                 list.push(Node::Title("PrintStmt"));
-                let expr = expr.serialize(sem);
-                Node::KeyVal("expr", expr.into())
+                let expr = expr.serialize(sem).into();
+                Node::KeyVal("expr", expr)
             }
             StatementKind::Read(expr) => {
                 list.push(Node::Title("ReadStmt"));
-                let expr = expr.serialize(sem);
-                Node::KeyVal("expr", expr.into())
+                let expr = expr.serialize(sem).into();
+                Node::KeyVal("expr", expr)
             }
             StatementKind::Def(def) => return def.serialize(sem)
         };
@@ -190,88 +201,88 @@ impl HirSerialize for Statement<'_> {
         }
 
         list.push(Node::Span(self.span));
-        list.push(Node::Ul(attrs));
-        Node::List(list)
+
+        Node::Collapse(Node::List(list).into(), Node::Ul(attrs).into())
     }
 }
 
 impl HirSerialize for Expression<'_> {
     fn serialize(&self, sem: &Semantic<'_>) -> Node {
-        let mut list = vec![/* Node::Id(self.id) */];
+        let mut title = vec![/* Node::Id(self.id) */];
 
         let mut attrs = vec![];
         match &self.kind {
             ExpressionKind::Literal(lit_value) => {
-                list.push(Node::Title("LiteralExpression"));
-                let val = Node::Text(format!("{lit_value:?}"));
+                title.push(Node::Title("LiteralExpression"));
+                let val = Node::text(format!("{lit_value:?}"));
                 attrs.push(Node::KeyVal("value", val.into()));
             },
             ExpressionKind::Ref(expr) => {
-                list.push(Node::Title("RefExpression"));
-                let val = expr.serialize(sem);
-                attrs.push(Node::KeyVal("of", val.into()));
+                title.push(Node::Title("RefExpression"));
+                let val = expr.serialize(sem).into();
+                attrs.push(Node::KeyVal("of", val));
             }
             ExpressionKind::Assignment { left, right } => {
-                list.push(Node::Title("AssignmentExpression"));
-                let left = left.serialize(sem);
-                let right = right.serialize(sem);
-                attrs.push(Node::KeyVal("left", left.into()));
-                attrs.push(Node::KeyVal("right", right.into()));
+                title.push(Node::Title("AssignmentExpression"));
+                let left = left.serialize(sem).into();
+                let right = right.serialize(sem).into();
+                attrs.push(Node::KeyVal("left", left));
+                attrs.push(Node::KeyVal("right", right));
             },
             ExpressionKind::Unary { op, expr } => {
-                list.push(Node::Title("UnaryExpr"));
-                attrs.push(Node::KeyVal("op", Node::Text(format!("{op:?}")).into()));
+                title.push(Node::Title("UnaryExpr"));
+                attrs.push(Node::KeyVal("op", Node::text(format!("{op:?}")).into()));
                 attrs.push(Node::KeyVal("expr", expr.serialize(sem).into()));
             }
             ExpressionKind::Deref(expr) => {
-                list.push(Node::Title("DerefExpr"));
+                title.push(Node::Title("DerefExpr"));
                 attrs.push(Node::KeyVal("expr", expr.serialize(sem).into()));
             }
             ExpressionKind::Array(_) => todo!(),
             ExpressionKind::Logical { left, op, right } => {
-                list.push(Node::Title("LogicalExpr"));
-                let left = left.serialize(sem);
-                let right = right.serialize(sem);
-                attrs.push(Node::KeyVal("op", Node::Text(format!("{op:?}")).into()));
-                attrs.push(Node::KeyVal("left", left.into()));
-                attrs.push(Node::KeyVal("right", right.into()));
+                title.push(Node::Title("LogicalExpr"));
+                let left = left.serialize(sem).into();
+                let right = right.serialize(sem).into();
+                attrs.push(Node::KeyVal("op", Node::text(format!("{op:?}")).into()));
+                attrs.push(Node::KeyVal("left", left));
+                attrs.push(Node::KeyVal("right", right));
             }
             ExpressionKind::Comparison { left, op, right } => {
-                list.push(Node::Title("ComparisonExpr"));
-                let left = left.serialize(sem);
-                let right = right.serialize(sem);
-                attrs.push(Node::KeyVal("op", Node::Text(format!("{op:?}")).into()));
-                attrs.push(Node::KeyVal("left", left.into()));
-                attrs.push(Node::KeyVal("right", right.into()));
+                title.push(Node::Title("ComparisonExpr"));
+                let left = left.serialize(sem).into();
+                let right = right.serialize(sem).into();
+                attrs.push(Node::KeyVal("op", Node::text(format!("{op:?}")).into()));
+                attrs.push(Node::KeyVal("left", left));
+                attrs.push(Node::KeyVal("right", right));
             }
             ExpressionKind::Arithmetic { left, op, right } => {
-                list.push(Node::Title("ArithmeticExpr"));
-                let left = left.serialize(sem);
-                let right = right.serialize(sem);
-                attrs.push(Node::KeyVal("op", Node::Text(format!("{op:?}")).into()));
-                attrs.push(Node::KeyVal("left", left.into()));
-                attrs.push(Node::KeyVal("right", right.into()));
+                title.push(Node::Title("ArithmeticExpr"));
+                let left = left.serialize(sem).into();
+                let right = right.serialize(sem).into();
+                attrs.push(Node::KeyVal("op", Node::text(format!("{op:?}")).into()));
+                attrs.push(Node::KeyVal("left", left));
+                attrs.push(Node::KeyVal("right", right));
             }
             ExpressionKind::Ternary { cond, if_true, if_false } => {
-                list.push(Node::Title("TernaryExpr"));
-                let cond = cond.serialize(sem);
-                let if_true = if_true.serialize(sem);
-                let if_false = if_false.serialize(sem);
-                attrs.push(Node::KeyVal("cond", cond.into()));
-                attrs.push(Node::KeyVal("if_true", if_true.into()));
-                attrs.push(Node::KeyVal("if_false", if_false.into()));
+                title.push(Node::Title("TernaryExpr"));
+                let cond = cond.serialize(sem).into();
+                let if_true = if_true.serialize(sem).into();
+                let if_false = if_false.serialize(sem).into();
+                attrs.push(Node::KeyVal("cond", cond));
+                attrs.push(Node::KeyVal("if_true", if_true));
+                attrs.push(Node::KeyVal("if_false", if_false));
             }
             ExpressionKind::Variable(path) => {
-                list.push(Node::Title("VariableExpression"));
-                let name = Node::Text(path.ident.sym.to_string());
-                let def = Node::Text(path.def.expect_resolved().id.to_string());
+                title.push(Node::Title("VariableExpression"));
+                let name = Node::text(path.ident.sym.to_string());
+                let def = Node::text(path.def.expect_resolved().id.to_string());
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));
             }
             ExpressionKind::Call { callee, args } => {
-                list.push(Node::Title("Call"));
-                let callee = callee.serialize(sem);
-                attrs.push(Node::KeyVal("callee", callee.into()));
+                title.push(Node::Title("Call"));
+                let callee = callee.serialize(sem).into();
+                attrs.push(Node::KeyVal("callee", callee));
 
                 let mut argl = vec![];
                 for arg in *args {
@@ -279,35 +290,34 @@ impl HirSerialize for Expression<'_> {
                 }
 
                 let args = Node::List(argl);
-                attrs.push(Node::KeyVal("args", args.into()));
+                attrs.push(Node::collapse("args", args));
             },
             ExpressionKind::Cast { expr, to } => {
-                list.push(Node::Title("Call"));
+                title.push(Node::Title("Call"));
                 attrs.push(Node::KeyVal("expr", expr.serialize(sem).into()));
-                attrs.push(Node::KeyVal("to", Node::Text(format!("{to:?}")).into()));
+                attrs.push(Node::KeyVal("to", Node::text(format!("{to:?}")).into()));
 
             },
             ExpressionKind::ArrayAccess { arr, index } => {
-                list.push(Node::Title("ArrayAccess"));
+                title.push(Node::Title("ArrayAccess"));
                 attrs.push(Node::KeyVal("arr", arr.serialize(sem).into()));
                 attrs.push(Node::KeyVal("index", index.serialize(sem).into()));
             }
             ExpressionKind::StructAccess { st, field } => {
-                list.push(Node::Title("StructAccess"));
+                title.push(Node::Title("StructAccess"));
                 attrs.push(Node::KeyVal("struct", st.serialize(sem).into()));
-                attrs.push(Node::KeyVal("field", Node::Text(field.sym.to_string()).into()));
+                attrs.push(Node::KeyVal("field", Node::text(field.sym.to_string()).into()));
             }
         }
 
         let ty = match sem.type_of(&self.id) {
-            Some(t) => Node::Text(format!("{t}")),
-            None => Node::Text("???".to_string()),
+            Some(t) => Node::text(format!("{t}")),
+            None => Node::text("???".to_string()),
         };
         attrs.push(Node::KeyVal("type", ty.into()));
 
-        list.push(Node::Span(self.span));
-        list.push(Node::Ul(attrs));
+        title.push(Node::Span(self.span));
 
-        Node::List(list)
+        Node::Collapse(Node::List(title).into(), Node::Ul(attrs).into())
     }
 }
