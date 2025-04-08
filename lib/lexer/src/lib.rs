@@ -3,11 +3,8 @@ mod error;
 pub mod unescaped;
 
 use std::collections::HashMap;
-
+use std::sync::OnceLock;
 pub use cursor::Cursor;
-
-use delay_init::delay;
-
 pub mod token;
 use error::{LexerError, LexerErrorKind};
 use error_manager::ErrorManager;
@@ -36,8 +33,10 @@ pub struct Lexer<'lex, 'src> {
     em: &'lex mut ErrorManager,
 }
 
-delay! {
-    static KEYWORDS : HashMap<&str,TokenKind> = {
+
+fn as_keyword(ident: &str) -> Option<TokenKind> {
+    static KEYWORKDS: OnceLock<HashMap<&str,TokenKind>> = OnceLock::new();
+    KEYWORKDS.get_or_init(|| {
         let mut map = HashMap::new();
         map.insert("struct",TokenKind::Struct);
         map.insert("else",TokenKind::Else);
@@ -62,10 +61,11 @@ delay! {
         map.insert("break",TokenKind::Break);
         map.insert("continue",TokenKind::Continue);
         map
-    };
- }
+    })
+    .get(ident).copied()
+}
 
-impl<'lex, 'src> Iterator for TokenStream<'lex, 'src> {
+impl Iterator for TokenStream<'_, '_> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -265,7 +265,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     fn identifier(&mut self) -> Option<Token> {
         self.c.advance_while(|c| c.is_alphanumeric() || *c == '_');
         let lexem = self.c.current_lexem();
-        let token_type = KEYWORDS.get(lexem).cloned().unwrap_or(TokenKind::Identifier);
+        let token_type = as_keyword(lexem).unwrap_or(TokenKind::Identifier);
         self.add_token(token_type)
     }
     fn error(&mut self, kind: LexerErrorKind) {

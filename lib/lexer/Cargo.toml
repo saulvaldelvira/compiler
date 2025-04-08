@@ -3,10 +3,6 @@ name = "lexer"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies.delay_init]
-version = ">=0.1.7"
-git = "https://github.com/saulvaldelvira/delay-init.git"
-
 [dependencies]
 span = { path = "../span" }
 error_manager = { path = "../error_manager" }
