@@ -12,6 +12,7 @@ pub fn hir_serialize(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> S
     let node = prog.serialize(sem);
     let mut html = String::from("<html><body>");
     node.write_to(&mut html, src).unwrap();
+    node.write_spans_full(&mut html, src).unwrap();
     html.push_str("</body></html>");
     html
 }
