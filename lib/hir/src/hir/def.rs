@@ -1,3 +1,5 @@
+use core::fmt;
+
 use session::Symbol;
 use span::Span;
 
@@ -65,13 +67,31 @@ pub enum DefinitionKind<'hir> {
     Struct { fields: &'hir [Field<'hir>] },
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Clone,Copy)]
 pub struct Definition<'hir> {
     pub id: HirId,
     pub name: &'hir PathDef,
     pub ty: Option<&'hir Type<'hir>>,
     pub kind: DefinitionKind<'hir>,
     pub span: Span,
+}
+
+impl fmt::Debug for Definition<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut d = f.debug_struct("Definition");
+        d.field("id", &self.id)
+         .field("name", &self.name);
+
+        if let Some(ty) = self.ty {
+            d.field("ty", ty);
+        } else {
+            d.field("ty", &"???");
+        }
+
+        d.field("kind", &self.kind)
+         .field("span", &self.span)
+         .finish()
+    }
 }
 
 impl<'hir> Definition<'hir> {

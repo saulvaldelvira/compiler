@@ -1,3 +1,4 @@
+use core::fmt;
 use std::hash::Hash;
 
 use crate::hir_id::HirNode;
@@ -6,7 +7,7 @@ use crate::HirId;
 
 use super::Path;
 
-#[derive(Debug,Hash,PartialEq,Eq,Clone)]
+#[derive(Hash,PartialEq,Eq,Clone)]
 pub enum PrimitiveType {
     Int,
     Char,
@@ -15,13 +16,48 @@ pub enum PrimitiveType {
     Empty,
 }
 
-#[derive(Debug,Clone)]
+impl fmt::Debug for PrimitiveType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Int => write!(f, "int"),
+            Self::Char => write!(f, "char"),
+            Self::Float => write!(f, "float"),
+            Self::Bool => write!(f, "bool"),
+            Self::Empty => write!(f, "()"),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum TypeKind<'hir> {
     Primitive(PrimitiveType),
     Ref(&'hir Type<'hir>),
     Array(&'hir Type<'hir>, usize),
     Struct(Path<'hir>),
     Function { params: &'hir [Type<'hir>], ret_ty: &'hir Type<'hir> }
+}
+
+impl fmt::Debug for TypeKind<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Primitive(arg0) => write!(f, "{arg0:?}"),
+            Self::Ref(arg0) => write!(f, "&{arg0:?}"),
+            Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
+            Self::Struct(arg0) => write!(f, "struct {}", arg0.ident.sym),
+            Self::Function { params, ret_ty } => {
+                write!(f, "fn (")?;
+                let mut first = true;
+                for p in *params {
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    first = false;
+                        write!(f, "{p:?}")?;
+                }
+                write!(f, ") -> {ret_ty:?}")
+            }
+        }
+    }
 }
 
 impl Hash for TypeKind<'_> {
@@ -48,10 +84,16 @@ impl PartialEq for TypeKind<'_> {
 
 impl Eq for TypeKind<'_> { }
 
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 pub struct Type<'hir> {
     pub id: HirId,
     pub kind: TypeKind<'hir>
+}
+
+impl fmt::Debug for Type<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.kind)
+    }
 }
 
 impl<'ty> Type<'ty> {
