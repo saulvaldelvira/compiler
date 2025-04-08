@@ -24,11 +24,11 @@ impl Precedence for Expression {
             ExpressionKind::Unary { .. } |
             ExpressionKind::Paren(_) |
             ExpressionKind::Path(_) |
-            ExpressionKind::Literal(_) => 7,
-            ExpressionKind::Cast { .. } => todo!(),
-            ExpressionKind::Call { .. } => todo!(),
-            ExpressionKind::ArrayAccess { .. } => todo!(),
-            ExpressionKind::StructAccess { .. } => todo!(),
+            ExpressionKind::Literal(_) => 9,
+            ExpressionKind::Cast { .. } => 7,
+            ExpressionKind::Call { .. } => 8,
+            ExpressionKind::ArrayAccess { .. } => 8,
+            ExpressionKind::StructAccess { .. } => 8,
         }
     }
 }

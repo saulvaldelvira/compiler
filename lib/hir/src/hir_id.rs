@@ -16,6 +16,12 @@ impl fmt::Debug for HirId {
     }
 }
 
+impl fmt::Display for HirId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 pub trait HirNode<'hir> {
     fn get_hir_id(&self) -> HirId;
     fn set_hir_id(&mut self, id: HirId);

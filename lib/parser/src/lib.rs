@@ -211,16 +211,9 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             return self.expected_err(&[TokenKind::Let, TokenKind::Const])
         };
         let prev = self.previous()?;
-        let prev_span = prev.span;
-        let is_const = prev.kind == TokenKind::Const;
+        let mut span = prev.span;
 
         let name = self.consume_ident_spanned()?;
-
-        let mut span = if is_const {
-            prev_span
-        } else {
-            name.span
-        };
 
         let ty =
         if self.match_type(TokenKind::Colon) {

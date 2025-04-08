@@ -6,6 +6,12 @@ use lexer::Lexer;
 use semantic::Semantic;
 use span::{FilePosition, Span};
 
+#[derive(Clone,Copy,Debug)]
+pub enum Emit {
+    Hir,
+    Mapl
+}
+
 pub struct Compiler {
     source: CompilerSource,
 }
@@ -57,7 +63,7 @@ impl Compiler {
         })
     }
 
-    pub fn process(&self) -> Option<String> {
+    pub fn process(&self, emit: Emit) -> Option<String> {
         let mut lexer_errs = ErrorManager::new();
         let mut parse_errs = ErrorManager::new();
 
@@ -91,8 +97,15 @@ impl Compiler {
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.text, &mut em)?;
 
-        let mapl = mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename);
-        Some(mapl)
+        Some(match emit {
+            Emit::Hir => {
+                hir_serialize::hir_serialize(&hir_sess, &semantic, &self.source.text)
+            }
+            Emit::Mapl => {
+                mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename)
+            },
+        })
+
     }
 
 }

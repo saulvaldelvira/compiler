@@ -11,7 +11,7 @@ fn main() {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
-        let Some(prog) = comp.process() else { continue };
+        let Some(prog) = comp.process(conf.emit) else { continue };
         let fname = conf.out_file.clone().unwrap_or_else(|| {
             let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
             let start = &file[..ext];
@@ -25,7 +25,7 @@ fn main() {
             eprintln!("Error reading stdin: {err}");
             process::exit(1);
         });
-        let Some(out) = comp.process() else { return };
+        let Some(out) = comp.process(conf.emit) else { return };
         match conf.out_file {
             Some(f) => {
                 fs::write(&f, out).unwrap();
