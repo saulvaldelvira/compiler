@@ -38,17 +38,24 @@ pub enum CmpOp {
 }
 
 #[derive(Debug,Clone)]
-pub struct Path<'hir> {
+pub struct PathSegment<'hir> {
     pub ident: Ident,
     pub def: NodeRef<'hir, Definition<'hir>>,
 }
 
-impl Path<'_> {
-    pub fn new(ident: Ident) -> Self {
-        Self {
-            ident,
-            def: NodeRef::pending(),
-        }
+#[derive(Debug,Clone)]
+pub struct Path<'hir> {
+    pub segments: Box<[PathSegment<'hir>]>,
+}
+
+impl<'hir> Path<'hir> {
+    pub fn new(segments: Box<[PathSegment<'hir>]>) -> Self {
+        debug_assert!(!segments.is_empty());
+        Self { segments }
+    }
+
+    pub fn def(&self) -> &NodeRef<'hir, Definition<'hir>> {
+        &self.segments.last().unwrap().def
     }
 }
 

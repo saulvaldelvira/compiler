@@ -866,17 +866,27 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             };
             return Ok(Expression { kind: ExpressionKind::Paren(expr), span })
         }
-        if self.match_type(TokenKind::Identifier) {
-            let name = self.previous_lexem_spanned()?;
-            let span = name.span;
-            return Ok(Expression {
-                kind: ExpressionKind::Path(name),
-                span,
-            });
+        if self.check(TokenKind::Identifier) {
+            return self.path()
         }
         Err(ParseErrorKind::ExpectedConstruct {
             expected: "expression",
             found: self.peek()?.span.slice(self.src).to_string()
+        })
+    }
+    fn path(&mut self) -> Result<Expression> {
+        let mut path = vec![
+            self.consume_ident_spanned()?
+        ];
+
+        while self.match_type(TokenKind::DoubleColon) {
+            path.push(self.consume_ident_spanned()?);
+        }
+
+        let span = path.first().unwrap().span.join(&path.last().unwrap().span);
+        Ok(Expression {
+            kind: ExpressionKind::Path(path.into_boxed_slice()),
+            span,
         })
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {

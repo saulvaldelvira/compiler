@@ -1,4 +1,5 @@
 use core::fmt;
+use std::any::Any;
 use std::hash::Hash;
 
 use crate::hir_id::HirNode;
@@ -43,7 +44,7 @@ impl fmt::Debug for TypeKind<'_> {
             Self::Primitive(arg0) => write!(f, "{arg0:?}"),
             Self::Ref(arg0) => write!(f, "&{arg0:?}"),
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
-            Self::Struct(arg0) => write!(f, "struct {}", arg0.ident.sym),
+            Self::Struct(arg0) => write!(f, "struct {}", arg0.segments.last().unwrap().ident.sym),
             Self::Function { params, ret_ty } => {
                 write!(f, "fn (")?;
                 let mut first = true;
@@ -63,7 +64,7 @@ impl fmt::Debug for TypeKind<'_> {
 impl Hash for TypeKind<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            TypeKind::Struct(s) => s.ident.sym.hash(state),
+            TypeKind::Struct(s) => s.segments.last().unwrap().ident.sym.hash(state),
             _ => core::mem::discriminant(self).hash(state)
         }
     }
@@ -75,7 +76,8 @@ impl PartialEq for TypeKind<'_> {
             (Self::Primitive(l0), Self::Primitive(r0)) => l0 == r0,
             (Self::Ref(l0), Self::Ref(r0)) => l0 == r0,
             (Self::Array(l0, l1), Self::Array(r0, r1)) => l0 == r0 && l1 == r1,
-            (Self::Struct(l0), Self::Struct(r0)) => l0.ident.sym == r0.ident.sym,
+            (Self::Struct(l0), Self::Struct(r0)) => l0.segments.last().unwrap().ident.sym
+                                                    == r0.segments.last().unwrap().ident.sym,
             (Self::Function { params: l_params, ret_ty: l_ret_ty }, Self::Function { params: r_params, ret_ty: r_ret_ty }) => l_params == r_params && l_ret_ty == r_ret_ty,
             _ => false,
         }

@@ -42,3 +42,4 @@ impl<T> Parenthesized<T> {
 pub struct Program {
     pub decls: Box<[Declaration]>,
 }
+

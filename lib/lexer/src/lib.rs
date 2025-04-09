@@ -146,7 +146,13 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
             },
             '+' => self.add_token(TokenKind::Plus),
             ';' => self.add_token(TokenKind::Semicolon),
-            ':' => self.add_token(TokenKind::Colon),
+            ':' => {
+                if self.c.match_next(':') {
+                    self.add_token(TokenKind::DoubleColon)
+                } else {
+                    self.add_token(TokenKind::Colon)
+                }
+            },
             '?' => self.add_token(TokenKind::Question),
             '*' => self.add_token(TokenKind::Star),
             '\'' => self.char_literal(),

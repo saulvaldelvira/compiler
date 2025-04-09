@@ -43,6 +43,9 @@ pub enum TokenKind {
     /// ":"
     Colon,
 
+    /// "::"
+    DoubleColon,
+
     /// "/"
     Slash,
 
