@@ -56,6 +56,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
         map.insert("true",TokenKind::True);
         map.insert("let",TokenKind::Let);
         map.insert("as",TokenKind::As);
+        map.insert("mod",TokenKind::Mod);
         map.insert("const",TokenKind::Const);
         map.insert("while",TokenKind::While);
         map.insert("break",TokenKind::Break);
@@ -195,7 +196,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
                     self.add_token(TokenKind::VerticalPipe)
                 }
             },
-            '%' => self.add_token(TokenKind::Mod),
+            '%' => self.add_token(TokenKind::Modulo),
             '"' => self.string(),
             ' ' | '\n' | '\r' | '\t' => None , // Ignore whitespace.
             c =>

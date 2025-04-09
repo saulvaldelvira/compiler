@@ -68,7 +68,7 @@ impl TryFrom<TokenKind> for BinaryExprOp {
             TokenKind::LessEqual => Self::Le,
             TokenKind::And => Self::And,
             TokenKind::Or => Self::Or,
-            TokenKind::Mod => Self::Mod,
+            TokenKind::Modulo => Self::Mod,
             TokenKind::Equal => Self::Assign,
             _ => return Err(())
         })

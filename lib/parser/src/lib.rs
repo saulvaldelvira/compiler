@@ -70,20 +70,62 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     }
 
     /* ===== DECLARATION ===== */
-    fn declaration(&mut self) -> Result<Declaration> {
+
+    fn try_declaration(&mut self) -> Option<Result<Declaration>> {
         if let Some(vdecl) = self.try_var_decl() {
-            vdecl
+            Some(vdecl)
         }
         else if let Some(func) = self.try_function() {
-            func
+            Some(func)
         }
         else if let Some(s) = self.try_struct() {
-            s
+            Some(s)
         }
-        else {
-            Err(ParseErrorKind::ExpectedNode("declaration"))
+        else if let Some(m) = self.try_module() {
+            Some(m)
+        } else {
+            None
         }
     }
+
+    fn declaration(&mut self) -> Result<Declaration> {
+        self.try_declaration().ok_or_else(|| {
+            ParseErrorKind::ExpectedNode("declaration")
+        })?
+    }
+
+    fn try_module(&mut self) -> Option<Result<Declaration>> {
+        if self.check(TokenKind::Mod) {
+            Some(self.module())
+        } else {
+            None
+        }
+    }
+
+    fn module(&mut self) -> Result<Declaration> {
+        let kw_mod = self.consume(TokenKind::Mod)?.span;
+        let name = self.consume_ident_spanned()?;
+
+        let open_brace = self.consume(TokenKind::LeftBrace)?.span;
+
+        let mut decls = Vec::new();
+
+        while let Some(decl) = self.try_declaration() {
+            decls.push(decl?);
+        }
+
+        let close_brace = self.consume(TokenKind::RightBrace)?.span;
+
+        let span = kw_mod.join(&close_brace);
+
+        let decls = Block { open_brace, val: decls.into(), close_brace };
+
+        Ok(Declaration {
+            kind: DeclarationKind::Module { kw_mod, name, decls },
+            span
+        })
+    }
+
     fn try_function(&mut self) -> Option<Result<Declaration>> {
         if self.match_type(TokenKind::Fn) {
             Some(self.function())
@@ -129,11 +171,11 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let fields = Block {
             val: fields.into_boxed_slice(),
-            open_bracket: lb,
-            close_bracket: end_span,
+            open_brace: lb,
+            close_brace: end_span,
         };
 
-        let span = kw_struct.join(&fields.close_bracket);
+        let span = kw_struct.join(&fields.close_brace);
 
         Ok(
             Declaration {
@@ -179,7 +221,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let body = self.block()?;
 
-        let span = kw_fn.join(&body.close_bracket);
+        let span = kw_fn.join(&body.close_brace);
 
         Ok(Declaration {
             kind: DeclarationKind::Function {
@@ -426,8 +468,8 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         let stmts = self.block_inner()?;
         let close = self.consume(TokenKind::RightBrace)?.span;
         Ok(Block {
-            open_bracket: open,
-            close_bracket: close,
+            open_brace: open,
+            close_brace: close,
             val: stmts.into_boxed_slice()
         })
     }
@@ -676,7 +718,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     }
     fn factor(&mut self) -> Result<Expression> {
         let mut left = self.cast()?;
-        while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Mod]){
+        while self.match_types(&[TokenKind::Slash,TokenKind::Star,TokenKind::Modulo]){
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind).map_err(|_| {
                 ParseErrorKind::InvalidBinaryOp(op.kind)

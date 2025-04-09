@@ -20,9 +20,9 @@ pub use session::Symbol;
 
 #[derive(Debug)]
 pub struct Block<T> {
-    pub open_bracket: Span,
+    pub open_brace: Span,
     pub val: Box<[T]>,
-    pub close_bracket: Span,
+    pub close_brace: Span,
 }
 
 #[derive(Debug)]

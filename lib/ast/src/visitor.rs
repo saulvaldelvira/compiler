@@ -76,7 +76,13 @@ where
                     v.visit_type(&f.ty);
                 }
                 V::Result::output()
-            }
+            },
+            DeclarationKind::Module { decls, .. } => {
+                for decl in &decls.val {
+                    v.visit_declaration(decl);
+                }
+                V::Result::output()
+            },
         }
 }
 
