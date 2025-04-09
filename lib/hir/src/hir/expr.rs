@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use session::Symbol;
 use span::Span;
 
@@ -52,6 +54,14 @@ impl<'hir> Path<'hir> {
     pub fn new(segments: Box<[PathSegment<'hir>]>) -> Self {
         debug_assert!(!segments.is_empty());
         Self { segments }
+    }
+
+    pub fn from_ident(ident: Ident) -> Self {
+        let segment = PathSegment {
+            ident,
+            def: NodeRef::pending()
+        };
+        Self { segments: Box::new([segment]) }
     }
 
     pub fn def(&self) -> &NodeRef<'hir, Definition<'hir>> {

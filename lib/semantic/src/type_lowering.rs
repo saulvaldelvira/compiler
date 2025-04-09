@@ -99,7 +99,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
             HTK::Struct(s) => {
-                let (name,fields) = s.def.expect_resolved().as_struct_def().expect("SHOULD BE STRUCT");
+                let (name,fields) = s.def().expect_resolved().as_struct_def().expect("SHOULD BE STRUCT");
                 let fields = self.lower_fields(fields);
                 TypeKind::Struct {
                     name,

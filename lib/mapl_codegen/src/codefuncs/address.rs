@@ -14,7 +14,7 @@ impl Address for Expression<'_> {
         use hir::expr::ExpressionKind;
         match &self.kind {
             ExpressionKind::Variable(path) => {
-                path.def.expect_resolved().address(cg, sem)
+                path.def().expect_resolved().address(cg, sem)
             },
             ExpressionKind::ArrayAccess { arr, index } => {
                 let addr = arr.address(cg, sem);

@@ -1,5 +1,4 @@
 use core::fmt;
-use std::any::Any;
 use std::hash::Hash;
 
 use crate::hir_id::HirNode;

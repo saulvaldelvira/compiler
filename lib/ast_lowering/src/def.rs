@@ -1,6 +1,6 @@
 use ast::declaration::VariableConstness;
 use hir::def::DefinitionKind;
-use hir::{Constness, Ident};
+use hir::{Constness, Ident, Path};
 
 use crate::ident;
 
@@ -79,7 +79,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             },
             DK::Struct { name, .. } => {
                 let ty: &'hir hir::Type<'hir> = {
-                    let tk = hir::types::TypeKind::Struct(self.lower_path(name));
+                    let tk = hir::types::TypeKind::Struct(Path::from_ident(ident(name)));
                     self.sess.alloc(hir::Type::new(tk))
                 };
                 (ident(name), Some(ty))

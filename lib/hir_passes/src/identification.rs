@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use error_manager::ErrorManager;
+use hir::expr::PathSegment;
 use hir::visitor::{walk_function_definition, Visitor};
 use hir::HirId;
 use session::Symbol;
@@ -52,6 +53,35 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         ident.st.enter_scope();
         ident
     }
+
+    fn visit_path_segment(&mut self, path: &'hir PathSegment<'hir>) {
+        let found_def = self.st.get(&path.ident.sym).map(|id| {
+            self.hir_sess
+                .get_node(&id)
+                .expect_definition()
+        });
+        match found_def {
+            Some(def) => path.def.resolve(def),
+            None => {
+                self.em.emit_error(error_manager::StringError {
+                    msg: format!("Undefined symbol '{:#?}'", path.ident.sym).into(),
+                    span: path.ident.span,
+                });
+            }
+        }
+    }
+
+    fn resolve_relative_segment(&mut self, left: &'hir PathSegment<'hir>, _right: &'hir PathSegment<'hir>) {
+        use hir::def::DefinitionKind;
+
+        let Some(def) = left.def.get() else { return };
+
+        match def.kind {
+            DefinitionKind::Variable { .. } => todo!(),
+            DefinitionKind::Function { .. } => todo!(),
+            DefinitionKind::Struct { .. } => todo!(),
+        }
+    }
 }
 
 impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
@@ -74,19 +104,11 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn visit_path(&mut self, path: &'hir hir::Path<'hir>) -> Self::Result {
-        let found_def = self.st.get(&path.ident.sym).map(|id| {
-            self.hir_sess
-                .get_node(&id)
-                .expect_definition()
-        });
-        match found_def {
-            Some(def) => path.def.resolve(def),
-            None => {
-                self.em.emit_error(error_manager::StringError {
-                    msg: format!("Undefined symbol '{:#?}'", path.ident.sym).into(),
-                    span: path.ident.span,
-                });
-            }
+        self.visit_path_segment(&path.segments[0]);
+        let it = path.segments.iter().skip(1);
+        let it = path.segments.iter().zip(it);
+        for (l, r) in it {
+            self.resolve_relative_segment(l, r);
         }
     }
 

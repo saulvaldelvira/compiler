@@ -182,8 +182,8 @@ impl HirPrinter<'_, '_> {
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
-                let name = Node::text(path.ident.sym.to_string());
-                let def = Node::Id(path.def.expect_resolved().id);
+                let name = Node::text(path.segments.first().unwrap().ident.sym.to_string());
+                let def = Node::Id(path.def().expect_resolved().id);
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));
             }

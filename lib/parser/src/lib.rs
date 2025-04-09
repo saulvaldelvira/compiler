@@ -327,11 +327,12 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         else if self.match_type(TokenKind::Bool) {
             ty!(TypeKind::Bool)
         }
-        else if self.match_type(TokenKind::Identifier) {
-            let name = self.previous_lexem_spanned()?;
-            let span = name.span;
+        else if self.check(TokenKind::Identifier) {
+            let p = self.path()?;
+            let span = p.span;
+            let ExpressionKind::Path(path) = p.kind else { unreachable!() };
             Ok(Type {
-                kind: TypeKind::Struct(name),
+                kind: TypeKind::Struct(path),
                 span
             })
         }

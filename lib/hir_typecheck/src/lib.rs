@@ -60,7 +60,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 
     fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path<'hir>) {
-        if let Some(def) = path.def.get() {
+        if let Some(def) = path.def().get() {
             let ty = def.ty.unwrap_or_else(|| {
                 todo!("Infer types")
             });
