@@ -47,11 +47,6 @@ pub enum DeclarationKind {
         name: Spanned<Symbol>,
         fields: Block<Field>,
     },
-    Module {
-        kw_mod: Span,
-        name: Spanned<Symbol>,
-        decls: Block<Declaration>,
-    },
 }
 
 pub struct Declaration {

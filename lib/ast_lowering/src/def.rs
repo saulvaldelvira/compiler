@@ -52,7 +52,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         self.sess.alloc(self.lower_definition_owned(def))
     }
 
-    fn lower_definition_owned(&mut self, def: &ast::Declaration) -> hir::Definition<'hir> {
+    pub (super) fn lower_definition_owned(&mut self, def: &ast::Declaration) -> hir::Definition<'hir> {
         use ast::declaration::DeclarationKind as DK;
         use hir::def::DefinitionKind as HDK;
 
@@ -79,14 +79,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             },
             DK::Struct { name, .. } => {
                 let ty: &'hir hir::Type<'hir> = {
-                    let tk = hir::types::TypeKind::Struct(Path::from_ident(ident(name)));
+                    let tk = hir::types::TypeKind::Path(Path::from_ident(ident(name)));
                     self.sess.alloc(hir::Type::new(tk))
                 };
                 (ident(name), Some(ty))
             },
-            DK::Module { name, decls, .. } => {
-                todo!()
-            }
         };
 
         let name = self.lower_pathdef(name);
@@ -110,10 +107,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 HDK::Struct { fields }
 
             },
-            DK::Module { name, decls, .. } => {
-                todo!()
-            }
-
         };
         hir::Definition::new(kind, name, ty, def.span)
     }

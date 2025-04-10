@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::node_map::HirNodeKind;
 
-
 #[derive(Clone,Copy,Hash,Eq,PartialEq)]
 pub struct HirId(pub(crate) usize);
 

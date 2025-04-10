@@ -8,7 +8,7 @@ pub mod stmt;
 use std::fmt::Debug;
 
 pub use expr::Expression;
-use span::Span;
+use span::{Span, Spanned};
 pub use stmt::Statement;
 pub mod types;
 pub mod declaration;
@@ -39,7 +39,14 @@ impl<T> Parenthesized<T> {
 }
 
 #[derive(Debug)]
-pub struct Program {
-    pub decls: Box<[Declaration]>,
+pub enum ModuleItem {
+    Decl(Declaration),
+    Module(Module),
 }
 
+#[derive(Debug)]
+pub struct Module {
+    pub elems: Box<[ModuleItem]>,
+    pub name: Spanned<Symbol>,
+    pub span: Span,
+}

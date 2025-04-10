@@ -2,7 +2,7 @@ use std::ops::ControlFlow;
 
 use crate::def::{Field, PathDef};
 use crate::expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp};
-use crate::{hir, stmt, Constness, Definition, Expression, Ident, Path, Program, Statement, Type};
+use crate::{hir, stmt, Constness, Definition, Expression, Ident, Module, Path, Statement, Type};
 
 pub trait Visitor<'hir> {
     type Result: VisitorResult;
@@ -10,8 +10,8 @@ pub trait Visitor<'hir> {
 
     fn get_ctx(&mut self) -> &mut Self::Ctx;
 
-    fn visit_program(&mut self, prog: &'hir Program<'hir>) -> Self::Result {
-        walk_program(self, prog)
+    fn visit_module(&mut self, prog: &'hir Module<'hir>) -> Self::Result {
+        walk_module(self, prog)
     }
 
     fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
@@ -246,11 +246,16 @@ macro_rules! walk_opt {
     };
 }
 
-pub fn walk_program<'hir, V>(v: &mut V, prog: &'hir Program<'hir>) -> V::Result
+pub fn walk_module<'hir, V>(v: &mut V, prog: &'hir Module<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {
-    walk_iter!(v, prog.defs, visit_definition);
+    for item in prog.items {
+        match item {
+            hir::ModuleItem::Def(def) => v.visit_definition(def),
+            hir::ModuleItem::Module(m) => v.visit_module(m),
+        };
+    }
     V::Result::output()
 }
 
@@ -260,10 +265,10 @@ where
 {
     use hir::types::TypeKind;
     match &ty.kind {
-        TypeKind::Struct(path) => { v.visit_path(path); },
+        TypeKind::Path(path) => { v.visit_path(path); },
         TypeKind::Function { params, ret_ty } => {
             walk_iter!(v, params, visit_type);
-            v.visit_type(&ret_ty);
+            v.visit_type(ret_ty);
         },
         _ => {}
     }

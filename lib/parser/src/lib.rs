@@ -8,8 +8,8 @@ use ast::declaration::{VariableConstness, DeclarationKind, Field, Param};
 use ast::expr::{BinaryExprOp, ExpressionKind, UnaryExprOp};
 use ast::stmt::StatementKind;
 use ast::types::{Type, TypeKind};
-use ast::{Block, Declaration, Expression, Parenthesized};
-use ast::{expr::LitValue, Statement, Program};
+use ast::{Block, Declaration, Expression, Module, ModuleItem, Parenthesized};
+use ast::{expr::LitValue, Statement};
 use error::ParseErrorKind;
 use error_manager::ErrorManager;
 use lexer::TokenStream;
@@ -23,7 +23,7 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseErrorKind>;
 
-pub fn parse<'src>(stream: TokenStream<'_,'src>, src: &'src str, em: &mut ErrorManager) -> Option<Program> {
+pub fn parse<'src>(stream: TokenStream<'_,'src>, src: &'src str, em: &mut ErrorManager) -> Option<Module> {
     Parser {
         stream,
         src,
@@ -38,10 +38,10 @@ struct Parser<'sess, 'src> {
 }
 
 impl<'sess, 'src> Parser<'sess, 'src> {
-    fn parse(mut self) -> Option<Program> {
+    fn parse(mut self) -> Option<Module> {
         let mut decls = Vec::new();
         while !self.is_finished() {
-            match self.declaration() {
+            match self.module_item() {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e);
@@ -54,7 +54,20 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         if self.em.has_errors() {
             None
         } else {
-            Some( Program { decls: decls.into_boxed_slice() } )
+
+            let span = Span::new();
+            let name = with_session_interner(|i| i.get_or_intern("ROOT"));
+            let name = Spanned {
+                span,
+                val: name
+            };
+
+            let m = Module {
+                elems: decls.into_boxed_slice(),
+                name,
+                span,
+            };
+            Some(m)
         }
     }
 
@@ -81,9 +94,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         else if let Some(s) = self.try_struct() {
             Some(s)
         }
-        else if let Some(m) = self.try_module() {
-            Some(m)
-        } else {
+        else {
             None
         }
     }
@@ -94,7 +105,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })?
     }
 
-    fn try_module(&mut self) -> Option<Result<Declaration>> {
+    fn try_module(&mut self) -> Option<Result<Module>> {
         if self.check(TokenKind::Mod) {
             Some(self.module())
         } else {
@@ -102,7 +113,22 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
     }
 
-    fn module(&mut self) -> Result<Declaration> {
+    fn try_module_item(&mut self) -> Option<Result<ModuleItem>> {
+        if let Some(mi) = self.try_module() {
+            Some(mi.map(|m| ModuleItem::Module(m)))
+        } else if let Some(decl) = self.try_declaration() {
+            Some(decl.map(|d| ModuleItem::Decl(d)))
+        } else {
+            None
+        }
+    }
+
+    fn module_item(&mut self) -> Result<ModuleItem> {
+        self.try_module_item().unwrap()
+    }
+
+
+    fn module(&mut self) -> Result<Module> {
         let kw_mod = self.consume(TokenKind::Mod)?.span;
         let name = self.consume_ident_spanned()?;
 
@@ -110,7 +136,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let mut decls = Vec::new();
 
-        while let Some(decl) = self.try_declaration() {
+        while let Some(decl) = self.try_module_item() {
             decls.push(decl?);
         }
 
@@ -120,9 +146,10 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let decls = Block { open_brace, val: decls.into(), close_brace };
 
-        Ok(Declaration {
-            kind: DeclarationKind::Module { kw_mod, name, decls },
-            span
+        Ok(Module {
+            elems: decls.val,
+            name,
+            span,
         })
     }
 
@@ -332,7 +359,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             let span = p.span;
             let ExpressionKind::Path(path) = p.kind else { unreachable!() };
             Ok(Type {
-                kind: TypeKind::Struct(path),
+                kind: TypeKind::Path(path),
                 span
             })
         }

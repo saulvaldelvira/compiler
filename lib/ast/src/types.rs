@@ -16,7 +16,7 @@ pub enum TypeKind {
         length: usize,
         close_brace: Span
     },
-    Struct(Path),
+    Path(Path),
     Ref { ampersand: Span, of: Box<Type> },
     Empty(Span),
 }

@@ -24,6 +24,8 @@
 
 use std::collections::HashMap;
 
+use hir::visitor::walk_if;
+
 use crate::{PrimitiveType, Ty, TypeId, TypeKind};
 
 pub struct TypeLowering<'low, 'ty, 'hir> {
@@ -98,19 +100,19 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             HTK::Primitive(primitive_type) => TypeKind::Primitive(PrimitiveType::from(primitive_type)),
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
-            HTK::Struct(s) => {
-                let (name,fields) = s.def().expect_resolved().as_struct_def().expect("SHOULD BE STRUCT");
+            HTK::Struct { name, fields } => {
                 let fields = self.lower_fields(fields);
                 TypeKind::Struct {
-                    name,
+                    name: *name,
                     fields
                 }
             },
             HTK::Function { params, ret_ty } => {
                 let params = self.lower_hir_types(params);
-                let ret_ty = self.lower_hir_type(&ret_ty);
+                let ret_ty = self.lower_hir_type(ret_ty);
                 TypeKind::Function { params, ret_ty }
-            }
+            },
+            HTK::Path(_) => unreachable!(),
         };
 
         let ty = Ty {

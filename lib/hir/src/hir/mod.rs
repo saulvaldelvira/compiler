@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use crate::hir_id::{HirId, HirNode};
+use crate::impl_hir_node;
 use crate::node_map::HirNodeKind;
 
 #[derive(Debug,Clone,Copy)]
@@ -36,30 +37,62 @@ pub mod def;
 mod node_ref;
 pub use node_ref::{NodeRef, NodeRefKind};
 
-#[derive(Debug)]
-pub struct Program<'hir> {
+#[derive(Debug,Clone,Copy)]
+pub struct Module<'hir> {
     pub id: HirId,
-    pub defs: &'hir [Definition<'hir>],
+    pub items: &'hir [ModuleItem<'hir>],
 }
 
-impl<'hir> Program<'hir> {
-    pub const fn new(defs: &'hir [Definition<'hir>]) -> Self {
-        Self {
-            defs,
-            id: HirId::DUMMY,
-        }
+impl<'hir> Module<'hir> {
+    pub fn new(items: &'hir [ModuleItem<'hir>]) -> Self {
+        Self { items, id: HirId::DUMMY }
     }
 }
 
-impl<'hir> HirNode<'hir> for Program<'hir> {
-    fn get_hir_id(&self) -> HirId { self.id }
+impl_hir_node!(Module<'hir>, Module);
+
+#[derive(Debug,Clone,Copy)]
+pub enum ModuleItem<'hir> {
+    Def(Definition<'hir>),
+    Module(Module<'hir>),
+}
+
+impl<'hir> HirNode<'hir> for ModuleItem<'hir> {
+    fn get_hir_id(&self) -> HirId {
+        match self {
+            ModuleItem::Def(d) => d.get_hir_id(),
+            ModuleItem::Module(m) => m.get_hir_id(),
+        }
+    }
 
     fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> {
-        HirNodeKind::Prog(self)
+        match self {
+            ModuleItem::Def(d) => HirNodeKind::Def(d),
+            ModuleItem::Module(m) => HirNodeKind::Module(m),
+        }
     }
 
     fn set_hir_id(&mut self, id: HirId) {
-        self.id = id;
+        match self {
+            ModuleItem::Def(d) => d.set_hir_id(id),
+            ModuleItem::Module(m) => m.set_hir_id(id),
+        }
     }
 
 }
+
+/* #[derive(Debug)] */
+/* pub struct Program<'hir> { */
+/*     pub id: HirId, */
+/*     pub defs: &'hir [Definition<'hir>], */
+/* } */
+
+/* impl<'hir> Program<'hir> { */
+/*     pub const fn new(defs: &'hir [Definition<'hir>]) -> Self { */
+/*         Self { */
+/*             defs, */
+/*             id: HirId::DUMMY, */
+/*         } */
+/*     } */
+/* } */
+
