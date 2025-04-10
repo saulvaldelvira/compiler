@@ -6,13 +6,6 @@ use span::{Span, Spanned};
 use crate::{Block, Expression, Statement};
 use crate::types::Type;
 
-#[derive(Debug,Clone,PartialEq)]
-pub enum MemoryAddress {
-    Absolute(u16),
-    Relative(i16),
-    FieldOffset(u16),
-}
-
 #[derive(Debug)]
 pub enum VariableConstness {
     Const(Span),
