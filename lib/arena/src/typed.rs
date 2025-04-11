@@ -1,11 +1,15 @@
-use std::cell::RefCell;
-use std::cmp;
+use std::cell::{Cell, RefCell};
+use std::ptr::slice_from_raw_parts_mut;
+use std::{cmp, ptr};
 use std::marker::PhantomData;
 use crate::chunk::ArenaChunk;
 
 pub struct TypedArena<'ctx, T> {
     elems: RefCell<Vec<ArenaChunk<T>>>,
     _marker: PhantomData<&'ctx T>,
+
+    start: Cell<*mut T>,
+    end: Cell<*mut T>,
 }
 
 impl<'ctx, T> TypedArena<'ctx, T> {
@@ -14,7 +18,10 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     }
 
     fn grow(&'ctx self, amount: usize) {
-        self.elems.borrow_mut().push(ArenaChunk::new(amount));
+        let mut chunk = ArenaChunk::new(amount);
+        self.start.set(chunk.start());
+        self.end.set(chunk.end());
+        self.elems.borrow_mut().push(chunk);
     }
 
     /// Allocs an slice of elements from the given [Iterator]
@@ -26,14 +33,24 @@ impl<'ctx, T> TypedArena<'ctx, T> {
         I: IntoIterator<Item = T>,
         <I as IntoIterator>::IntoIter: ExactSizeIterator
     {
-        let values = values.into_iter().collect::<Vec<_>>();
+        let mut values = values.into_iter().collect::<Vec<_>>();
+        let len = values.len();
 
-        if self.must_grow(values.len()) {
-            self.grow(cmp::max(32, values.len()));
+        if self.must_grow(len) {
+            self.grow(cmp::max(32, len));
         }
-        let mut elems = self.elems.borrow_mut();
-        let chunk = elems.last_mut().unwrap();
-        chunk.alloc_slice(values)
+
+        self.elems.borrow_mut().last_mut().unwrap().add_len(len);
+
+        let ptr = self.start.get();
+        unsafe {
+            values.as_ptr().copy_to_nonoverlapping(ptr, len);
+            values.set_len(0);
+
+            self.start.set(ptr.add(len));
+
+            &mut *slice_from_raw_parts_mut(ptr, len)
+        }
     }
 
     /// Allocs an element, and returns a reference to it
@@ -42,9 +59,15 @@ impl<'ctx, T> TypedArena<'ctx, T> {
         if self.must_grow(1) {
             self.grow(32);
         }
-        let mut elems = self.elems.borrow_mut();
-        let chunk = elems.last_mut().unwrap();
-        chunk.alloc(value)
+
+        self.elems.borrow_mut().last_mut().unwrap().add_len(1);
+
+        let ptr = self.start.get();
+        unsafe {
+            ptr::write(ptr, value);
+            self.start.set(ptr.add(1));
+            &mut *ptr
+        }
     }
 }
 
@@ -53,6 +76,8 @@ impl<T> Default for TypedArena<'_, T> {
         Self {
             elems: Default::default(),
             _marker: Default::default(),
+            start: Cell::new(ptr::null_mut()),
+            end: Cell::new(ptr::null_mut()),
         }
     }
 }

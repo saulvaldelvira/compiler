@@ -8,9 +8,10 @@ use crate::chunk::ArenaChunk;
 
 pub struct DroplessArena<'ctx> {
     elems: RefCell<Vec<ArenaChunk<u8>>>,
+    _marker: PhantomData<&'ctx u8>,
+
     start: Cell<*mut u8>,
     end: Cell<*mut u8>,
-    _marker: PhantomData<&'ctx u8>,
 }
 
 const ALIGNMENT: usize = mem::size_of::<usize>();
@@ -84,6 +85,7 @@ impl<'ctx> DroplessArena<'ctx> {
                  * so next should always return Some */
                 unreachable!()
             };
+
             unsafe { ptr.add(i).write(elem) };
         }
         unsafe { slice::from_raw_parts_mut(ptr, len) }
@@ -122,12 +124,13 @@ impl<'ctx> DroplessArena<'ctx> {
 
         new_cap = cmp::max(additional, new_cap);
 
-        let chunk = ArenaChunk::new(align_up(new_cap, PAGE));
+        let mut chunk = ArenaChunk::new(align_up(new_cap, PAGE));
+
         self.start.set(chunk.start());
 
         let end = align_down(chunk.end().addr(), ALIGNMENT);
 
-        debug_assert!(chunk.start().addr() <= end);
+        debug_assert!(self.start.get().addr() <= end);
 
         self.end.set(chunk.end().with_addr(end));
 

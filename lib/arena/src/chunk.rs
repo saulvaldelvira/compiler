@@ -21,40 +21,25 @@ impl<T> ArenaChunk<T> {
         self.elements.len()
     }
 
-    pub fn start(&self) -> *mut T {
+    #[inline(always)]
+    pub fn start(&mut self) -> *mut T {
         self.elements.as_ptr() as *mut T
     }
 
-    pub fn end(&self) -> *mut T {
-        assert!(size_of::<T>() != 0);
-        unsafe { self.start().add(self.elements.len()) }
+    #[inline(always)]
+    pub fn end(&mut self) -> *mut T {
+        unsafe {
+            if size_of::<T>() == 0 {
+                core::ptr::without_provenance_mut(!0)
+            } else {
+                self.start().add(self.elements.len())
+            }
+        }
+
     }
 
-    pub fn alloc<'ctx>(&mut self, value: T) -> &'ctx mut T {
-        unsafe {
-            let ptr = self.start().add(self.len);
-            ptr.write(value);
-            self.len += 1;
-            &mut *ptr
-        }
-    }
-
-    pub fn alloc_slice<'ctx>(&mut self, mut values: Vec<T>) -> &'ctx mut [T] {
-        unsafe {
-            let ptr = self.start().add(self.len);
-
-            let start = ptr.add(self.len);
-            let len = values.len();
-            if values.is_empty() { return &mut [] }
-
-            values.as_ptr().copy_to_nonoverlapping(start, len);
-            values.set_len(0);
-
-            self.len += len;
-
-            let slice = slice_from_raw_parts_mut(start, len);
-            &mut *slice
-        }
+    pub fn add_len(&mut self, len: usize) {
+        self.len += len;
     }
 
     pub fn can_alloc(&self, ammount: usize) -> bool {
