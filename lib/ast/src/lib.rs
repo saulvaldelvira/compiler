@@ -8,7 +8,7 @@ pub mod stmt;
 use std::fmt::Debug;
 
 pub use expr::Expression;
-use span::Span;
+use span::{Span, Spanned};
 pub use stmt::Statement;
 pub mod types;
 pub mod declaration;
@@ -20,9 +20,9 @@ pub use session::Symbol;
 
 #[derive(Debug)]
 pub struct Block<T> {
-    pub open_bracket: Span,
+    pub open_brace: Span,
     pub val: Box<[T]>,
-    pub close_bracket: Span,
+    pub close_brace: Span,
 }
 
 #[derive(Debug)]
@@ -39,6 +39,8 @@ impl<T> Parenthesized<T> {
 }
 
 #[derive(Debug)]
-pub struct Program {
-    pub decls: Box<[Declaration]>,
+pub struct Module {
+    pub elems: Box<[Declaration]>,
+    pub name: Spanned<Symbol>,
+    pub span: Span,
 }

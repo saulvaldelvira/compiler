@@ -28,7 +28,7 @@ impl Define for Definition<'_> {
                     return MaplInstruction::Compose(Box::new(ins))
                 }
             }
-            DefinitionKind::Function { params, body } => {
+            DefinitionKind::Function { params, body, .. } => {
                 return define_func(self, params, body, cg, sem)
             },
             DefinitionKind::Struct { fields } => {
@@ -38,6 +38,12 @@ impl Define for Definition<'_> {
                     let ty = sem.type_of(&f.id).unwrap();
                     acc += ty.size_of() as i32;
                 }
+            },
+            DefinitionKind::Module(m) => {
+                cg.enter_module(m.name.to_string());
+                let defs = m.defs.iter().map(|d| d.define(cg, sem)).collect();
+                cg.exit_module();
+                return MaplInstruction::Compose(defs)
             }
         }
         MaplInstruction::Empty
@@ -65,7 +71,10 @@ fn define_func<'hir>(
 
     let locals = body.iter().fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt, sem));
     let mut vec = Vec::new();
-    vec.push(MaplInstruction::DefineLabel(def.name.ident.sym.to_string()));
+
+    cg.mangle_symbol(def.id, &def.name.ident.sym.to_string());
+    let name = cg.get_mangled_symbol(&def.id).unwrap();
+    vec.push(MaplInstruction::DefineLabel(name));
     vec.push(MaplInstruction::Enter(locals as usize));
 
     cg.enter_function(FunctionCtx{

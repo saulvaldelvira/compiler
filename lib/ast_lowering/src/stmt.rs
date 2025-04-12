@@ -9,7 +9,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     pub(super) fn lower_statements(&mut self, stmts: &[ast::Statement]) -> &'hir [hir::Statement<'hir>] {
         self.sess.alloc_iter(
-            stmts.iter().map(|stmt| self.lower_statement_owned(&stmt))
+            stmts.iter().map(|stmt| self.lower_statement_owned(stmt))
         )
     }
 

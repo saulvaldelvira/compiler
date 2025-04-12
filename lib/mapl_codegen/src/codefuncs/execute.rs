@@ -29,6 +29,7 @@ impl Execute for Definition<'_> {
                     MaplInstruction::Empty
                 }
             }
+            DefinitionKind::Module(_) |
             DefinitionKind::Function { .. } |
             DefinitionKind::Struct { .. } => unreachable!("We can only execute variable definitions"),
         }
@@ -41,12 +42,18 @@ impl Execute for Statement<'_> {
         let md = self.metadata(cg, sem);
         let ins = match self.kind {
             StatementKind::Expr(expression) => {
+                let expr = expression.eval(cg, sem);
                 let ty = sem.type_of(&expression.id).unwrap();
-                let ty = MaplType::from(ty);
-                MaplInstruction::Compose(Box::new([
-                    expression.eval(cg, sem),
-                    MaplInstruction::Pop(ty)
-                ]))
+
+                if ty.is_empty_type() {
+                    expr
+                } else {
+                    let ty = MaplType::from(ty);
+                    MaplInstruction::Compose(Box::new([
+                            expr,
+                            MaplInstruction::Pop(ty)
+                    ]))
+                }
             }
             StatementKind::Block(statements) => {
                 let block = statements.iter().map(|stmt| stmt.execute(cg, sem)).collect();

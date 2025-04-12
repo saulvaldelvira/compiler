@@ -20,6 +20,8 @@ pub struct CodeGenerator<'cg> {
     global_offset: usize,
     labels: usize,
     source: &'cg str,
+    mangle_prefix: Vec<String>,
+    mangles: HashMap<HirId,String>,
 }
 
 impl<'cg> CodeGenerator<'cg> {
@@ -30,6 +32,8 @@ impl<'cg> CodeGenerator<'cg> {
             functions: Vec::new(),
             global_offset: 0,
             source,
+            mangle_prefix: vec![],
+            mangles: HashMap::new(),
         }
     }
 
@@ -51,6 +55,28 @@ impl<'cg> CodeGenerator<'cg> {
         let addr = MemoryAddress::Absolute(self.global_offset as u16);
         self.global_offset += size;
         addr
+    }
+
+    pub fn mangle_symbol(&mut self, id: HirId, sym: &str) {
+        let mut name = String::new();
+        for prefix in &self.mangle_prefix {
+            name.push_str(prefix);
+            name.push('_');
+        }
+        name.push_str(sym);
+        self.mangles.insert(id, name);
+    }
+
+    pub fn get_mangled_symbol(&self, id: &HirId) -> Option<String> {
+        self.mangles.get(id).cloned()
+    }
+
+    pub fn enter_module(&mut self, name: String) {
+        self.mangle_prefix.push(name);
+    }
+
+    pub fn exit_module(&mut self) {
+        self.mangle_prefix.pop();
     }
 
     pub fn set_address(&mut self, hid: HirId, addr: MemoryAddress) {

@@ -1,5 +1,7 @@
 use ast::Symbol;
 use hir::expr::{ArithmeticOp, CmpOp, UnaryOp};
+use hir::path::PathSegment;
+use hir::NodeRef;
 use span::Spanned;
 use hir::expr::{ExpressionKind as HExprKind, LogicalOp};
 
@@ -7,8 +9,19 @@ use crate::{ident, AstLowering};
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
-    pub (super) fn lower_path(&self, spanned: &Spanned<Symbol>) -> hir::expr::Path<'hir> {
-        hir::expr::Path::new(ident(spanned))
+    pub (super) fn lower_path(&self, spanned: &[Spanned<Symbol>]) -> hir::Path<'hir> {
+        let mut segments = vec![];
+        for sp in spanned {
+            segments.push(self.lower_path_segment(sp));
+        }
+        hir::Path::new(segments.into_boxed_slice())
+    }
+
+    fn lower_path_segment(&self, seg: &Spanned<Symbol>) -> PathSegment<'hir> {
+        PathSegment {
+            ident: ident(seg),
+            def: NodeRef::pending(),
+        }
     }
 
     pub (super) fn lower_expressions(&mut self, expr: &[ast::Expression]) -> &'hir [hir::Expression<'hir>] {

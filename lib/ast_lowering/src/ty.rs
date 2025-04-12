@@ -8,14 +8,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         self.sess.alloc(self.lower_type_owned(ty))
     }
 
-    pub (super) fn lower_types<'a, I>(&mut self, ty: I) -> &'hir [hir::Type<'hir>]
-    where
-        I: IntoIterator<Item = &'a ast::types::Type>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator,
-    {
-        self.sess.alloc_iter(ty.into_iter().map(|t| self.lower_type_owned(t)))
-    }
-
     pub (super) fn lower_type_owned(&mut self, ty: &ast::types::Type) -> hir::Type<'hir> {
         use ast::types::TypeKind;
         use hir::types::TypeKind as HTK;
@@ -29,8 +21,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let ty = self.lower_type(ty);
                 HTK::Array(ty, *length)
             },
-            TypeKind::Struct(spanned) => {
-                HTK::Struct(self.lower_path(spanned))
+            TypeKind::Path(spanned) => {
+                HTK::Path(self.lower_path(spanned))
             },
             TypeKind::Ref { of, .. } => HTK::Ref(self.lower_type(of)),
         };

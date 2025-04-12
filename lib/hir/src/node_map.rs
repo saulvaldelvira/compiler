@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use crate::def::{Field, PathDef};
-use crate::{Definition, Expression, HirId, Program, Statement, Type};
+use crate::def::Field;
+use crate::PathDef;
+use crate::{Definition, Expression, HirId, Module, Statement, Type};
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub enum HirNodeKind<'hir> {
     Expr(&'hir Expression<'hir>),
     Def(&'hir Definition<'hir>),
@@ -11,7 +12,7 @@ pub enum HirNodeKind<'hir> {
     Stmt(&'hir Statement<'hir>),
     Field(&'hir Field<'hir>),
     Ty(&'hir Type<'hir>),
-    Prog(&'hir Program<'hir>),
+    Module(&'hir Module<'hir>),
 }
 
 impl<'hir> HirNodeKind<'hir> {

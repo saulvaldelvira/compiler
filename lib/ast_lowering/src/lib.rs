@@ -12,9 +12,9 @@ use ast::Symbol;
 use hir::Ident;
 use span::Spanned;
 
-pub fn lower(sess: &hir::Session<'_>, prog: &ast::Program) {
-    let lowering = AstLowering::new(sess);
-    let p = lowering.lower(prog);
+pub fn lower(sess: &hir::Session<'_>, prog: &ast::Module) {
+    let mut lowering = AstLowering::new(sess);
+    let p = lowering.lower_module(prog);
     sess.set_root(p);
 }
 
@@ -30,10 +30,21 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         }
     }
 
-    fn lower(mut self, prog: &ast::Program) -> &'hir hir::Program<'hir> {
-        let defs = self.lower_definitions(&prog.decls);
-        let prog = hir::Program::new(defs);
-        self.sess.alloc(prog)
+    fn lower_module(&mut self, m: &ast::Module) -> &'hir hir::Module<'hir> {
+        let m = self.lower_module_owned(m);
+        self.sess.alloc(m)
+    }
+
+    fn lower_module_owned(&mut self, m: &ast::Module) -> hir::Module<'hir> {
+        let items = self.lower_definitions(&m.elems);
+        let name = m.name.val;
+        hir::Module::new(name, items, m.span)
+    }
+
+    fn lower_definitions(&mut self, mi: &[ast::Declaration]) -> &'hir [hir::Definition<'hir>] {
+        self.sess.alloc_iter(
+            mi.iter().map(|mi| self.lower_definition_owned(mi))
+        )
     }
 
 }

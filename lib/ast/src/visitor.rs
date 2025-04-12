@@ -4,7 +4,7 @@ use crate::declaration::DeclarationKind;
 use crate::expr::ExpressionKind;
 use crate::stmt::{Statement, StatementKind};
 use crate::types::{Type, TypeKind};
-use crate::{Declaration, Expression, Program};
+use crate::{Declaration, Expression, Module};
 
 pub trait Visitor<'ast> {
     type Result: VisitorResult;
@@ -24,8 +24,8 @@ pub trait Visitor<'ast> {
     fn visit_declaration(&mut self, decl: &'ast Declaration) -> Self::Result {
         walk_declaration(self, decl)
     }
-    fn visit_program(&mut self, prog: &'ast Program) -> Self::Result {
-        walk_program(self, prog)
+    fn visit_module(&mut self, prog: &'ast Module) -> Self::Result {
+        walk_module(self, prog)
     }
 }
 
@@ -40,7 +40,7 @@ where
             TypeKind::Float(_) |
             TypeKind::Bool(_) |
             TypeKind::Char(_) |
-            TypeKind::Struct(_) |
+            TypeKind::Path(_) |
             TypeKind::Empty(_) => V::Result::output()
         }
 }
@@ -76,7 +76,8 @@ where
                     v.visit_type(&f.ty);
                 }
                 V::Result::output()
-            }
+            },
+            DeclarationKind::Module(m) => v.visit_module(m),
         }
 }
 
@@ -186,11 +187,13 @@ where
 }
 
 
-pub fn walk_program<'ast, V>(v: &mut V, program: &'ast Program) -> V::Result
+pub fn walk_module<'ast, V>(v: &mut V, program: &'ast Module) -> V::Result
 where
     V: Visitor<'ast> + ?Sized
 {
-        program.decls.iter().for_each(|decl| { v.visit_declaration(decl); });
+        for item in &program.elems {
+            v.visit_declaration(item);
+        }
         V::Result::output()
 }
 

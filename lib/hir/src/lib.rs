@@ -20,12 +20,12 @@ mod _arena {
         expr : Expression<'ctx>,
         types: Type<'ctx>,
         fields: Field<'ctx>,
-        stmts: Statement<'ctx>,
-        prog: Program<'ctx>
+        modules: Module<'ctx>,
     );
 }
 
 pub use _arena::ArenaAllocable;
+pub use ::arena::markers;
 
 /// Hir session
 ///
@@ -33,17 +33,17 @@ pub use _arena::ArenaAllocable;
 /// It holds an arena with all the nodes of the tree, and
 /// a map to find nodes by their [HirId]
 pub struct Session<'hir> {
-    root: Cell<Option<&'hir Program<'hir>>>,
+    root: Cell<Option<&'hir Module<'hir>>>,
     node_map: RefCell<NodeMap<'hir>>,
     arena: _arena::Arena<'hir>,
 }
 
 impl<'hir> Session<'hir> {
-    pub fn set_root(&self, prog: &'hir Program<'hir>) {
+    pub fn set_root(&self, prog: &'hir Module<'hir>) {
         self.root.set(Some(prog));
     }
 
-    pub fn get_root_program(&self) -> &'hir Program<'hir> {
+    pub fn get_root_program(&self) -> &'hir Module<'hir> {
         self.root.get().unwrap()
     }
 

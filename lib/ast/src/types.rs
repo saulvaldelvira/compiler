@@ -1,6 +1,7 @@
 use std::fmt::Debug;
-use span::{Span, Spanned};
-use session::Symbol;
+use span::Span;
+
+use crate::expr::Path;
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum TypeKind {
@@ -15,7 +16,7 @@ pub enum TypeKind {
         length: usize,
         close_brace: Span
     },
-    Struct(Spanned<Symbol>),
+    Path(Path),
     Ref { ampersand: Span, of: Box<Type> },
     Empty(Span),
 }

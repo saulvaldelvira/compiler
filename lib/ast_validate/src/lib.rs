@@ -1,7 +1,7 @@
 use ast::declaration::DeclarationKind;
 use ast::expr::ExpressionKind;
 use ast::stmt::StatementKind;
-use ast::{visitor, Expression, Program, Visitor};
+use ast::{visitor, Expression, Module, Visitor};
 use error::{Warning, WarningKind};
 use error_manager::ErrorManager;
 use precedence::Precedence;
@@ -13,9 +13,9 @@ struct AstValidator<'v> {
     em: &'v mut ErrorManager,
 }
 
-pub fn validate_ast(prog: &Program, em: &mut ErrorManager) {
+pub fn validate_ast(prog: &Module, em: &mut ErrorManager) {
     let mut v = AstValidator { em };
-    v.visit_program(prog);
+    v.visit_module(prog);
 }
 
 impl AstValidator<'_> {

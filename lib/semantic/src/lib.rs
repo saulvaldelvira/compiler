@@ -18,8 +18,8 @@ pub mod rules;
 pub struct Semantic<'sem> {
     arena: Arena<'sem>,
     types: RefCell<HashMap<TypeId, &'sem Ty<'sem>>>,
-    hir_to_typeid_assoc: RefCell<HashMap<HirId, TypeId>>,
     kind_to_id_assoc: RefCell<HashMap<TypeKind<'sem>, TypeId>>,
+    hir_to_typeid_assoc: RefCell<HashMap<HirId, TypeId>>,
 }
 
 impl Default for Semantic<'_> {
@@ -76,5 +76,11 @@ impl<'sem> Semantic<'sem> {
         }).unwrap_or_else(|| {
             unreachable!("Primitive types should've been interned when creating the TypeLowerer instance.");
         })
+    }
+
+    pub fn intern_type(&self, ty: Ty<'sem>) -> &'sem Ty<'sem> {
+        let sem_ty: &'sem Ty<'sem> = self.arena.alloc(ty);
+        self.register_type(sem_ty);
+        sem_ty
     }
 }

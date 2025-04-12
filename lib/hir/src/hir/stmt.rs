@@ -6,7 +6,7 @@ use crate::{impl_hir_node, HirId};
 
 use super::{Definition, Expression};
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub enum StatementKind<'hir> {
     Expr(&'hir Expression<'hir>),
     Block(&'hir [Statement<'hir>]),
@@ -27,7 +27,7 @@ pub enum StatementKind<'hir> {
     Def(&'hir Definition<'hir>),
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub struct Statement<'hir> {
     pub kind: StatementKind<'hir>,
     pub span: Span,

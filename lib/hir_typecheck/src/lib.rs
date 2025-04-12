@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_definition, walk_deref, walk_expression, walk_field, walk_for, walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access, walk_ternary, walk_while, Visitor, VisitorCtx};
+use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_deref, walk_expression, walk_field, walk_for, walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access, walk_struct_definition, walk_ternary, walk_variable_definition, walk_while, Visitor, VisitorCtx};
 use hir::{Definition, Expression, Type};
 use semantic::errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind};
 use semantic::rules::expr::{SideEffect, ValidateCast, ValidateComparison, ValidateTernary};
@@ -8,7 +8,7 @@ use semantic::rules::{
     SemanticRule,
     expr::{ValidateArithmetic, ValidateArrayAccess, ValidateAssignment, ValidateCall, ValidateFieldAccess, ValidateLogical}
 };
-use semantic::{Semantic, TypeKind};
+use semantic::{Semantic, Ty, TypeKind};
 use semantic::TypeLowering;
 
 pub fn type_checking(
@@ -26,7 +26,7 @@ pub fn type_checking(
         ctx: TypeCheckingCtx::default(),
     };
 
-    tc.visit_program(sess.get_root_program());
+    tc.visit_module(sess.get_root_program());
 }
 
 struct TypeChecking<'tc, 'hir, 'sem> {
@@ -46,6 +46,19 @@ impl<'tc, 'hir, 'sem> TypeChecking<'tc, 'hir, 'sem> {
             });
         }
     }
+
+    fn lower_type(&mut self, ty: &'hir hir::Type<'hir>) -> &'sem Ty<'sem> {
+        use hir::types::TypeKind;
+
+        match &ty.kind {
+            TypeKind::Path(path) => {
+                let def = path.def().expect_resolved();
+                let ty = self.semantic.type_of(&def.id);
+                ty.unwrap()
+            },
+            _ => self.lowerer.lower_hir_type(ty)
+        }
+    }
 }
 
 #[derive(Default)]
@@ -60,12 +73,27 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 
     fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path<'hir>) {
-        if let Some(def) = path.def.get() {
-            let ty = def.ty.unwrap_or_else(|| {
-                todo!("Infer types")
-            });
-            let ty = self.lowerer.lower_hir_type(ty).id;
-            self.semantic.set_type_of(base.id, ty);
+        use hir::def::DefinitionKind;
+
+        let Some(def) = path.def().get() else {
+            unreachable!()
+        };
+
+        match def.kind {
+            DefinitionKind::Variable { .. } |
+            DefinitionKind::Function { .. } |
+            DefinitionKind::Struct { .. } => {
+                let ty = self.semantic.type_id_of(&def.id).unwrap_or_else(|| {
+                    todo!("Infer types")
+                });
+                self.semantic.set_type_of(base.id, ty);
+            }
+            DefinitionKind::Module(_) => {
+                self.em.emit_error(error_manager::StringError {
+                    msg: "Can't use a module as a variable".into(),
+                    span: base.span,
+                });
+            }
         }
     }
 
@@ -312,12 +340,32 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
        self.semantic.set_type_of(field.id, ty);
     }
 
-    fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
-        if let Some(ty) = def.ty {
-            let ty = self.lowerer.lower_hir_type(ty);
-            self.semantic.set_type_of(def.id, ty.id);
-        }
-        walk_definition(self, def);
+    fn visit_variable_definition(
+        &mut self,
+        def: &'hir Definition<'hir>,
+        constness: &hir::Constness,
+        ty: Option<&'hir Type<'hir>>,
+        init: &Option<&'hir Expression<'hir>>,
+    ) -> Self::Result {
+        walk_variable_definition(self, def, constness, ty, init);
+        let ty = ty.expect("TODO: Infer types");
+        let ty = self.lower_type(ty);
+        self.semantic.set_type_of(def.id, ty.id);
+    }
+
+    fn visit_struct_definition(
+        &mut self,
+        base: &'hir Definition<'hir>,
+        fields: &'hir [hir::def::Field<'hir>],
+    ) -> Self::Result {
+        walk_struct_definition(self, base, fields);
+
+        let name = base.name.ident.sym;
+        let fields = self.lowerer.lower_fields(fields);
+
+        let struct_type = semantic::types::TypeKind::Struct { name, fields };
+        let id = self.lowerer.lower_semantic_type(struct_type).id;
+        self.semantic.set_type_of(base.id, id);
     }
 
     fn visit_assignment(
@@ -341,12 +389,30 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     }
 
     fn visit_function_definition(
-            &mut self,
-            def: &'hir hir::Definition<'hir>,
-            params: &'hir [hir::Definition<'hir>],
-            body: &'hir [hir::Statement<'hir>]
+        &mut self,
+        def: &'hir hir::Definition<'hir>,
+        params: &'hir [hir::Definition<'hir>],
+        ret_ty: &'hir Type<'hir>,
+        body: &'hir [hir::Statement<'hir>]
     ) -> Self::Result {
-        walk_function_definition(self, def, params, body);
+
+        {
+            let params = params.iter().map(|p| {
+                let Some((_, Some(ty), _)) = p.as_variable_def() else {
+                    unreachable!()
+                };
+                ty
+            });
+
+            let params = self.lowerer.lower_hir_types_iter(params);
+            let ret_ty = self.lowerer.lower_hir_type(ret_ty);
+
+            let func_type = semantic::types::TypeKind::Function { params, ret_ty };
+            let ty = self.lowerer.lower_semantic_type(func_type).id;
+            self.semantic.set_type_of(def.id, ty);
+        }
+
+        walk_function_definition(self, def, params, ret_ty, body);
 
         CheckFunctionReturns {
             def,

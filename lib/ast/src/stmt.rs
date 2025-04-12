@@ -36,7 +36,7 @@ pub struct Statement {
 
 impl From<Block<Statement>> for Statement {
     fn from(value: Block<Statement>) -> Self {
-        let span = value.open_bracket.join(&value.close_bracket);
+        let span = value.open_brace.join(&value.close_brace);
         Statement {
             kind: StatementKind::Block(value),
             span

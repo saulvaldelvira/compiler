@@ -43,6 +43,9 @@ pub enum TokenKind {
     /// ":"
     Colon,
 
+    /// "::"
+    DoubleColon,
+
     /// "/"
     Slash,
 
@@ -160,6 +163,9 @@ pub enum TokenKind {
     /// "as"
     As,
 
+    /// "mod"
+    Mod,
+
     /// "&"
     Ampersand,
 
@@ -173,7 +179,7 @@ pub enum TokenKind {
     Or,
 
     /// '%'
-    Mod,
+    Modulo,
 }
 
 /// A token consist on a discriminator [TokenKind] and a [Span]

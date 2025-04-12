@@ -3,14 +3,14 @@ mod node;
 use hir::def::DefinitionKind;
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
-use hir::{Definition, Expression, Program, Statement};
+use hir::{Definition, Expression, Module, Statement};
 use semantic::Semantic;
 use node::Node;
 
 pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> String {
     let prog = hir.get_root_program();
     let ser = HirPrinter { sem };
-    let node = ser.serialize_program(prog);
+    let node = ser.serialize_module(prog);
     let mut html = String::from(r#"<html>
         <script>
         function expandAll() {
@@ -46,15 +46,21 @@ macro_rules! keyval {
 }
 
 impl HirPrinter<'_, '_> {
-    fn serialize_program(&self, prog: &Program<'_>) -> Node {
+    fn serialize_module(&self, prog: &Module<'_>) -> Node {
         let mut defs = vec![];
 
         for def in prog.defs {
             defs.push(self.serialize_definition(def));
         }
 
-        Node::Ul(defs)
+        let nodes = vec![
+            Node::Title("Module"),
+            Node::Span(prog.span),
+        ];
+
+        Node::Collapse(Node::List(nodes).into(), Node::Ul(defs).into())
     }
+
 
     fn serialize_definition(&self, def: &Definition<'_>) -> Node {
         let mut nodes = vec![Node::DefId(def.id)];
@@ -64,34 +70,33 @@ impl HirPrinter<'_, '_> {
             DefinitionKind::Variable { .. } => "VariableDefinition",
             DefinitionKind::Function { .. } => "FunctionDefinition",
             DefinitionKind::Struct { .. } => "StructDefinition",
+            DefinitionKind::Module(_) => "Module",
         };
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
 
         keyval!(ul, "name" => def.name.ident.sym.to_string());
 
-        let ty = match def.ty {
-            Some(ty) => format!("{ty:?}"),
-            None => "???".to_string(),
+        if let Some(ty) = self.sem.type_of(&def.id) {
+            keyval!(ul, "type" => ty.to_string());
         };
 
-        keyval!(ul, "type" => ty);
 
         match &def.kind {
-            DefinitionKind::Variable { constness, init } => {
+            DefinitionKind::Variable { constness, init, .. } => {
                 keyval!(ul, "const" => format!("{constness:?}"));
                 if let Some(init) = init {
                     let init = self.serialize_expr(init).into();
                     ul.push(Node::KeyVal("init", init));
                 }
             },
-            DefinitionKind::Function { params, body } => {
+            DefinitionKind::Function { params, body, .. } => {
                 if !params.is_empty() {
                     let mut p = vec![];
                     for param in *params {
-                        p.push(Node::text(format!("{name} : {ty:?}",
+                        let ty = self.sem.type_of(&param.id).unwrap();
+                        p.push(Node::text(format!("{name} : {ty}",
                                     name = param.name.ident.sym,
-                                    ty = param.ty.unwrap()
                         )));
                     }
 
@@ -110,6 +115,11 @@ impl HirPrinter<'_, '_> {
                 }
                 ul.push(Node::collapse("fields", Node::Ul(flist)));
             },
+            DefinitionKind::Module(m) => {
+                let items = m.defs.iter().map(|d| self.serialize_definition(d)).collect();
+                ul.push(Node::KeyVal("name", Node::Text(m.name.to_string().into()).into()));
+                ul.push(Node::collapse("items", Node::Ul(items)));
+            }
         }
 
         Node::Collapse(Node::List(nodes).into(), Node::Ul(ul).into())
@@ -182,8 +192,8 @@ impl HirPrinter<'_, '_> {
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
-                let name = Node::text(path.ident.sym.to_string());
-                let def = Node::Id(path.def.expect_resolved().id);
+                let name = Node::text(path.segments.first().unwrap().ident.sym.to_string());
+                let def = Node::Id(path.def().expect_resolved().id);
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));
             }

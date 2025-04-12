@@ -14,7 +14,7 @@ impl Address for Expression<'_> {
         use hir::expr::ExpressionKind;
         match &self.kind {
             ExpressionKind::Variable(path) => {
-                path.def.expect_resolved().address(cg, sem)
+                path.def().expect_resolved().address(cg, sem)
             },
             ExpressionKind::ArrayAccess { arr, index } => {
                 let addr = arr.address(cg, sem);
@@ -76,15 +76,17 @@ impl Address for Expression<'_> {
 }
 
 impl Address for Definition<'_> {
-    fn address(&self, ctx: &mut CodeGenerator<'_>, _sem: &semantic::Semantic<'_>) -> MaplInstruction {
+    fn address(&self, cg: &mut CodeGenerator<'_>, _sem: &semantic::Semantic<'_>) -> MaplInstruction {
         match &self.kind {
             DefinitionKind::Variable { .. } => {
-                let addr = ctx.address_of(&self.id).unwrap();
+                let addr = cg.address_of(&self.id).unwrap();
                 MaplInstruction::Pushaddr(addr)
             }
             DefinitionKind::Function { .. } => {
-                MaplInstruction::Call(self.name.ident.sym.to_string())
+                let name = cg.get_mangled_symbol(&self.id).unwrap();
+                MaplInstruction::Call(name)
             },
+            DefinitionKind::Module(_) |
             DefinitionKind::Struct { .. } => unreachable!()
         }
     }

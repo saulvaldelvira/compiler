@@ -17,8 +17,9 @@ pub fn gen_code_mapl(hir: &hir::Session<'_>, sem: &Semantic<'_>, source: &str, f
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
     let prog = hir.get_root_program();
+
     prog.defs.iter()
-        .filter(|def| !matches!(def.kind, DefinitionKind::Function { .. }))
+        .filter(|def| !matches!(def.kind, DefinitionKind::Function { .. } | DefinitionKind::Module(_)))
         .for_each(|def| {
             let m = def.metadata(&mut cg, sem);
             ins.push(m);
@@ -30,7 +31,7 @@ pub fn gen_code_mapl(hir: &hir::Session<'_>, sem: &Semantic<'_>, source: &str, f
     ins.push(MaplInstruction::Halt);
 
     prog.defs.iter()
-        .filter(|def| matches!(def.kind, DefinitionKind::Function { .. }))
+        .filter(|def| matches!(def.kind, DefinitionKind::Function { .. } | DefinitionKind::Module(_)))
         .for_each(|vdef| {
             let def = vdef.define(&mut cg, sem);
             ins.push(def);

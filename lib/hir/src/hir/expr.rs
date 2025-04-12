@@ -4,7 +4,7 @@ use span::Span;
 use crate::hir_id::{HirId, HirNode};
 use crate::node_map::HirNodeKind;
 
-use super::{Definition, Ident, NodeRef, Type};
+use super::{Ident, Path, Type};
 
 #[derive(Debug)]
 pub enum UnaryOp {
@@ -35,21 +35,6 @@ pub enum CmpOp {
     Le,
     Eq,
     Neq,
-}
-
-#[derive(Debug,Clone)]
-pub struct Path<'hir> {
-    pub ident: Ident,
-    pub def: NodeRef<'hir, Definition<'hir>>,
-}
-
-impl Path<'_> {
-    pub fn new(ident: Ident) -> Self {
-        Self {
-            ident,
-            def: NodeRef::pending(),
-        }
-    }
 }
 
 #[derive(Clone,Debug,Copy)]

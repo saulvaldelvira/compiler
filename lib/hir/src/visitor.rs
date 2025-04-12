@@ -1,8 +1,9 @@
 use std::ops::ControlFlow;
 
-use crate::def::{Field, PathDef};
+use crate::def::Field;
+use crate::PathDef;
 use crate::expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp};
-use crate::{hir, stmt, Constness, Definition, Expression, Ident, Path, Program, Statement, Type};
+use crate::{hir, stmt, Constness, Definition, Expression, Ident, Module, Path, Statement, Type};
 
 pub trait Visitor<'hir> {
     type Result: VisitorResult;
@@ -10,8 +11,8 @@ pub trait Visitor<'hir> {
 
     fn get_ctx(&mut self) -> &mut Self::Ctx;
 
-    fn visit_program(&mut self, prog: &'hir Program<'hir>) -> Self::Result {
-        walk_program(self, prog)
+    fn visit_module(&mut self, prog: &'hir Module<'hir>) -> Self::Result {
+        walk_module(self, prog)
     }
 
     fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
@@ -22,9 +23,10 @@ pub trait Visitor<'hir> {
         &mut self,
         def: &'hir Definition<'hir>,
         constness: &Constness,
+        ty: Option<&'hir Type<'hir>>,
         init: &Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
-        walk_variable_definition(self, def, constness, init)
+        walk_variable_definition(self, def, constness, ty, init)
     }
 
     fn visit_expression(&mut self, expr: &'hir Expression<'hir>) -> Self::Result {
@@ -105,9 +107,10 @@ pub trait Visitor<'hir> {
         &mut self,
         base: &'hir Definition<'hir>,
         params: &'hir [Definition<'hir>],
+        ret_ty: &'hir Type<'hir>,
         body: &'hir [Statement<'hir>]
     ) -> Self::Result {
-        walk_function_definition(self, base, params, body)
+        walk_function_definition(self, base, params, ret_ty, body)
     }
 
     fn visit_struct_definition(
@@ -246,11 +249,13 @@ macro_rules! walk_opt {
     };
 }
 
-pub fn walk_program<'hir, V>(v: &mut V, prog: &'hir Program<'hir>) -> V::Result
+pub fn walk_module<'hir, V>(v: &mut V, prog: &'hir Module<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {
-    walk_iter!(v, prog.defs, visit_definition);
+    for item in prog.defs {
+        v.visit_definition(item);
+    }
     V::Result::output()
 }
 
@@ -260,10 +265,10 @@ where
 {
     use hir::types::TypeKind;
     match &ty.kind {
-        TypeKind::Struct(path) => { v.visit_path(path); },
+        TypeKind::Path(path) => { v.visit_path(path); },
         TypeKind::Function { params, ret_ty } => {
             walk_iter!(v, params, visit_type);
-            v.visit_type(&ret_ty);
+            v.visit_type(ret_ty);
         },
         _ => {}
     }
@@ -275,13 +280,13 @@ where
     V: Visitor<'hir> + ?Sized
 {
     v.visit_pathdef(def, def.name);
-    walk_opt!(v, def.ty, visit_type);
 
     use crate::def::DefinitionKind;
     match &def.kind {
-        DefinitionKind::Variable { constness, init } => v.visit_variable_definition(def, constness, init),
-        DefinitionKind::Function { params, body } => v.visit_function_definition(def, params, body),
+        DefinitionKind::Variable { constness, ty, init } => v.visit_variable_definition(def, constness, ty.as_deref(), init),
+        DefinitionKind::Function { params, body, ret_ty } => v.visit_function_definition(def, params, ret_ty, body),
         DefinitionKind::Struct { fields } => v.visit_struct_definition(def, fields),
+        DefinitionKind::Module(m) => v.visit_module(m),
     }
 }
 
@@ -289,14 +294,14 @@ pub fn walk_variable_definition<'hir, V>(
     v: &mut V,
     _def: &'hir Definition<'hir>,
     _constness: &Constness,
+    ty: Option<&'hir Type<'hir>>,
     init: &Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {
-    if let Some(init) = init {
-        v.visit_expression(init);
-    }
+    walk_opt!(v, init, visit_expression);
+    walk_opt!(v, ty, visit_type);
     V::Result::output()
 }
 
@@ -304,6 +309,7 @@ pub fn walk_function_definition<'hir, V>(
     v: &mut V,
     base: &'hir Definition<'hir>,
     params: &'hir [Definition<'hir>],
+    ret_ty: &'hir Type<'hir>,
     body: &'hir [Statement<'hir>]
 ) -> V::Result
 where
@@ -316,6 +322,7 @@ where
     for stmt in body {
         v.visit_statement(stmt);
     }
+    v.visit_type(ret_ty);
     v.get_ctx().exit_function();
     V::Result::output()
 }

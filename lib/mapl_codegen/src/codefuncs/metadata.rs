@@ -66,6 +66,7 @@ impl Metadata for Definition<'_> {
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())
             }
+            DefinitionKind::Module(_) |
             DefinitionKind::Function { .. } => { MaplInstruction::Empty },
         }
 

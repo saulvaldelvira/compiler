@@ -68,7 +68,7 @@ impl TryFrom<TokenKind> for BinaryExprOp {
             TokenKind::LessEqual => Self::Le,
             TokenKind::And => Self::And,
             TokenKind::Or => Self::Or,
-            TokenKind::Mod => Self::Mod,
+            TokenKind::Modulo => Self::Mod,
             TokenKind::Equal => Self::Assign,
             _ => return Err(())
         })
@@ -90,13 +90,15 @@ impl StructAccess {
     }
 }
 
+pub type Path = Box<[Spanned<Symbol>]>;
+
 #[derive(Debug)]
 pub enum ExpressionKind {
     Unary { op: Spanned<UnaryExprOp>, expr: Expr },
     Paren(Parenthesized<Expr>),
     Binary { op: Spanned<BinaryExprOp>, left: Expr, right: Expr },
     Ternary { cond: Expr, if_true: Expr, if_false: Expr },
-    Path(Spanned<Symbol>),
+    Path(Path),
     Literal(Spanned<LitValue>),
     Cast { expr: Box<Expression>, kw_as: Span, ty: Type },
     Call { callee: Expr, args: Parenthesized<Box<[Expression]>> },
