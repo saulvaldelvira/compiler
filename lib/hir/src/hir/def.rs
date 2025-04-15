@@ -11,7 +11,7 @@ use crate::path::PathDef;
 use super::types::Type;
 use super::{Constness, Expression, Module, Statement};
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub struct Field<'hir> {
     pub name: &'hir PathDef,
     pub ty: &'hir Type<'hir>,

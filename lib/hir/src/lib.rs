@@ -3,7 +3,6 @@ mod hir;
 use std::cell::{Cell, RefCell};
 mod node_map;
 
-use hir::def::Field;
 pub use hir_id::HirId;
 
 pub mod visitor;
@@ -19,7 +18,6 @@ mod _arena {
         [visibility = pub]
         expr : Expression<'ctx>,
         types: Type<'ctx>,
-        fields: Field<'ctx>,
         modules: Module<'ctx>,
     );
 }
