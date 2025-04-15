@@ -8,7 +8,7 @@ mod stmt;
 mod def;
 mod ty;
 
-use ast::Symbol;
+use ast::{ModItem, Symbol};
 use hir::Ident;
 use span::Spanned;
 
@@ -36,15 +36,24 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
     }
 
     fn lower_module_owned(&mut self, m: &ast::Module) -> hir::Module<'hir> {
-        let items = self.lower_definitions(&m.elems);
+        let items = self.lower_mod_items(&m.elems);
         let name = m.name.val;
         hir::Module::new(name, items, m.span)
     }
 
-    fn lower_definitions(&mut self, mi: &[ast::Declaration]) -> &'hir [hir::Definition<'hir>] {
+    fn lower_mod_items(&mut self, mi: &[ast::ModItem]) -> &'hir [hir::ModItem<'hir>] {
         self.sess.alloc_iter(
-            mi.iter().map(|mi| self.lower_definition_owned(mi))
+            mi.iter().map(|mi| self.lower_mod_item_owned(mi))
         )
+    }
+
+    fn lower_mod_item_owned(&mut self, mi: &ast::ModItem) -> hir::ModItem<'hir> {
+        let kind = match mi {
+            ModItem::Decl(declaration) => hir::ModItemKind::Def(self.lower_definition(declaration)),
+            ModItem::Mod(module) => hir::ModItemKind::Mod(self.lower_module(module)),
+        };
+
+        hir::ModItem::new(kind)
     }
 
 }

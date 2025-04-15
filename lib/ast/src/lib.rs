@@ -39,8 +39,14 @@ impl<T> Parenthesized<T> {
 }
 
 #[derive(Debug)]
+pub enum ModItem {
+    Decl(Declaration),
+    Mod(Module),
+}
+
+#[derive(Debug)]
 pub struct Module {
-    pub elems: Box<[Declaration]>,
+    pub elems: Box<[ModItem]>,
     pub name: Spanned<Symbol>,
     pub span: Span,
 }

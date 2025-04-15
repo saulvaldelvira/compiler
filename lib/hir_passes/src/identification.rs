@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-
 use error_manager::ErrorManager;
+use hir::node_map::HirNodeKind;
 use hir::path::PathSegment;
-use hir::visitor::{walk_function_definition, walk_module, Visitor};
+use hir::visitor::{walk_function_definition, walk_module, walk_variable, Visitor};
 use hir::HirId;
 use session::Symbol;
 
@@ -54,12 +54,8 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         ident
     }
 
-    fn visit_path_segment(&mut self, path: &'hir PathSegment<'hir>) {
-        let found_def = self.st.get(&path.ident.sym).map(|id| {
-            self.hir_sess
-                .get_node(&id)
-                .expect_definition()
-        });
+    fn visit_path_segment(&mut self, path: &'hir PathSegment) {
+        let found_def = self.st.get(&path.ident.sym);
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {
@@ -71,26 +67,30 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         }
     }
 
-    fn resolve_relative_segment(&mut self, left: &'hir PathSegment<'hir>, right: &'hir PathSegment<'hir>) {
-        use hir::def::DefinitionKind;
+    fn resolve_relative_segment(&mut self, left: &'hir PathSegment, right: &'hir PathSegment) {
 
         let Some(def) = left.def.get() else { return };
+        let node = self.hir_sess.get_node(&def);
 
-        match def.kind {
-            DefinitionKind::Variable { .. } => todo!(),
-            DefinitionKind::Function { .. } => todo!(),
-            DefinitionKind::Struct { .. } => todo!(),
-            DefinitionKind::Module(m) => {
-               match m.find_definition(&right.ident.sym) {
-                   Some(def) => right.def.resolve(def),
+        match node {
+            HirNodeKind::Module(module) => {
+               match module.find_definition(&right.ident.sym) {
+                   Some(def) => right.def.resolve(def.id),
                    None => {
                        self.em.emit_error(error_manager::StringError {
-                           msg: format!("Undefined symbol '{:#?}'", right.ident.sym).into(),
+                           msg: format!("Undefined symbol '{:#?}::{:#?}'", module.name, right.ident.sym).into(),
                            span: right.ident.span,
                        });
                    }
                }
-            },
+            }
+            HirNodeKind::Def(definition) => {
+                self.em.emit_error(error_manager::StringError {
+                    msg: format!("Can't access item '{:#?}' of '{:#?}'", right.ident.sym, definition.name.ident.sym).into(),
+                    span: right.ident.span,
+                });
+            }
+            _ => unreachable!()
         }
     }
 }
@@ -99,8 +99,22 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     type Result = ();
     type Ctx = ();
 
-    fn visit_pathdef(&mut self, def: &'hir hir::Definition<'hir>, pdef: &'hir hir::PathDef) -> Self::Result {
-        self.st.define(pdef.ident.sym, def.id);
+    fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) -> Self::Result {
+        self.st.define(pdef.ident.sym, owner);
+    }
+
+    fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) -> Self::Result {
+        walk_variable(self, path);
+
+        if let Some(id) = path.def().get() {
+            let node = self.hir_sess.get_node(&id).unwrap_if_mod_item();
+            if !matches!(node, HirNodeKind::Def(_)) {
+                self.em.emit_error(error_manager::StringError {
+                    msg: "Variable path must resolve to a definition".into(),
+                    span: base.span
+                });
+            }
+        }
     }
 
     fn visit_function_definition(
@@ -116,12 +130,13 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn visit_module(&mut self, prog: &'hir hir::Module<'hir>) -> Self::Result {
+        self.st.define(prog.name, prog.id);
         self.st.enter_scope();
         walk_module(self, prog);
         self.st.exit_scope();
     }
 
-    fn visit_path(&mut self, path: &'hir hir::Path<'hir>) -> Self::Result {
+    fn visit_path(&mut self, path: &'hir hir::Path) -> Self::Result {
         self.visit_path_segment(&path.segments[0]);
         let it = path.segments.iter().skip(1);
         let it = path.segments.iter().zip(it);

@@ -40,26 +40,50 @@ pub mod path;
 pub use path::{PathDef, Path};
 pub use node_ref::{NodeRef, NodeRefKind};
 
+#[derive(Debug,Clone,Copy)]
+pub enum ModItemKind<'hir> {
+    Mod(&'hir Module<'hir>),
+    Def(&'hir Definition<'hir>),
+}
+
+#[derive(Debug,Clone,Copy)]
+pub struct ModItem<'hir> {
+    pub kind: ModItemKind<'hir>,
+    pub id: HirId,
+}
+
+impl<'hir> ModItem<'hir> {
+    #[inline(always)]
+    pub const fn new(kind: ModItemKind<'hir>) -> Self {
+        Self { kind, id: HirId::DUMMY }
+    }
+}
+
+impl_hir_node!(ModItem<'hir>, ModItem);
+
 #[derive(Debug,Clone)]
 pub struct Module<'hir> {
     pub id: HirId,
-    pub defs: &'hir [Definition<'hir>],
+    pub items: &'hir [ModItem<'hir>],
     pub name: Symbol,
     pub span: Span,
-    items: HashMap<Symbol, &'hir Definition<'hir>>,
+    item_map: HashMap<Symbol, &'hir ModItem<'hir>>,
 }
 
 impl<'hir> Module<'hir> {
-    pub fn new(name: Symbol, defs: &'hir [Definition<'hir>], span: Span) -> Self {
-        let mut m = Self { name, defs, span, id: HirId::DUMMY, items: HashMap::new() };
-        for def in defs {
-            m.items.insert(def.name.ident.sym, def);
+    pub fn new(name: Symbol, defs: &'hir [ModItem<'hir>], span: Span) -> Self {
+        let mut m = Self { name, items: defs, span, id: HirId::DUMMY, item_map: HashMap::new() };
+        for item in defs {
+            match item.kind {
+                ModItemKind::Mod(module) => m.item_map.insert(module.name, item),
+                ModItemKind::Def(definition) => m.item_map.insert(definition.name.ident.sym, item),
+            };
         }
         m
     }
 
-    pub fn find_definition(&self, name: &Symbol) -> Option<&'hir Definition<'hir>> {
-        self.items.get(name).map(|v| &**v)
+    pub fn find_definition(&self, name: &Symbol) -> Option<&'hir ModItem<'hir>> {
+        self.item_map.get(name).map(|v| &**v)
     }
 }
 

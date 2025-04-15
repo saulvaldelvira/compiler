@@ -9,7 +9,7 @@ use crate::{impl_hir_node, HirId};
 use crate::path::PathDef;
 
 use super::types::Type;
-use super::{Constness, Expression, Module, Statement};
+use super::{Constness, Expression, Statement};
 
 #[derive(Debug,Clone,Copy)]
 pub struct Field<'hir> {
@@ -37,7 +37,6 @@ pub enum DefinitionKind<'hir> {
     Variable { constness: Constness, ty: Option<&'hir Type<'hir>>, init: Option<&'hir Expression<'hir>> },
     Function { params: &'hir [Definition<'hir>], ret_ty: &'hir Type<'hir>, body: &'hir [Statement<'hir>] },
     Struct { fields: &'hir [Field<'hir>] },
-    Module(&'hir Module<'hir>),
 }
 
 #[derive(Clone,Copy)]

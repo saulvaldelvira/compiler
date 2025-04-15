@@ -1,6 +1,5 @@
 use hir::def::DefinitionKind;
-use hir::{Definition, Statement};
-use semantic::Semantic;
+use hir::{Definition, ModItem, Module, Statement};
 
 use crate::code_generator::{CodeGenerator, FunctionCtx, MemoryAddress};
 use crate::mir::{MaplInstruction, MaplType};
@@ -10,10 +9,10 @@ use crate::size::SizeOf;
 use super::{Address, Define, Eval, Execute};
 
 impl Define for Definition<'_> {
-    fn define(&self, cg: &mut CodeGenerator, sem: &Semantic<'_>) -> MaplInstruction {
+    fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         match self.kind {
             DefinitionKind::Variable { init, .. } => {
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 if cg.is_global() {
                     let addr = cg.next_global_offset(ty.size_of());
                     cg.set_address(self.id, addr);
@@ -21,32 +20,44 @@ impl Define for Definition<'_> {
                 if let Some(init) = init {
                     let ty = MaplType::from(ty);
                     let ins = [
-                        self.address(cg, sem),
-                        init.eval(cg, sem),
+                        self.address(cg),
+                        init.eval(cg),
                         MaplInstruction::Store(ty)
                     ];
                     return MaplInstruction::Compose(Box::new(ins))
                 }
             }
             DefinitionKind::Function { params, body, .. } => {
-                return define_func(self, params, body, cg, sem)
+                return define_func(self, params, body, cg)
             },
             DefinitionKind::Struct { fields } => {
                 let mut acc = 0;
                 for f in fields {
                     cg.set_address(f.id, MemoryAddress::Relative(acc));
-                    let ty = sem.type_of(&f.id).unwrap();
+                    let ty = cg.sem.type_of(&f.id).unwrap();
                     acc += ty.size_of() as i32;
                 }
             },
-            DefinitionKind::Module(m) => {
-                cg.enter_module(m.name.to_string());
-                let defs = m.defs.iter().map(|d| d.define(cg, sem)).collect();
-                cg.exit_module();
-                return MaplInstruction::Compose(defs)
-            }
         }
         MaplInstruction::Empty
+    }
+}
+
+impl Define for ModItem<'_> {
+    fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
+        match self.kind {
+            hir::ModItemKind::Mod(module) => module.define(cg),
+            hir::ModItemKind::Def(definition) => definition.define(cg),
+        }
+    }
+}
+
+impl Define for Module<'_> {
+    fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
+        cg.enter_module(self.name.to_string());
+        let defs = self.items.iter().map(|d| d.define(cg)).collect();
+        cg.exit_module();
+        MaplInstruction::Compose(defs)
     }
 }
 
@@ -55,21 +66,20 @@ fn define_func<'hir>(
     params: &[Definition<'hir>],
     body: &[Statement<'hir>],
     cg: &mut CodeGenerator,
-    sem: &Semantic<'_>,
 ) -> MaplInstruction
 {
     let mut params_size: i32 = 4;
     for param in params.iter().rev() {
         cg.set_address(param.id, MemoryAddress::Relative(params_size));
-        let ty = sem.type_of(&param.id).unwrap();
+        let ty = cg.sem.type_of(&param.id).unwrap();
         params_size += ty.size_of() as i32;
     }
 
-    let ty = sem.type_of(&def.id).unwrap();
+    let ty = cg.sem.type_of(&def.id).unwrap();
     let (_, ret) = ty.as_function_type().unwrap();
     let ret_size = ret.size_of();
 
-    let locals = body.iter().fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt, sem));
+    let locals = body.iter().fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt));
     let mut vec = Vec::new();
 
     cg.mangle_symbol(def.id, &def.name.ident.sym.to_string());
@@ -84,7 +94,7 @@ fn define_func<'hir>(
     });
 
     body.iter()
-        .map(|stmt| stmt.execute(cg, sem))
+        .map(|stmt| stmt.execute(cg))
         .for_each(|stmt| vec.push(stmt));
 
     cg.exit_function();

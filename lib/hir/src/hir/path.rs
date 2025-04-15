@@ -1,22 +1,22 @@
 use crate::hir_id::HirNode;
 use crate::node_map::HirNodeKind;
 
-use super::{Definition, Ident, NodeRef};
+use super::{Ident, NodeRef};
 use super::HirId;
 
 #[derive(Debug,Clone)]
-pub struct PathSegment<'hir> {
+pub struct PathSegment {
     pub ident: Ident,
-    pub def: NodeRef<&'hir Definition<'hir>>,
+    pub def: NodeRef<HirId>,
 }
 
 #[derive(Debug,Clone)]
-pub struct Path<'hir> {
-    pub segments: Box<[PathSegment<'hir>]>,
+pub struct Path {
+    pub segments: Box<[PathSegment]>,
 }
 
-impl<'hir> Path<'hir> {
-    pub fn new(segments: Box<[PathSegment<'hir>]>) -> Self {
+impl Path {
+    pub fn new(segments: Box<[PathSegment]>) -> Self {
         debug_assert!(!segments.is_empty());
         Self { segments }
     }
@@ -29,7 +29,7 @@ impl<'hir> Path<'hir> {
         Self { segments: Box::new([segment]) }
     }
 
-    pub fn def(&self) -> &NodeRef<&'hir Definition<'hir>> {
+    pub fn def(&self) -> &NodeRef<HirId> {
         &self.segments.last().unwrap().def
     }
 }

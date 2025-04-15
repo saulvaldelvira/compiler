@@ -3,7 +3,7 @@ mod node;
 use hir::def::DefinitionKind;
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
-use hir::{Definition, Expression, Module, Statement};
+use hir::{Definition, Expression, ModItem, Module, Statement};
 use semantic::Semantic;
 use node::Node;
 
@@ -49,8 +49,8 @@ impl HirPrinter<'_, '_> {
     fn serialize_module(&self, prog: &Module<'_>) -> Node {
         let mut defs = vec![];
 
-        for def in prog.defs {
-            defs.push(self.serialize_definition(def));
+        for def in prog.items {
+            defs.push(self.serialize_mod_item(def));
         }
 
         let nodes = vec![
@@ -61,6 +61,12 @@ impl HirPrinter<'_, '_> {
         Node::Collapse(Node::List(nodes).into(), Node::Ul(defs).into())
     }
 
+    fn serialize_mod_item(&self, mi: &ModItem) -> Node {
+        match mi.kind {
+            hir::ModItemKind::Mod(module) => self.serialize_module(module),
+            hir::ModItemKind::Def(definition) => self.serialize_definition(definition),
+        }
+    }
 
     fn serialize_definition(&self, def: &Definition<'_>) -> Node {
         let mut nodes = vec![Node::DefId(def.id)];
@@ -70,7 +76,6 @@ impl HirPrinter<'_, '_> {
             DefinitionKind::Variable { .. } => "VariableDefinition",
             DefinitionKind::Function { .. } => "FunctionDefinition",
             DefinitionKind::Struct { .. } => "StructDefinition",
-            DefinitionKind::Module(_) => "Module",
         };
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
@@ -115,11 +120,6 @@ impl HirPrinter<'_, '_> {
                 }
                 ul.push(Node::collapse("fields", Node::Ul(flist)));
             },
-            DefinitionKind::Module(m) => {
-                let items = m.defs.iter().map(|d| self.serialize_definition(d)).collect();
-                ul.push(Node::KeyVal("name", Node::Text(m.name.to_string().into()).into()));
-                ul.push(Node::collapse("items", Node::Ul(items)));
-            }
         }
 
         Node::Collapse(Node::List(nodes).into(), Node::Ul(ul).into())
@@ -193,7 +193,7 @@ impl HirPrinter<'_, '_> {
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
                 let name = Node::text(path.segments.first().unwrap().ident.sym.to_string());
-                let def = Node::Id(path.def().expect_resolved().id);
+                let def = Node::Id(path.def().expect_resolved());
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));
             }

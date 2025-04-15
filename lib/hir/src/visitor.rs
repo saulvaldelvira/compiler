@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::def::Field;
-use crate::PathDef;
+use crate::{HirId, ModItem, ModItemKind, PathDef};
 use crate::expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp};
 use crate::{hir, stmt, Constness, Definition, Expression, Ident, Module, Path, Statement, Type};
 
@@ -13,6 +13,10 @@ pub trait Visitor<'hir> {
 
     fn visit_module(&mut self, prog: &'hir Module<'hir>) -> Self::Result {
         walk_module(self, prog)
+    }
+
+    fn visit_module_item(&mut self, item: &'hir ModItem<'hir>) -> Self::Result {
+        walk_module_item(self, item)
     }
 
     fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
@@ -99,7 +103,7 @@ pub trait Visitor<'hir> {
         walk_assignment(self, left, right)
     }
 
-    fn visit_variable(&mut self, _base: &'hir Expression<'hir>, path: &'hir hir::Path<'hir>) -> Self::Result {
+    fn visit_variable(&mut self, _base: &'hir Expression<'hir>, path: &'hir hir::Path) -> Self::Result {
         walk_variable(self, path)
     }
 
@@ -161,11 +165,11 @@ pub trait Visitor<'hir> {
         Self::Result::output()
     }
 
-    fn visit_pathdef(&mut self, _def: &'hir Definition<'hir>, _pdef: &'hir PathDef) -> Self::Result {
+    fn visit_pathdef(&mut self, _owner: HirId, _pdef: &'hir PathDef) -> Self::Result {
         Self::Result::output()
     }
 
-    fn visit_path(&mut self, _path: &'hir Path<'hir>) -> Self::Result {
+    fn visit_path(&mut self, _path: &'hir Path) -> Self::Result {
         Self::Result::output()
     }
 
@@ -253,10 +257,20 @@ pub fn walk_module<'hir, V>(v: &mut V, prog: &'hir Module<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {
-    for item in prog.defs {
-        v.visit_definition(item);
+    for item in prog.items {
+        v.visit_module_item(item);
     }
     V::Result::output()
+}
+
+pub fn walk_module_item<'hir, V>(v: &mut V, item: &'hir ModItem<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized
+{
+    match item.kind {
+        ModItemKind::Mod(module) => v.visit_module(module),
+        ModItemKind::Def(definition) => v.visit_definition(definition),
+    }
 }
 
 pub fn walk_type<'hir, V>(v: &mut V, ty: &'hir Type<'hir>) -> V::Result
@@ -279,14 +293,13 @@ pub fn walk_definition<'hir, V>(v: &mut V, def: &'hir Definition<'hir>) -> V::Re
 where
     V: Visitor<'hir> + ?Sized
 {
-    v.visit_pathdef(def, def.name);
+    v.visit_pathdef(def.id, def.name);
 
     use crate::def::DefinitionKind;
     match &def.kind {
         DefinitionKind::Variable { constness, ty, init } => v.visit_variable_definition(def, constness, ty.as_deref(), init),
         DefinitionKind::Function { params, body, ret_ty } => v.visit_function_definition(def, params, ret_ty, body),
         DefinitionKind::Struct { fields } => v.visit_struct_definition(def, fields),
-        DefinitionKind::Module(m) => v.visit_module(m),
     }
 }
 
@@ -345,7 +358,7 @@ pub fn walk_field<'hir, V>(v: &mut V, def: &'hir Definition<'hir>, f: &'hir Fiel
 where
     V: Visitor<'hir> + ?Sized
 {
-    v.visit_pathdef(def, f.name);
+    v.visit_pathdef(def.id, f.name);
     V::Result::output()
 }
 
@@ -411,7 +424,7 @@ where
     V::Result::output()
 }
 
-pub fn walk_variable<'hir, V>(v: &mut V, path: &'hir Path<'hir>) -> V::Result
+pub fn walk_variable<'hir, V>(v: &mut V, path: &'hir Path) -> V::Result
 where
     V: Visitor<'hir> + ?Sized
 {

@@ -1,7 +1,7 @@
 pub mod hir_id;
 mod hir;
 use std::cell::{Cell, RefCell};
-mod node_map;
+pub mod node_map;
 
 pub use hir_id::HirId;
 

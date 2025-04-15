@@ -1,4 +1,5 @@
 use error_manager::ErrorManager;
+use hir::node_map::HirNodeKind;
 use hir::visitor::{walk_arithmetic, walk_array_access, walk_assignment, walk_call, walk_cast, walk_comparison, walk_deref, walk_expression, walk_field, walk_for, walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access, walk_struct_definition, walk_ternary, walk_variable_definition, walk_while, Visitor, VisitorCtx};
 use hir::{Definition, Expression, Type};
 use semantic::errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind};
@@ -53,7 +54,7 @@ impl<'tc, 'hir, 'sem> TypeChecking<'tc, 'hir, 'sem> {
         match &ty.kind {
             TypeKind::Path(path) => {
                 let def = path.def().expect_resolved();
-                let ty = self.semantic.type_of(&def.id);
+                let ty = self.semantic.type_of(&def);
                 ty.unwrap()
             },
             _ => self.lowerer.lower_hir_type(ty)
@@ -72,10 +73,11 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
 
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 
-    fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path<'hir>) {
+    fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path) {
         use hir::def::DefinitionKind;
 
-        let Some(def) = path.def().get() else {
+        let node = path.def().get().map(|id| self.hir.get_node(&id).unwrap_if_mod_item());
+        let Some(HirNodeKind::Def(def)) = node else {
             unreachable!()
         };
 
@@ -87,12 +89,6 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
                     todo!("Infer types")
                 });
                 self.semantic.set_type_of(base.id, ty);
-            }
-            DefinitionKind::Module(_) => {
-                self.em.emit_error(error_manager::StringError {
-                    msg: "Can't use a module as a variable".into(),
-                    span: base.span,
-                });
             }
         }
     }

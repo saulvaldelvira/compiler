@@ -40,16 +40,16 @@ fn cast(semantic: &Semantic<'_>, ins: MaplInstruction, from: &Expression, to: &E
 }
 
 impl Eval for Expression<'_> {
-    fn eval(&self, cg: &mut CodeGenerator, sem: &Semantic<'_>) -> MaplInstruction {
+    fn eval(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         use hir::expr::ExpressionKind;
         match &self.kind {
             ExpressionKind::Array(_) => todo!(),
             ExpressionKind::Unary { op, expr } => {
                 use hir::expr::UnaryOp;
                 match op {
-                    UnaryOp::Not => MaplInstruction::Not(Box::new(expr.eval(cg, sem))),
+                    UnaryOp::Not => MaplInstruction::Not(Box::new(expr.eval(cg))),
                     UnaryOp::Neg => {
-                        let ty = sem.type_of(&expr.id).unwrap();
+                        let ty = cg.sem.type_of(&expr.id).unwrap();
                         let ty = MaplType::from(ty);
                         let lit = match ty {
                             MaplType::Int => MaplLiteral::Int(0),
@@ -61,7 +61,7 @@ impl Eval for Expression<'_> {
 
                         MaplInstruction::Arithmetic {
                             left: Box::new(lit),
-                            right: Box::new(expr.eval(cg, sem)),
+                            right: Box::new(expr.eval(cg)),
                             op: MaplArithmetic::Sub,
                             ty,
                         }
@@ -69,39 +69,39 @@ impl Eval for Expression<'_> {
                 }
             },
             ExpressionKind::Ref(expr) => {
-                expr.address(cg, sem)
+                expr.address(cg)
             },
             ExpressionKind::Deref(expr) => {
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
 
                 MaplInstruction::Compose(Box::new([
-                    expr.eval(cg, sem),
+                    expr.eval(cg),
                     MaplInstruction::Load(ty),
                 ]))
             },
             ExpressionKind::Arithmetic { left, op, right } => {
-                let left = left.eval(cg, sem).into();
-                let right = right.eval(cg, sem).into();
+                let left = left.eval(cg).into();
+                let right = right.eval(cg).into();
                 let op = MaplArithmetic::from(*op);
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
 
                 MaplInstruction::Arithmetic { left, right, op, ty }
             },
             ExpressionKind::Comparison { left, op, right } => {
-                let ty = sem.type_of(&left.id).unwrap();
+                let ty = cg.sem.type_of(&left.id).unwrap();
                 let ty = MaplType::from(ty);
 
-                let left = left.eval(cg, sem).into();
-                let right = right.eval(cg, sem).into();
+                let left = left.eval(cg).into();
+                let right = right.eval(cg).into();
                 let op = MaplComparison::from(*op);
 
                 MaplInstruction::Comparison { left, right, op, ty }
             },
             ExpressionKind::Logical { left, op, right } => {
-                let left = left.eval(cg, sem).into();
-                let right = right.eval(cg, sem).into();
+                let left = left.eval(cg).into();
+                let right = right.eval(cg).into();
                 let op = MaplLogical::from(*op);
 
                 MaplInstruction::Logical { left, right, op }
@@ -110,22 +110,22 @@ impl Eval for Expression<'_> {
                 let else_label = cg.next_label();
                 let end_label = cg.next_label();
                 MaplInstruction::Compose(Box::new([
-                    cond.eval(cg, sem),
+                    cond.eval(cg),
                     MaplInstruction::Jz(else_label.clone()),
-                    if_true.eval(cg, sem),
+                    if_true.eval(cg),
                     MaplInstruction::Jmp(end_label.clone()),
                     MaplInstruction::DefineLabel(else_label),
-                    if_false.eval(cg, sem),
+                    if_false.eval(cg),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             },
             ExpressionKind::Assignment { left, right } => {
-                let ty = sem.type_of(&left.id).unwrap().into();
+                let ty = cg.sem.type_of(&left.id).unwrap().into();
                 let ins = [
-                    left.address(cg, sem),
-                    right.eval(cg, sem),
+                    left.address(cg),
+                    right.eval(cg),
                     MaplInstruction::Store(ty),
-                    left.address(cg, sem),
+                    left.address(cg),
                     MaplInstruction::Load(ty),
                 ];
                 MaplInstruction::Compose(Box::from(ins))
@@ -144,22 +144,22 @@ impl Eval for Expression<'_> {
             ExpressionKind::Call { callee, args } => {
                 let mut vec = Vec::new();
                 for arg in *args {
-                    vec.push(arg.eval(cg, sem));
+                    vec.push(arg.eval(cg));
                 }
-                vec.push(callee.address(cg, sem));
+                vec.push(callee.address(cg));
                 MaplInstruction::Compose(vec.into_boxed_slice())
             },
             ExpressionKind::Cast { expr, .. } => {
-                let ins = expr.eval(cg, sem);
-                cast(sem, ins, expr, self)
+                let ins = expr.eval(cg);
+                cast(cg.sem, ins, expr, self)
             },
             ExpressionKind::Variable(_) |
             ExpressionKind::ArrayAccess { .. } |
             ExpressionKind::StructAccess { .. } => {
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
                 MaplInstruction::Compose(Box::new([
-                        self.address(cg, sem),
+                        self.address(cg),
                         MaplInstruction::Load(ty),
                 ]))
             }

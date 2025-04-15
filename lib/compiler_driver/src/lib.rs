@@ -83,13 +83,6 @@ impl Compiler {
         let hir_sess = hir::Session::default();
         ast_lowering::lower(&hir_sess, &program);
 
-        #[cfg(debug_assertions)]
-        eprintln!("\
-================================================================================
-{:#?}
-================================================================================",
-        hir_sess.get_root_program());
-
         hir_passes::identify(&hir_sess, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
@@ -97,6 +90,13 @@ impl Compiler {
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.text, &mut em)?;
+
+        #[cfg(debug_assertions)]
+        eprintln!("\
+================================================================================
+{:#?}
+================================================================================",
+        hir_sess.get_root_program());
 
         Some(match emit {
             Emit::Hir => {

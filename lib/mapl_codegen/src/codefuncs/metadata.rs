@@ -1,8 +1,7 @@
 use core::fmt;
 
 use hir::def::DefinitionKind;
-use hir::{Definition, Statement};
-use semantic::Semantic;
+use hir::{Definition, ModItem, Statement};
 use span::FilePosition;
 
 use crate::code_generator::CodeGenerator;
@@ -11,7 +10,7 @@ use crate::mir::MaplInstruction;
 use super::Metadata;
 
 impl Metadata for Statement<'_> {
-    fn metadata(&self, cg: &mut CodeGenerator<'_>, _sem: &Semantic<'_>) -> MaplInstruction {
+    fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         let FilePosition { start_line, .. } = self.span.file_position(cg.source());
         MaplInstruction::Literal(format!("#line {start_line}"))
     }
@@ -47,18 +46,18 @@ fn def_var(global: &str, name: String, ty: &semantic::Ty<'_>) -> MaplInstruction
 }
 
 impl Metadata for Definition<'_> {
-    fn metadata(&self, _cg: &mut CodeGenerator<'_>, sem: &Semantic<'_>) -> MaplInstruction {
+    fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
 
         match self.kind {
             DefinitionKind::Variable { .. } => {
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 def_var("#global", self.name.ident.sym.to_string(), ty)
             }
             DefinitionKind::Struct { fields } => {
                 let mut v = Vec::new();
                 v.push(MaplInstruction::Literal(format!("#type {} : {{", self.name.ident.sym)));
                 for field in fields {
-                    let ty = sem.type_of(&field.id).unwrap();
+                    let ty = cg.sem.type_of(&field.id).unwrap();
                     v.push(
                         def_var("", field.name.ident.sym.to_string(), ty)
                     );
@@ -66,9 +65,18 @@ impl Metadata for Definition<'_> {
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())
             }
-            DefinitionKind::Module(_) |
             DefinitionKind::Function { .. } => { MaplInstruction::Empty },
         }
 
     }
 }
+
+impl Metadata for ModItem<'_> {
+    fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
+        match self.kind {
+            hir::ModItemKind::Mod(_) => MaplInstruction::Empty,
+            hir::ModItemKind::Def(definition) => definition.metadata(cg),
+        }
+    }
+}
+

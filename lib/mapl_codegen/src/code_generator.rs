@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use hir::HirId;
+use semantic::Semantic;
 
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryAddress {
@@ -14,7 +15,7 @@ pub struct FunctionCtx {
     pub params_size: u16,
 }
 
-pub struct CodeGenerator<'cg> {
+pub struct CodeGenerator<'cg, 'sem, 'hir> {
     addresses: HashMap<HirId, MemoryAddress>,
     functions: Vec<FunctionCtx>,
     global_offset: usize,
@@ -22,10 +23,13 @@ pub struct CodeGenerator<'cg> {
     source: &'cg str,
     mangle_prefix: Vec<String>,
     mangles: HashMap<HirId,String>,
+
+    pub sem: &'cg Semantic<'sem>,
+    pub hir: &'cg hir::Session<'hir>,
 }
 
-impl<'cg> CodeGenerator<'cg> {
-    pub fn new(source: &'cg str) -> Self {
+impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
+    pub fn new(source: &'cg str, semantic: &'cg Semantic<'sem>, hir: &'cg hir::Session<'hir>) -> Self {
         Self {
             addresses: Default::default(),
             labels: Default::default(),
@@ -34,6 +38,8 @@ impl<'cg> CodeGenerator<'cg> {
             source,
             mangle_prefix: vec![],
             mangles: HashMap::new(),
+            sem: semantic,
+            hir,
         }
     }
 

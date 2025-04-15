@@ -57,7 +57,7 @@ pub enum ExpressionKind<'hir> {
     Arithmetic { left: &'hir Expression<'hir>, op: ArithmeticOp, right: &'hir Expression<'hir> },
     Ternary { cond: &'hir Expression<'hir>, if_true: &'hir Expression<'hir>, if_false: &'hir Expression<'hir> },
     Assignment { left: &'hir Expression<'hir>, right: &'hir Expression<'hir> },
-    Variable(Path<'hir>),
+    Variable(Path),
     Literal(LitValue),
     Call { callee: &'hir Expression<'hir>, args: &'hir [Expression<'hir>] },
     Cast { expr: &'hir Expression<'hir>, to: &'hir Type<'hir> },

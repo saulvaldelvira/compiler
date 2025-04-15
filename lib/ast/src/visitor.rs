@@ -77,7 +77,6 @@ where
                 }
                 V::Result::output()
             },
-            DeclarationKind::Module(m) => v.visit_module(m),
         }
 }
 
@@ -192,7 +191,10 @@ where
     V: Visitor<'ast> + ?Sized
 {
         for item in &program.elems {
-            v.visit_declaration(item);
+            match item {
+                crate::ModItem::Decl(declaration) => v.visit_declaration(declaration),
+                crate::ModItem::Mod(module) => v.visit_module(module),
+            };
         }
         V::Result::output()
 }

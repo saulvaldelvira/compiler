@@ -1,4 +1,5 @@
 use hir::def::DefinitionKind;
+use hir::node_map::HirNodeKind;
 use hir::{Definition, Expression};
 use semantic::types::TypeKind;
 
@@ -10,17 +11,20 @@ use crate::size::SizeOf;
 use super::Address;
 
 impl Address for Expression<'_> {
-    fn address(&self, cg: &mut CodeGenerator<'_>, sem: &semantic::Semantic<'_>) -> MaplInstruction {
+    fn address(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction {
         use hir::expr::ExpressionKind;
         match &self.kind {
             ExpressionKind::Variable(path) => {
-                path.def().expect_resolved().address(cg, sem)
+                let def_id = path.def().expect_resolved();
+                let node = cg.hir.get_node(&def_id).unwrap_if_mod_item();
+                let HirNodeKind::Def(def) = node else { unreachable!() };
+                def.address(cg)
             },
             ExpressionKind::ArrayAccess { arr, index } => {
-                let addr = arr.address(cg, sem);
-                let index = index.eval(cg, sem);
+                let addr = arr.address(cg);
+                let index = index.eval(cg);
 
-                let ty = sem.type_of(&self.id).unwrap();
+                let ty = cg.sem.type_of(&self.id).unwrap();
                 let size = ty.size_of();
                 let size = MaplInstruction::Push(MaplLiteral::Int(size as i16));
 
@@ -39,9 +43,9 @@ impl Address for Expression<'_> {
                 }
             },
             ExpressionKind::StructAccess { st, field } => {
-                let addr = st.address(cg, sem);
+                let addr = st.address(cg);
                 let TypeKind::Struct { fields, .. }
-                         = sem.type_of(&st.id).unwrap().kind else { unreachable!() };
+                         = cg.sem.type_of(&st.id).unwrap().kind else { unreachable!() };
 
                 let offset = fields.iter()
                                    .take_while(|f| f.name != field.sym)
@@ -56,7 +60,7 @@ impl Address for Expression<'_> {
                 }
             },
             ExpressionKind::Deref(r) => {
-                r.eval(cg, sem)
+                r.eval(cg)
             },
             ExpressionKind::Ref(_) |
             ExpressionKind::Array(_) |
@@ -76,7 +80,7 @@ impl Address for Expression<'_> {
 }
 
 impl Address for Definition<'_> {
-    fn address(&self, cg: &mut CodeGenerator<'_>, _sem: &semantic::Semantic<'_>) -> MaplInstruction {
+    fn address(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction {
         match &self.kind {
             DefinitionKind::Variable { .. } => {
                 let addr = cg.address_of(&self.id).unwrap();
@@ -86,7 +90,6 @@ impl Address for Definition<'_> {
                 let name = cg.get_mangled_symbol(&self.id).unwrap();
                 MaplInstruction::Call(name)
             },
-            DefinitionKind::Module(_) |
             DefinitionKind::Struct { .. } => unreachable!()
         }
     }

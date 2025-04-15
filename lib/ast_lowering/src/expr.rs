@@ -9,7 +9,7 @@ use crate::{ident, AstLowering};
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
-    pub (super) fn lower_path(&self, spanned: &[Spanned<Symbol>]) -> hir::Path<'hir> {
+    pub (super) fn lower_path(&self, spanned: &[Spanned<Symbol>]) -> hir::Path {
         let mut segments = vec![];
         for sp in spanned {
             segments.push(self.lower_path_segment(sp));
@@ -17,7 +17,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         hir::Path::new(segments.into_boxed_slice())
     }
 
-    fn lower_path_segment(&self, seg: &Spanned<Symbol>) -> PathSegment<'hir> {
+    fn lower_path_segment(&self, seg: &Spanned<Symbol>) -> PathSegment {
         PathSegment {
             ident: ident(seg),
             def: NodeRef::pending(),

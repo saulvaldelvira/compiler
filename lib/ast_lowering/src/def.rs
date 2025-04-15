@@ -59,7 +59,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             DK::Struct { name, .. } => {
                 ident(name)
             },
-            DK::Module(m) => ident(&m.name),
         };
 
         let name = self.lower_pathdef(name);
@@ -87,10 +86,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 HDK::Struct { fields }
 
             },
-            DK::Module(m) => {
-                let m = self.lower_module(m);
-                HDK::Module(m)
-            }
         };
         hir::Definition::new(kind, name, def.span)
     }

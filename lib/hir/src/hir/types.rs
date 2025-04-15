@@ -40,7 +40,7 @@ pub enum TypeKind<'hir> {
         name: Symbol,
         fields: &'hir [Field<'hir>],
     },
-    Path(Path<'hir>),
+    Path(Path),
     Function { params: &'hir [Type<'hir>], ret_ty: &'hir Type<'hir> }
 }
 

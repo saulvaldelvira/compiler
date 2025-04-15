@@ -3,7 +3,7 @@ use core::fmt;
 use session::Symbol;
 use span::{Span, Spanned};
 
-use crate::{Block, Expression, Module, Statement};
+use crate::{Block, Expression, Statement};
 use crate::types::Type;
 
 #[derive(Debug)]
@@ -47,7 +47,6 @@ pub enum DeclarationKind {
         name: Spanned<Symbol>,
         fields: Block<Field>,
     },
-    Module(Module),
 }
 
 pub struct Declaration {

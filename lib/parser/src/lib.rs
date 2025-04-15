@@ -8,7 +8,7 @@ use ast::declaration::{VariableConstness, DeclarationKind, Field, Param};
 use ast::expr::{BinaryExprOp, ExpressionKind, UnaryExprOp};
 use ast::stmt::StatementKind;
 use ast::types::{Type, TypeKind};
-use ast::{Block, Declaration, Expression, Module, Parenthesized};
+use ast::{Block, Declaration, Expression, ModItem, Module, Parenthesized};
 use ast::{expr::LitValue, Statement};
 use error::ParseErrorKind;
 use error_manager::ErrorManager;
@@ -41,7 +41,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn parse(mut self) -> Option<Module> {
         let mut decls = Vec::new();
         while !self.is_finished() {
-            match self.declaration() {
+            match self.mod_item() {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e);
@@ -84,12 +84,6 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
     /* ===== DECLARATION ===== */
 
-    fn declaration(&mut self) -> Result<Declaration> {
-        self.try_declaration().ok_or_else(|| {
-            ParseErrorKind::ExpectedNode("declaration")
-        })?
-    }
-
     fn try_declaration(&mut self) -> Option<Result<Declaration>> {
         if let Some(vdecl) = self.try_var_decl() {
             Some(vdecl)
@@ -100,15 +94,12 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         else if let Some(s) = self.try_struct() {
             Some(s)
         }
-        else if let Some(m) = self.try_module() {
-            Some(m)
-        }
         else {
             None
         }
     }
 
-    fn try_module(&mut self) -> Option<Result<Declaration>> {
+    fn try_module(&mut self) -> Option<Result<Module>> {
         if self.check(TokenKind::Mod) {
             Some(self.module())
         } else {
@@ -116,7 +107,25 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
     }
 
-    fn module(&mut self) -> Result<Declaration> {
+    fn mod_item(&mut self) -> Result<ModItem> {
+        self.try_mod_item().ok_or_else(|| {
+            ParseErrorKind::ExpectedNode("module")
+        })?
+    }
+
+    fn try_mod_item(&mut self) -> Option<Result<ModItem>> {
+        if let Some(decl) = self.try_declaration() {
+            Some(decl.map(ModItem::Decl))
+        }
+        else if let Some(m) = self.try_module() {
+            Some(m.map(ModItem::Mod))
+        }
+        else {
+            None
+        }
+    }
+
+    fn module(&mut self) -> Result<Module> {
         let kw_mod = self.consume(TokenKind::Mod)?.span;
         let name = self.consume_ident_spanned()?;
 
@@ -124,7 +133,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let mut decls = Vec::new();
 
-        while let Some(decl) = self.try_declaration() {
+        while let Some(decl) = self.try_mod_item() {
             decls.push(decl?);
         }
 
@@ -134,13 +143,9 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
         let decls = Block { open_brace, val: decls.into(), close_brace };
 
-        let m = Module {
+        Ok(Module {
             elems: decls.val,
             name,
-            span,
-        };
-        Ok(Declaration {
-            kind: DeclarationKind::Module(m),
             span,
         })
     }
