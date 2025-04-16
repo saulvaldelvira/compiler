@@ -34,7 +34,7 @@ impl AstValidator<'_> {
 impl Visitor<'_> for AstValidator<'_> {
     type Result = ();
 
-    fn visit_expression(&mut self, expr: &'_ Expression) -> Self::Result {
+    fn visit_expression(&mut self, expr: &'_ Expression) {
         visitor::walk_expression(self, expr);
         match &expr.kind {
             ExpressionKind::Call { args, .. } => {
@@ -59,7 +59,7 @@ impl Visitor<'_> for AstValidator<'_> {
         }
     }
 
-    fn visit_statement(&mut self, stmt: &'_ ast::Statement) -> Self::Result {
+    fn visit_statement(&mut self, stmt: &'_ ast::Statement) {
         visitor::walk_statement(self, stmt);
         match &stmt.kind {
             StatementKind::If { cond, .. } => {
@@ -79,7 +79,7 @@ impl Visitor<'_> for AstValidator<'_> {
         }
     }
 
-    fn visit_declaration(&mut self, decl: &'_ ast::Declaration) -> Self::Result {
+    fn visit_declaration(&mut self, decl: &'_ ast::Declaration) {
         visitor::walk_declaration(self, decl);
         if let DeclarationKind::Variable { init: Some(init), .. } = &decl.kind {
             self.warn_unnecesary_paren(init, 1);

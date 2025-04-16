@@ -10,6 +10,7 @@ use error::{LexerError, LexerErrorKind};
 use error_manager::ErrorManager;
 use token::{Token,TokenKind};
 
+/// A stream of [tokens](Token)
 pub struct TokenStream<'lex, 'src>{
     lexer: Lexer<'lex, 'src>,
     prev: Option<Token>,
@@ -17,12 +18,19 @@ pub struct TokenStream<'lex, 'src>{
 }
 
 impl TokenStream<'_,'_> {
+
+    /// Returns true if the lexer reached EOF
+    #[inline]
     pub fn is_finished(&self) -> bool { self.lexer.c.is_finished() }
 
+    /// Returns the previous token, if present
+    #[inline(always)]
     pub fn previous(&self) -> Option<&Token> {
         self.prev.as_ref()
     }
 
+    /// Returns the next token, if present, without consuming it
+    #[inline(always)]
     pub fn peek(&self) -> Option<&Token> {
         self.next.as_ref()
     }
@@ -68,6 +76,10 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
 impl Iterator for TokenStream<'_, '_> {
     type Item = Token;
 
+    /// Returns the next token from the stream.
+    ///
+    /// This is similar to [Lexer::next_token], but also
+    /// keeps track of the previous and next [tokens](Token)
     fn next(&mut self) -> Option<Self::Item> {
         let ret = self.next.take();
         self.prev = ret.clone();
@@ -79,19 +91,29 @@ impl Iterator for TokenStream<'_, '_> {
 
 impl<'lex, 'src> IntoIterator for Lexer<'lex, 'src> {
     type Item = Token;
-
     type IntoIter = TokenStream<'lex, 'src>;
 
+    /// Converts this [Lexer] into an iterator of [tokens](Token)
+    ///
+    /// This is the same as calling [Self::into_token_stream]
+    #[inline(always)]
     fn into_iter(self) -> Self::IntoIter {
         self.into_token_stream()
     }
 }
 
 impl<'lex, 'src> Lexer<'lex, 'src> {
+
+    /// Builds a new [Lexer]
+    ///
+    /// # Arguments
+    /// - text: Source code to tokenize
+    /// - em: An [ErrorManager], where all the errors will be sent
     pub fn new(text: &'src str, em: &'lex mut ErrorManager) -> Self {
         Self { c: Cursor::new(text), em }
     }
 
+    /// Turns this [Lexer] into a [TokenStream]
     pub fn into_token_stream(mut self) -> TokenStream<'lex, 'src> {
         let next = self.next_token();
         TokenStream {
@@ -101,6 +123,9 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
         }
     }
 
+    /// Parses the next [token](Token)
+    ///
+    /// Returns None if the EOF was reached
     pub fn next_token(&mut self) -> Option<Token> {
         if self.c.is_finished() {
             return None
@@ -112,7 +137,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
             self.next_token()
         }
     }
-    /* PRIVATE */
+
     fn add_token(&self, kind: TokenKind) -> Option<Token> {
         Some(Token {
             kind,

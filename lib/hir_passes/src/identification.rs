@@ -99,11 +99,11 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     type Result = ();
     type Ctx = ();
 
-    fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) -> Self::Result {
+    fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) {
         self.st.define(pdef.ident.sym, owner);
     }
 
-    fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) -> Self::Result {
+    fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) {
         walk_variable(self, path);
 
         if let Some(id) = path.def().get() {
@@ -123,20 +123,20 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
             params: &'hir [hir::Definition<'hir>],
             ret_ty: &'hir hir::Type<'hir>,
             body: &'hir [hir::Statement<'hir>]
-    ) -> Self::Result {
+    ) {
         self.st.enter_scope();
         walk_function_definition(self, def, params, ret_ty, body);
         self.st.exit_scope();
     }
 
-    fn visit_module(&mut self, prog: &'hir hir::Module<'hir>) -> Self::Result {
+    fn visit_module(&mut self, prog: &'hir hir::Module<'hir>) {
         self.st.define(prog.name, prog.id);
         self.st.enter_scope();
         walk_module(self, prog);
         self.st.exit_scope();
     }
 
-    fn visit_path(&mut self, path: &'hir hir::Path) -> Self::Result {
+    fn visit_path(&mut self, path: &'hir hir::Path) {
         self.visit_path_segment(&path.segments[0]);
         let it = path.segments.iter().skip(1);
         let it = path.segments.iter().zip(it);

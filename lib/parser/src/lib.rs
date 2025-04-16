@@ -24,6 +24,12 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T,ParseErrorKind>;
 
+/// Parsers the given [TokenStream] and produces an AST.
+///
+/// # Arguments
+/// - stream: The token stream
+/// - src: The source file
+/// - em: An [ErrorManager], where all the errors will be sent
 pub fn parse<'src>(
     stream: TokenStream<'_,'src>,
     src: &'src str,
