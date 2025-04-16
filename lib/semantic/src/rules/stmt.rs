@@ -2,7 +2,7 @@ use hir::{Definition, Expression, Statement};
 use span::Span;
 
 use crate::errors::{SemanticError, SemanticErrorKind};
-use crate::PrimitiveType;
+use crate::{PrimitiveType, TypeKind};
 
 use super::SemanticRule;
 
@@ -43,7 +43,7 @@ impl SemanticRule<'_> for CheckReturnStmt<'_> {
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut error_manager::ErrorManager) -> Self::Result {
 
         let Some(found) = self.found.map_or_else(
-                        ||     Some(sem.get_primitive_type(PrimitiveType::Empty)),
+                        ||     Some(sem.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Empty))),
                         |expr| sem.type_of(&expr.id)) else { return };
 
         let def_ty = sem.type_of(&self.definition.id).unwrap();

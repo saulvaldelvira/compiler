@@ -34,31 +34,21 @@ pub struct TypeLowering<'low, 'ty, 'hir> {
 
 impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
     pub fn new(sem: &'low crate::Semantic<'ty>) -> Self {
-        let mut tl = Self {
+        Self {
             map: HashMap::new(),
             reverse_map: HashMap::new(),
             sem
-        };
-
-        /* Make sure all primitive types are lowered, even if they
-         * don't appear on the hir tree */
-        tl.lower_hir_types(hir::Type::primitive_array());
-
-        tl
+        }
     }
 
     pub fn lower_hir_types_iter(&mut self, tys: impl ExactSizeIterator<Item = &'hir hir::Type<'hir>>) -> &'ty [&'ty Ty<'ty>] {
-        let tys = self.sem.arena.alloc_iter(
+        self.sem.arena.alloc_iter(
             tys.map(|ty| self.lower_hir_type(ty))
-        );
-        tys
+        )
     }
 
     pub fn lower_hir_types(&mut self, tys: &'hir [hir::Type<'hir>]) -> &'ty [&'ty Ty<'ty>] {
-        let tys = self.sem.arena.alloc_iter(
-            tys.iter().map(|ty| self.lower_hir_type(ty))
-        );
-        tys
+        self.lower_hir_types_iter(tys.iter())
     }
 
     pub fn lower_hir_type(&mut self, ty: &'hir hir::Type<'hir>) -> &'ty Ty<'ty> {

@@ -70,7 +70,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     fn resolve_relative_segment(&mut self, left: &'hir PathSegment, right: &'hir PathSegment) {
 
         let Some(def) = left.def.get() else { return };
-        let node = self.hir_sess.get_node(&def);
+        let node = self.hir_sess.get_node(&def).unwrap_if_mod_item();
 
         match node {
             HirNodeKind::Module(module) => {

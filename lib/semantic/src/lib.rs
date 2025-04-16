@@ -67,14 +67,6 @@ impl<'sem> Semantic<'sem> {
         self.kind_to_id_assoc.borrow().get(kind).copied()
     }
 
-    pub fn get_primitive_type(&self, prim: PrimitiveType) -> &'sem Ty<'sem> {
-        self.find_id_of_type_kind(&TypeKind::Primitive(prim)).and_then(|id| {
-            self.resolve_type(&id)
-        }).unwrap_or_else(|| {
-            unreachable!("Primitive types should've been interned when creating the TypeLowerer instance.");
-        })
-    }
-
     pub fn get_or_intern_type(&self, kind: TypeKind<'sem>) -> &'sem Ty<'sem> {
         if let Some(ty) = self.kind_to_id_assoc.borrow().get(&kind) {
             return self.types.borrow().get(ty).unwrap()

@@ -109,16 +109,6 @@ impl<'ty> Type<'ty> {
     pub const fn char() -> &'ty Self { &Self::CHAR }
     pub const fn bool() -> &'ty Self { &Self::BOOL }
     pub const fn empty() -> &'ty Self { &Self::EMPTY }
-
-    pub fn primitive_array() -> &'ty [Self] {
-        &[
-            Self::INT,
-            Self::FLOAT,
-            Self::CHAR,
-            Self::BOOL,
-            Self::EMPTY,
-        ]
-    }
 }
 
 impl Hash for Type<'_> {

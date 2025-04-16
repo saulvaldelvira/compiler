@@ -183,13 +183,13 @@ impl<'ty> Ty<'ty> {
         || !o.kind.can_be_promoted_to(&TypeKind::BOOL) {
             None
         } else {
-            Some(sem.get_primitive_type(PrimitiveType::Bool))
+            Some(sem.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Bool)))
         }
     }
 
     pub fn comparison(&'ty self, o: &'ty Ty<'ty>, sem: &crate::Semantic<'ty>) -> Option<&'ty Ty<'ty>> {
         if self.kind.is_numeric() && o.kind.is_numeric() {
-            Some(sem.get_primitive_type(PrimitiveType::Bool))
+            Some(sem.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Bool)))
         } else {
             None
         }

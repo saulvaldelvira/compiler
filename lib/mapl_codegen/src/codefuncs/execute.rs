@@ -75,10 +75,11 @@ impl Execute for Statement<'_> {
                 let cond_label = cg.next_label();
                 let end_label = cg.next_label();
                 MaplInstruction::Compose(Box::new([
+                    MaplInstruction::DefineLabel(cond_label.clone()),
                     cond.eval(cg),
                     MaplInstruction::Jz(end_label.clone()),
                     body.execute(cg),
-                    MaplInstruction::Jmp(cond_label.clone()),
+                    MaplInstruction::Jmp(cond_label),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             },
