@@ -116,9 +116,8 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
        walk_ref(self, r);
 
        if let Some(ty) = self.semantic.type_of(&r.id) {
-           let hir_type = self.lowerer.get_hir_type_from_semantic_id(&ty.id);
-           let ty = self.hir.alloc(hir::Type::new(hir::types::TypeKind::Ref(hir_type)));
-           let id = self.lowerer.lower_hir_type(ty).id;
+           let kind = semantic::types::TypeKind::Ref(ty);
+           let id = self.semantic.get_or_intern_type(kind).id;
            self.semantic.set_type_of(base.id, id);
        }
     }
