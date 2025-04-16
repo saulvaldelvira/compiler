@@ -55,6 +55,12 @@ impl Compiler {
         })
     }
 
+    pub fn from_string(src: impl Into<String>) -> io::Result<Self> {
+        Ok(Self {
+            source: CompilerSource { filename: "".into(), text: src.into() }
+        })
+    }
+
     pub fn from_stdin() -> io::Result<Self> {
         let mut source = String::new();
         stdin().read_to_string(&mut source)?;
