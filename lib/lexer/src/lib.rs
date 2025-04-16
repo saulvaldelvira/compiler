@@ -33,7 +33,6 @@ pub struct Lexer<'lex, 'src> {
     em: &'lex mut ErrorManager,
 }
 
-
 fn as_keyword(ident: &str) -> Option<TokenKind> {
     static KEYWORKDS: OnceLock<HashMap<&str,TokenKind>> = OnceLock::new();
     KEYWORKDS.get_or_init(|| {

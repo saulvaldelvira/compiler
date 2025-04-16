@@ -37,7 +37,9 @@ impl Default for Semantic<'_> {
 }
 
 impl<'sem> Semantic<'sem> {
-    pub fn get_arena(&self) -> &Arena<'sem> { &self.arena }
+
+    #[inline(always)]
+    pub const fn get_arena(&self) -> &Arena<'sem> { &self.arena }
 
     pub fn set_type_of(&self, hir_id: HirId, id: TypeId) {
         debug_assert!(!self.hir_to_typeid_assoc.borrow().contains_key(&hir_id));
@@ -51,6 +53,7 @@ impl<'sem> Semantic<'sem> {
         })
     }
 
+    #[inline]
     pub fn type_id_of(&self, node: &HirId) -> Option<TypeId> {
         self.hir_to_typeid_assoc.borrow().get(node).copied()
     }
@@ -63,6 +66,7 @@ impl<'sem> Semantic<'sem> {
         })
     }
 
+    #[inline]
     pub fn find_id_of_type_kind(&self, kind: &TypeKind<'sem>) -> Option<TypeId> {
         self.kind_to_id_assoc.borrow().get(kind).copied()
     }

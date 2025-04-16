@@ -86,6 +86,7 @@ impl Display for TypeKind<'_> {
 impl<'ty> TypeKind<'ty> {
     const BOOL: Self = Self::Primitive(PrimitiveType::Bool);
 
+    #[inline]
     pub fn is_numeric(&self) -> bool {
         matches!(self, TypeKind::Primitive(PrimitiveType::Float | PrimitiveType::Int))
     }
@@ -100,16 +101,6 @@ impl<'ty> TypeKind<'ty> {
         };
 
         p1 == p2
-
-        /* use PrimitiveType as P; */
-        /* matches!( */
-        /*     (p1,p2), */
-        /*     (P::Int, P::Float) | */
-        /*     (P::Char, P::Int) | */
-        /*     (P::Bool, P::Int) | */
-        /*     (P::Char, P::Float) | */
-        /*     (P::Bool, P::Float) */
-        /* ) */
     }
 
     pub fn can_cast(&self, o: &TypeKind<'ty>) -> bool {
@@ -136,6 +127,7 @@ impl<'ty> Ty<'ty> {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
     }
 
+    #[inline(always)]
     pub const fn is_boolean(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Bool))
     }
