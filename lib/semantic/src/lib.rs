@@ -2,7 +2,7 @@ mod __arena {
     ::arena::define_arenas!([visibility = pub]);
 }
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use __arena::Arena;
@@ -20,6 +20,8 @@ pub struct Semantic<'sem> {
     types: RefCell<HashMap<TypeId, &'sem Ty<'sem>>>,
     kind_to_id_assoc: RefCell<HashMap<TypeKind<'sem>, TypeId>>,
     hir_to_typeid_assoc: RefCell<HashMap<HirId, TypeId>>,
+
+    next_id: Cell<usize>,
 }
 
 impl Default for Semantic<'_> {
@@ -29,6 +31,7 @@ impl Default for Semantic<'_> {
             types: Default::default(),
             hir_to_typeid_assoc: Default::default(),
             kind_to_id_assoc: Default::default(),
+            next_id: Cell::new(100),
         }
     }
 }
@@ -46,12 +49,6 @@ impl<'sem> Semantic<'sem> {
             debug_assert_eq!(v.id, *id);
             &**v
         })
-    }
-
-    pub fn register_type(&self, ty: &'sem Ty<'sem>) {
-        debug_assert!(!self.types.borrow().contains_key(&ty.id));
-        self.types.borrow_mut().insert(ty.id, ty);
-        self.kind_to_id_assoc.borrow_mut().insert(ty.kind, ty.id);
     }
 
     pub fn type_id_of(&self, node: &HirId) -> Option<TypeId> {
@@ -78,9 +75,21 @@ impl<'sem> Semantic<'sem> {
         })
     }
 
-    pub fn intern_type(&self, ty: Ty<'sem>) -> &'sem Ty<'sem> {
-        let sem_ty: &'sem Ty<'sem> = self.arena.alloc(ty);
-        self.register_type(sem_ty);
-        sem_ty
+    pub fn get_or_intern_type(&self, kind: TypeKind<'sem>) -> &'sem Ty<'sem> {
+        if let Some(ty) = self.kind_to_id_assoc.borrow().get(&kind) {
+            return self.types.borrow().get(ty).unwrap()
+        }
+
+        let id = self.next_id.get();
+        let ty = Ty {
+            kind,
+            id: TypeId(id),
+        };
+        self.next_id.set(id + 1);
+
+        let ty: &'sem Ty<'sem> = self.arena.alloc(ty);
+        self.types.borrow_mut().insert(ty.id, ty);
+        self.kind_to_id_assoc.borrow_mut().insert(ty.kind, ty.id);
+        ty
     }
 }

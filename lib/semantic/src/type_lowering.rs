@@ -30,7 +30,6 @@ pub struct TypeLowering<'low, 'ty, 'hir> {
     map: HashMap<&'hir hir::Type<'hir>, TypeId>,
     reverse_map: HashMap<TypeId, &'hir hir::Type<'hir>>,
     sem: &'low crate::Semantic<'ty>,
-    next_id: usize,
 }
 
 impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
@@ -38,7 +37,6 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
         let mut tl = Self {
             map: HashMap::new(),
             reverse_map: HashMap::new(),
-            next_id: 100,
             sem
         };
 
@@ -49,23 +47,17 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
         tl
     }
 
-    pub fn lower_hir_types_iter(&mut self, tys: impl ExactSizeIterator<Item = &'hir hir::Type<'hir>>) -> &'ty [Ty<'ty>] {
+    pub fn lower_hir_types_iter(&mut self, tys: impl ExactSizeIterator<Item = &'hir hir::Type<'hir>>) -> &'ty [&'ty Ty<'ty>] {
         let tys = self.sem.arena.alloc_iter(
-            tys.map(|ty| self.lower_hir_type_owned(ty))
+            tys.map(|ty| self.lower_hir_type(ty))
         );
-        for t in &*tys {
-            self.sem.register_type(t);
-        }
         tys
     }
 
-    pub fn lower_hir_types(&mut self, tys: &'hir [hir::Type<'hir>]) -> &'ty [Ty<'ty>] {
+    pub fn lower_hir_types(&mut self, tys: &'hir [hir::Type<'hir>]) -> &'ty [&'ty Ty<'ty>] {
         let tys = self.sem.arena.alloc_iter(
-            tys.iter().map(|ty| self.lower_hir_type_owned(ty))
+            tys.iter().map(|ty| self.lower_hir_type(ty))
         );
-        for t in &*tys {
-            self.sem.register_type(t);
-        }
         tys
     }
 
@@ -76,7 +68,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             })
         };
         let sem_ty = self.lower_hir_type_owned(ty);
-        let sem_ty = self.sem.intern_type(sem_ty);
+        let sem_ty = self.sem.get_or_intern_type(sem_ty);
         self.map.insert(ty, sem_ty.id);
         self.reverse_map.insert(sem_ty.id, ty);
         sem_ty
@@ -101,39 +93,12 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
         }
     }
 
-    fn create_type(&mut self, kind: TypeKind<'ty>) -> Ty<'ty> {
-        let ty = Ty {
-            kind,
-            id: TypeId(self.next_id),
-        };
-        self.next_id += 1;
-
-        ty
-    }
-
-    pub fn lower_semantic_type(&mut self, kind: TypeKind<'ty>) -> &'ty Ty<'ty> {
-        match self.sem.find_id_of_type_kind(&kind) {
-            Some(id) => self.sem.resolve_type(&id).unwrap(),
-            None => {
-                let ty = self.create_type(kind);
-                self.sem.intern_type(ty)
-            }
-        }
-    }
-
-    fn lower_hir_type_owned(&mut self, ty: &'hir hir::Type<'hir>) -> Ty<'ty> {
+    fn lower_hir_type_owned(&mut self, ty: &'hir hir::Type<'hir>) -> TypeKind<'ty> {
         use hir::types::TypeKind as HTK;
         let kind = match &ty.kind {
             HTK::Primitive(primitive_type) => TypeKind::Primitive(PrimitiveType::from(primitive_type)),
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
-            HTK::Struct { name, fields } => {
-                let fields = self.lower_fields(fields);
-                TypeKind::Struct {
-                    name: *name,
-                    fields
-                }
-            },
             HTK::Function { params, ret_ty } => {
                 let params = self.lower_hir_types(params);
                 let ret_ty = self.lower_hir_type(ret_ty);
@@ -142,7 +107,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             HTK::Path(_) => unreachable!(),
         };
 
-        self.create_type(kind)
+        kind
     }
 
 }

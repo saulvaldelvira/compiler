@@ -360,7 +360,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
         let fields = self.lowerer.lower_fields(fields);
 
         let struct_type = semantic::types::TypeKind::Struct { name, fields };
-        let id = self.lowerer.lower_semantic_type(struct_type).id;
+        let id = self.semantic.get_or_intern_type(struct_type).id;
         self.semantic.set_type_of(base.id, id);
     }
 
@@ -404,7 +404,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
             let ret_ty = self.lowerer.lower_hir_type(ret_ty);
 
             let func_type = semantic::types::TypeKind::Function { params, ret_ty };
-            let ty = self.lowerer.lower_semantic_type(func_type).id;
+            let ty = self.semantic.get_or_intern_type(func_type).id;
             self.semantic.set_type_of(def.id, ty);
         }
 

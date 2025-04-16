@@ -1,13 +1,10 @@
 use core::fmt;
 use std::hash::Hash;
 
-use session::Symbol;
-
 use crate::hir_id::HirNode;
 use crate::node_map::HirNodeKind;
 use crate::HirId;
 
-use super::def::Field;
 use super::Path;
 
 #[derive(Hash,PartialEq,Eq,Clone)]
@@ -36,10 +33,6 @@ pub enum TypeKind<'hir> {
     Primitive(PrimitiveType),
     Ref(&'hir Type<'hir>),
     Array(&'hir Type<'hir>, usize),
-    Struct {
-        name: Symbol,
-        fields: &'hir [Field<'hir>],
-    },
     Path(Path),
     Function { params: &'hir [Type<'hir>], ret_ty: &'hir Type<'hir> }
 }
@@ -50,7 +43,6 @@ impl fmt::Debug for TypeKind<'_> {
             Self::Primitive(arg0) => write!(f, "{arg0:?}"),
             Self::Ref(arg0) => write!(f, "&{arg0:?}"),
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
-            Self::Struct { name, .. } => write!(f, "struct {}", name),
             Self::Path(arg0) => write!(f, "struct {}", arg0.segments.last().unwrap().ident.sym),
             Self::Function { params, ret_ty } => {
                 write!(f, "fn (")?;
@@ -71,7 +63,6 @@ impl fmt::Debug for TypeKind<'_> {
 impl Hash for TypeKind<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            TypeKind::Struct { name, .. } => name.hash(state),
             TypeKind::Path(s) => s.segments.last().unwrap().ident.sym.hash(state),
             _ => core::mem::discriminant(self).hash(state)
         }
@@ -86,7 +77,6 @@ impl PartialEq for TypeKind<'_> {
             (Self::Array(l0, l1), Self::Array(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::Path(l0), Self::Path(r0)) => l0.segments.last().unwrap().ident.sym
                                                     == r0.segments.last().unwrap().ident.sym,
-            (Self::Struct { name: n1, .. }, Self::Struct { name: n2, .. }) => n1 == n2,
             (Self::Function { params: l_params, ret_ty: l_ret_ty }, Self::Function { params: r_params, ret_ty: r_ret_ty }) => l_params == r_params && l_ret_ty == r_ret_ty,
             _ => false,
         }
