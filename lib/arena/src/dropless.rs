@@ -53,8 +53,10 @@ impl<'ctx> DroplessArena<'ctx> {
 
     /// Allocs a chunk of bytes for the given [Layout]
     pub fn alloc_raw(&self, layout: Layout) -> *mut u8 {
+        debug_assert!(layout.size() != 0);
         loop {
             if let Some(ptr) = self.__alloc_raw(layout) {
+                debug_assert!(!ptr.is_null());
                 return ptr;
             }
             self.grow(layout);
@@ -104,6 +106,10 @@ impl<'ctx> DroplessArena<'ctx> {
 
         let iter = iter.into_iter();
         let length = iter.len();
+
+        if length == 0 {
+            return &mut [];
+        }
 
         let ptr = self.alloc_raw(Layout::array::<T>(length).unwrap()) as *mut T;
 
