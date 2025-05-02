@@ -93,7 +93,7 @@ impl<'ty> TypeKind<'ty> {
 
     pub fn can_be_promoted_to(&self, o: &TypeKind<'ty>) -> bool {
         if let (Self::Ref(r1), Self::Ref(r2)) = (self, o) {
-            return r1.kind.can_be_promoted_to(&r2.kind)
+            return r1.kind == r2.kind
         }
 
         let (Self::Primitive(p1), Self::Primitive(p2)) = (self, o) else {

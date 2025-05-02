@@ -55,6 +55,13 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
                 unreachable!("We should NEVER add a TypeId to map that hasn't been interned into types.");
             })
         };
+
+        if let hir::types::TypeKind::Path(path) = &ty.kind {
+            let def = path.def().expect_resolved();
+            let ty = self.sem.type_of(&def);
+            return ty.unwrap()
+        }
+
         let sem_ty = self.lower_hir_type_owned(ty);
         let sem_ty = self.sem.get_or_intern_type(sem_ty);
         self.map.insert(ty, sem_ty.id);

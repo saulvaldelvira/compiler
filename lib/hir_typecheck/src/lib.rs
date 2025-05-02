@@ -9,7 +9,7 @@ use semantic::rules::{
     SemanticRule,
     expr::{ValidateArithmetic, ValidateArrayAccess, ValidateAssignment, ValidateCall, ValidateFieldAccess, ValidateLogical}
 };
-use semantic::{Semantic, Ty, TypeKind};
+use semantic::{Semantic, TypeKind};
 use semantic::TypeLowering;
 
 pub fn type_checking(
@@ -45,19 +45,6 @@ impl<'tc, 'hir, 'sem> TypeChecking<'tc, 'hir, 'sem> {
                 kind: SemanticErrorKind::NonBooleanCondition(name),
                 span: cond.span
             });
-        }
-    }
-
-    fn lower_type(&mut self, ty: &'hir hir::Type<'hir>) -> &'sem Ty<'sem> {
-        use hir::types::TypeKind;
-
-        match &ty.kind {
-            TypeKind::Path(path) => {
-                let def = path.def().expect_resolved();
-                let ty = self.semantic.type_of(&def);
-                ty.unwrap()
-            },
-            _ => self.lowerer.lower_hir_type(ty)
         }
     }
 }
@@ -344,7 +331,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_,'hir,'_> {
     ) -> Self::Result {
         walk_variable_definition(self, def, constness, ty, init);
         let ty = ty.expect("TODO: Infer types");
-        let ty = self.lower_type(ty);
+        let ty = self.lowerer.lower_hir_type(ty);
         self.semantic.set_type_of(def.id, ty.id);
     }
 

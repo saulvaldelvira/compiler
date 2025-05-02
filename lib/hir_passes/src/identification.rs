@@ -74,8 +74,8 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
 
         match node {
             HirNodeKind::Module(module) => {
-               match module.find_definition(&right.ident.sym) {
-                   Some(def) => right.def.resolve(def.id),
+               match module.find_item(&right.ident.sym) {
+                   Some(def) => right.def.resolve(def.inner_id()),
                    None => {
                        self.em.emit_error(error_manager::StringError {
                            msg: format!("Undefined symbol '{:#?}::{:#?}'", module.name, right.ident.sym).into(),

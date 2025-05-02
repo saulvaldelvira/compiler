@@ -16,7 +16,7 @@ impl SizeOf for PrimitiveType {
             PrimitiveType::Int => 2,
             PrimitiveType::Char => 1,
             PrimitiveType::Float => 4,
-            PrimitiveType::Bool => 1,
+            PrimitiveType::Bool => 2,
             PrimitiveType::Empty => 0,
         }
     }

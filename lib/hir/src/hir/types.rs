@@ -43,7 +43,17 @@ impl fmt::Debug for TypeKind<'_> {
             Self::Primitive(arg0) => write!(f, "{arg0:?}"),
             Self::Ref(arg0) => write!(f, "&{arg0:?}"),
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
-            Self::Path(arg0) => write!(f, "struct {}", arg0.segments.last().unwrap().ident.sym),
+            Self::Path(arg0) => {
+                let mut first = true;
+                for seg in &arg0.segments {
+                    if !first {
+                        write!(f, "::")?;
+                    }
+                    first = false;
+                    write!(f, "{}", seg.ident.sym)?;
+                }
+                Ok(())
+            }
             Self::Function { params, ret_ty } => {
                 write!(f, "fn (")?;
                 let mut first = true;

@@ -280,6 +280,8 @@ where
     use hir::types::TypeKind;
     match &ty.kind {
         TypeKind::Path(path) => { v.visit_path(path); },
+        TypeKind::Ref(r) => { v.visit_type(r); },
+        TypeKind::Array(ty, _) => { v.visit_type(ty); },
         TypeKind::Function { params, ret_ty } => {
             walk_iter!(v, params, visit_type);
             v.visit_type(ret_ty);

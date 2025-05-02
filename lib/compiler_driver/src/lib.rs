@@ -92,7 +92,6 @@ impl Compiler {
         hir_passes::identify(&hir_sess, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
-
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.text, &mut em)?;
