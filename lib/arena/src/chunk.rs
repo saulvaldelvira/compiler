@@ -43,7 +43,7 @@ impl<T> ArenaChunk<T> {
     }
 
     pub fn can_alloc(&self, ammount: usize) -> bool {
-        self.len + ammount <= unsafe { self.elements.as_ref().len() }
+        self.len + ammount <= self.capacity()
     }
 }
 

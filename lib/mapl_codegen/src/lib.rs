@@ -26,7 +26,7 @@ pub fn gen_code_mapl<'sem, 'hir, 'src>(
     let fname = std::path::absolute(fname).map(|pb| pb.to_str().unwrap().to_owned()).unwrap_or_else(|_| fname.to_owned());
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
-    let prog = hir.get_root_program();
+    let prog = hir.get_root();
 
     prog.items.iter()
         .filter(|def| {

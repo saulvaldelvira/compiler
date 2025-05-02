@@ -37,11 +37,11 @@ pub struct Session<'hir> {
 }
 
 impl<'hir> Session<'hir> {
-    pub fn set_root(&self, prog: &'hir Module<'hir>) {
-        self.root.set(Some(prog));
+    pub fn set_root(&self, m: &'hir Module<'hir>) {
+        self.root.set(Some(m));
     }
 
-    pub fn get_root_program(&self) -> &'hir Module<'hir> {
+    pub fn get_root(&self) -> &'hir Module<'hir> {
         self.root.get().unwrap()
     }
 

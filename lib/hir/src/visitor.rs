@@ -11,8 +11,8 @@ pub trait Visitor<'hir> {
 
     fn get_ctx(&mut self) -> &mut Self::Ctx;
 
-    fn visit_module(&mut self, prog: &'hir Module<'hir>) -> Self::Result {
-        walk_module(self, prog)
+    fn visit_module(&mut self, m: &'hir Module<'hir>) -> Self::Result {
+        walk_module(self, m)
     }
 
     fn visit_module_item(&mut self, item: &'hir ModItem<'hir>) -> Self::Result {

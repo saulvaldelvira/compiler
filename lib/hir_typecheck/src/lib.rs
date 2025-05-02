@@ -27,7 +27,7 @@ pub fn type_checking(
         ctx: TypeCheckingCtx::default(),
     };
 
-    tc.visit_module(sess.get_root_program());
+    tc.visit_module(sess.get_root());
 }
 
 struct TypeChecking<'tc, 'hir, 'sem> {

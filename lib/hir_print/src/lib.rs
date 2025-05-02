@@ -8,7 +8,7 @@ use semantic::Semantic;
 use node::Node;
 
 pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> String {
-    let prog = hir.get_root_program();
+    let prog = hir.get_root();
     let ser = HirPrinter { sem };
     let node = ser.serialize_module(prog);
     let mut html = String::from(r#"<html>

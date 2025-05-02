@@ -5,7 +5,7 @@ use identification::Identification;
 mod identification;
 
 pub fn identify(sess: &hir::Session<'_>, em: &mut ErrorManager) {
-    let prog = sess.get_root_program();
+    let prog = sess.get_root();
     let mut ident = Identification::new(sess, em);
     ident.visit_module(prog);
 }

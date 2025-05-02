@@ -129,10 +129,10 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         self.st.exit_scope();
     }
 
-    fn visit_module(&mut self, prog: &'hir hir::Module<'hir>) {
-        self.st.define(prog.name, prog.id);
+    fn visit_module(&mut self, m: &'hir hir::Module<'hir>) {
+        self.st.define(m.name, m.id);
         self.st.enter_scope();
-        walk_module(self, prog);
+        walk_module(self, m);
         self.st.exit_scope();
     }
 
