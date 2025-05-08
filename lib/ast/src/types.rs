@@ -1,9 +1,10 @@
 use std::fmt::Debug;
+
 use span::Span;
 
 use crate::expr::Path;
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {
     Int(Span),
     Float(Span),
@@ -14,14 +15,17 @@ pub enum TypeKind {
         ty: Box<Type>,
         semicollon: Span,
         length: usize,
-        close_brace: Span
+        close_brace: Span,
     },
     Path(Path),
-    Ref { ampersand: Span, of: Box<Type> },
+    Ref {
+        ampersand: Span,
+        of: Box<Type>,
+    },
     Empty(Span),
 }
 
-#[derive(Clone,PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Type {
     pub kind: TypeKind,
     pub span: Span,

@@ -5,8 +5,7 @@ use lexer::token::TokenKind;
 use session::Symbol;
 use span::{Span, Spanned};
 
-use crate::types::Type;
-use crate::Parenthesized;
+use crate::{types::Type, Parenthesized};
 type Expr = Box<Expression>;
 
 #[derive(Debug)]
@@ -28,7 +27,7 @@ impl TryFrom<TokenKind> for UnaryExprOp {
             TokenKind::Plus => Self::Plus,
             TokenKind::Ampersand => Self::Ref,
             TokenKind::Star => Self::Deref,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -70,7 +69,7 @@ impl TryFrom<TokenKind> for BinaryExprOp {
             TokenKind::Or => Self::Or,
             TokenKind::Modulo => Self::Mod,
             TokenKind::Equal => Self::Assign,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -94,16 +93,41 @@ pub type Path = Box<[Spanned<Symbol>]>;
 
 #[derive(Debug)]
 pub enum ExpressionKind {
-    Unary { op: Spanned<UnaryExprOp>, expr: Expr },
+    Unary {
+        op: Spanned<UnaryExprOp>,
+        expr: Expr,
+    },
     Paren(Parenthesized<Expr>),
-    Binary { op: Spanned<BinaryExprOp>, left: Expr, right: Expr },
-    Ternary { cond: Expr, if_true: Expr, if_false: Expr },
+    Binary {
+        op: Spanned<BinaryExprOp>,
+        left: Expr,
+        right: Expr,
+    },
+    Ternary {
+        cond: Expr,
+        if_true: Expr,
+        if_false: Expr,
+    },
     Path(Path),
     Literal(Spanned<LitValue>),
-    Cast { expr: Box<Expression>, kw_as: Span, ty: Type },
-    Call { callee: Expr, args: Parenthesized<Box<[Expression]>> },
-    ArrayAccess { arr: Expr, index: Expr, closing_bracket: Span },
-    StructAccess { st: Expr, field: Spanned<Symbol> },
+    Cast {
+        expr: Box<Expression>,
+        kw_as: Span,
+        ty: Type,
+    },
+    Call {
+        callee: Expr,
+        args: Parenthesized<Box<[Expression]>>,
+    },
+    ArrayAccess {
+        arr: Expr,
+        index: Expr,
+        closing_bracket: Span,
+    },
+    StructAccess {
+        st: Expr,
+        field: Spanned<Symbol>,
+    },
 }
 
 #[derive(Debug)]
@@ -113,15 +137,10 @@ pub struct Expression {
 }
 
 impl Expression {
-    pub fn new(kind: ExpressionKind, span: Span) -> Self {
-        Expression {
-            kind,
-            span,
-        }
-    }
+    pub fn new(kind: ExpressionKind, span: Span) -> Self { Expression { kind, span } }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum LitValue {
     Int(i32),
     Float(f64),

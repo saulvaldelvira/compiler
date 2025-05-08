@@ -10,8 +10,8 @@
 #![doc = include_str!("../examples/friends.rs")]
 //! ```
 
-mod dropless;
 mod chunk;
+mod dropless;
 mod typed;
 
 pub use dropless::DroplessArena;

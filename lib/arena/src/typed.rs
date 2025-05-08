@@ -1,7 +1,11 @@
-use std::cell::{Cell, RefCell};
-use std::ptr::slice_from_raw_parts_mut;
-use std::{cmp, ptr};
-use std::marker::PhantomData;
+use std::{
+    cell::{Cell, RefCell},
+    cmp,
+    marker::PhantomData,
+    ptr,
+    ptr::slice_from_raw_parts_mut,
+};
+
 use crate::chunk::ArenaChunk;
 
 pub struct TypedArena<'ctx, T> {
@@ -14,7 +18,10 @@ pub struct TypedArena<'ctx, T> {
 
 impl<'ctx, T> TypedArena<'ctx, T> {
     fn must_grow(&'ctx self, amount: usize) -> bool {
-        self.elems.borrow().last().is_none_or(|l| !l.can_alloc(amount))
+        self.elems
+            .borrow()
+            .last()
+            .is_none_or(|l| !l.can_alloc(amount))
     }
 
     fn grow(&'ctx self, amount: usize) {
@@ -31,7 +38,7 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     pub fn alloc_iter<I>(&self, values: I) -> &'ctx mut [T]
     where
         I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator
+        <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
         let mut values = values.into_iter().collect::<Vec<_>>();
         let len = values.len();

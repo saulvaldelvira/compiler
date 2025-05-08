@@ -2,10 +2,10 @@
 //!
 use core::fmt;
 
-use crate::{Block, Expression, Parenthesized};
 use span::Span;
 
 use super::declaration::Declaration;
+use crate::{Block, Expression, Parenthesized};
 
 #[derive(Debug)]
 pub enum StatementKind {
@@ -14,8 +14,18 @@ pub enum StatementKind {
     Read(Span, Box<[Expression]>, Span),
     Decl(Box<Declaration>),
     Block(Block<Statement>),
-    If { kw_if: Span, cond: Parenthesized<Expression>, if_body: Box<Statement>, kw_else: Option<Span>, else_body: Option<Box<Statement>> },
-    While { kw_while: Span, cond: Expression, body: Box<Statement> },
+    If {
+        kw_if: Span,
+        cond: Parenthesized<Expression>,
+        if_body: Box<Statement>,
+        kw_else: Option<Span>,
+        else_body: Option<Box<Statement>>,
+    },
+    While {
+        kw_while: Span,
+        cond: Expression,
+        body: Box<Statement>,
+    },
     For {
         kw_for: Span,
         init: Option<Box<Declaration>>,
@@ -26,7 +36,11 @@ pub enum StatementKind {
     Empty(Span),
     Break(Span),
     Continue(Span),
-    Return{ kw_ret: Span, expr: Option<Expression>, semmicollon: Span },
+    Return {
+        kw_ret: Span,
+        expr: Option<Expression>,
+        semmicollon: Span,
+    },
 }
 
 pub struct Statement {
@@ -39,13 +53,11 @@ impl From<Block<Statement>> for Statement {
         let span = value.open_brace.join(&value.close_brace);
         Statement {
             kind: StatementKind::Block(value),
-            span
+            span,
         }
     }
 }
 
 impl fmt::Debug for Statement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#?}", self.kind)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:#?}", self.kind) }
 }

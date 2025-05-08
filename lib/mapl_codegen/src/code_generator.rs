@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use hir::HirId;
 use semantic::Semantic;
 
@@ -22,14 +23,18 @@ pub struct CodeGenerator<'cg, 'sem, 'hir> {
     labels: usize,
     source: &'cg str,
     mangle_prefix: Vec<String>,
-    mangles: HashMap<HirId,String>,
+    mangles: HashMap<HirId, String>,
 
     pub sem: &'cg Semantic<'sem>,
     pub hir: &'cg hir::Session<'hir>,
 }
 
 impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
-    pub fn new(source: &'cg str, semantic: &'cg Semantic<'sem>, hir: &'cg hir::Session<'hir>) -> Self {
+    pub fn new(
+        source: &'cg str,
+        semantic: &'cg Semantic<'sem>,
+        hir: &'cg hir::Session<'hir>,
+    ) -> Self {
         Self {
             addresses: Default::default(),
             labels: Default::default(),
@@ -45,17 +50,11 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
 
     pub fn is_global(&self) -> bool { self.functions.is_empty() }
 
-    pub fn enter_function(&mut self, f: FunctionCtx) {
-        self.functions.push(f);
-    }
+    pub fn enter_function(&mut self, f: FunctionCtx) { self.functions.push(f); }
 
-    pub fn exit_function(&mut self) {
-        self.functions.pop();
-    }
+    pub fn exit_function(&mut self) { self.functions.pop(); }
 
-    pub fn current_function(&mut self) -> Option<FunctionCtx> {
-        self.functions.last().cloned()
-    }
+    pub fn current_function(&mut self) -> Option<FunctionCtx> { self.functions.last().cloned() }
 
     pub fn next_global_offset(&mut self, size: usize) -> MemoryAddress {
         let addr = MemoryAddress::Absolute(self.global_offset as u16);
@@ -73,17 +72,11 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
         self.mangles.insert(id, name);
     }
 
-    pub fn get_mangled_symbol(&self, id: &HirId) -> Option<String> {
-        self.mangles.get(id).cloned()
-    }
+    pub fn get_mangled_symbol(&self, id: &HirId) -> Option<String> { self.mangles.get(id).cloned() }
 
-    pub fn enter_module(&mut self, name: String) {
-        self.mangle_prefix.push(name);
-    }
+    pub fn enter_module(&mut self, name: String) { self.mangle_prefix.push(name); }
 
-    pub fn exit_module(&mut self) {
-        self.mangle_prefix.pop();
-    }
+    pub fn exit_module(&mut self) { self.mangle_prefix.pop(); }
 
     pub fn set_address(&mut self, hid: HirId, addr: MemoryAddress) {
         debug_assert!(!self.addresses.contains_key(&hid));

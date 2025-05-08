@@ -6,7 +6,7 @@ fn find_errors(src: &str) -> usize {
     let mut em = ErrorManager::new();
     let stream = Lexer::new(src, &mut em).into_token_stream();
     /* We shouldn't test lexer here
-       Only test the parser phase */
+    Only test the parser phase */
     /* assert!(!lexer.has_errors()); */
 
     let mut perr = ErrorManager::new();

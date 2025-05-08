@@ -1,15 +1,17 @@
-use std::io::{self, stderr, stdin, Read};
-use std::path::Path;
+use std::{
+    io::{self, Read, stderr, stdin},
+    path::Path,
+};
 
 use error_manager::ErrorManager;
 use lexer::Lexer;
 use semantic::Semantic;
 use span::{FilePosition, Span};
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Emit {
     Hir,
-    Mapl
+    Mapl,
 }
 
 pub struct Compiler {
@@ -22,25 +24,21 @@ pub struct CompilerSource {
 }
 
 impl CompilerSource {
-    pub fn new(filename: String, text: String) -> Self {
-        Self { filename, text }
-    }
+    pub fn new(filename: String, text: String) -> Self { Self { filename, text } }
 
     pub fn filename(&self) -> &str { &self.filename }
 
     pub fn text(&self) -> &str { &self.text }
 
-    pub fn get_file_position(&self, span: Span) -> FilePosition {
-        span.file_position(&self.text)
-    }
+    pub fn get_file_position(&self, span: Span) -> FilePosition { span.file_position(&self.text) }
 }
 
 fn step_emit(text: &str, em: &mut ErrorManager) -> Option<()> {
-    em.print_warnings(text,  &mut stderr().lock()).unwrap();
+    em.print_warnings(text, &mut stderr().lock()).unwrap();
     em.clear_warnings();
 
     if em.has_errors() {
-        em.print_errors(text,  &mut stderr().lock()).unwrap();
+        em.print_errors(text, &mut stderr().lock()).unwrap();
         None
     } else {
         Some(())
@@ -51,13 +49,16 @@ impl Compiler {
     pub fn from_filename<P: AsRef<Path>>(fname: P) -> io::Result<Self> {
         let source = std::fs::read_to_string(&fname)?;
         Ok(Self {
-            source: CompilerSource::new(fname.as_ref().to_str().unwrap().to_string(), source)
+            source: CompilerSource::new(fname.as_ref().to_str().unwrap().to_string(), source),
         })
     }
 
     pub fn from_string(src: impl Into<String>) -> io::Result<Self> {
         Ok(Self {
-            source: CompilerSource { filename: "".into(), text: src.into() }
+            source: CompilerSource {
+                filename: "".into(),
+                text: src.into(),
+            },
         })
     }
 
@@ -97,21 +98,24 @@ impl Compiler {
         step_emit(&self.source.text, &mut em)?;
 
         #[cfg(debug_assertions)]
-        eprintln!("\
+        eprintln!(
+            "\
 ================================================================================
 {:#?}
 ================================================================================",
-        hir_sess.get_root());
+            hir_sess.get_root()
+        );
 
         Some(match emit {
-            Emit::Hir => {
-                hir_print::hir_print_html(&hir_sess, &semantic, &self.source.text)
-            }
+            Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source.text),
             Emit::Mapl => {
-                mapl_codegen::gen_code_mapl(&hir_sess, &semantic, &self.source.text, &self.source.filename)
-            },
+                mapl_codegen::gen_code_mapl(
+                    &hir_sess,
+                    &semantic,
+                    &self.source.text,
+                    &self.source.filename,
+                )
+            }
         })
-
     }
-
 }

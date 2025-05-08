@@ -1,4 +1,5 @@
 use std::fmt::Display;
+
 use semantic::Ty;
 
 use crate::code_generator::MemoryAddress;
@@ -9,13 +10,12 @@ pub enum MaplArithmetic {
     Sub,
     Mul,
     Div,
-    Mod
+    Mod,
 }
 
 impl Display for MaplArithmetic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-        match self {
+        write!(f, "{}", match self {
             MaplArithmetic::Add => "ADD",
             MaplArithmetic::Sub => "SUB",
             MaplArithmetic::Mul => "MUL",
@@ -50,8 +50,7 @@ pub enum MaplComparison {
 
 impl Display for MaplComparison {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-        match self {
+        write!(f, "{}", match self {
             MaplComparison::Gt => "GT",
             MaplComparison::Ge => "GE",
             MaplComparison::Lt => "LT",
@@ -94,8 +93,7 @@ impl From<hir::expr::LogicalOp> for MaplLogical {
 
 impl Display for MaplLogical {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-        match self {
+        write!(f, "{}", match self {
             MaplLogical::And => "And",
             MaplLogical::Or => "OR",
         })
@@ -111,12 +109,11 @@ pub enum MaplType {
 
 impl Display for MaplType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-            match self {
-                Self::Int => "I",
-                Self::Float => "F",
-                Self::Byte => "B",
-            })
+        write!(f, "{}", match self {
+            Self::Int => "I",
+            Self::Float => "F",
+            Self::Byte => "B",
+        })
     }
 }
 
@@ -149,19 +146,19 @@ impl MaplLiteral {
 
 impl From<&'_ Ty<'_>> for MaplType {
     fn from(value: &'_ Ty<'_>) -> Self {
-        use semantic::types::{TypeKind, PrimitiveType};
+        use semantic::types::{PrimitiveType, TypeKind};
         match &value.kind {
             TypeKind::Primitive(primitive_type) => {
-                match primitive_type{
+                match primitive_type {
                     PrimitiveType::Int => MaplType::Int,
                     PrimitiveType::Char => MaplType::Byte,
                     PrimitiveType::Float => MaplType::Float,
                     PrimitiveType::Bool => MaplType::Int,
-                    PrimitiveType::Empty => todo!()
+                    PrimitiveType::Empty => todo!(),
                 }
-            },
+            }
             TypeKind::Ref(_) => MaplType::Int,
-            TypeKind::Array(_, _) => todo!(),
+            TypeKind::Array(..) => todo!(),
             TypeKind::Struct { .. } => todo!(),
             TypeKind::Function { .. } => todo!(),
         }
@@ -224,49 +221,65 @@ impl Display for MaplInstruction {
             MaplInstruction::Enter(n) => writeln!(f, "enter {n}"),
             MaplInstruction::Jmp(label) => writeln!(f, "jmp {label}"),
             MaplInstruction::Jz(label) => writeln!(f, "jz {label}"),
-            MaplInstruction::Arithmetic { left, right, op, ty } => {
-                                                        Display::fmt(&left, f)?;
-                                                        Display::fmt(&right, f)?;
-                                                        writeln!(f, "{op}{ty}")
-                                                    },
-            MaplInstruction::Comparison { left, right, op, ty } => {
-                                                        Display::fmt(&left, f)?;
-                                                        Display::fmt(&right, f)?;
-                                                        writeln!(f, "{op}{ty}")
-                                                    },
+            MaplInstruction::Arithmetic {
+                left,
+                right,
+                op,
+                ty,
+            } => {
+                Display::fmt(&left, f)?;
+                Display::fmt(&right, f)?;
+                writeln!(f, "{op}{ty}")
+            }
+            MaplInstruction::Comparison {
+                left,
+                right,
+                op,
+                ty,
+            } => {
+                Display::fmt(&left, f)?;
+                Display::fmt(&right, f)?;
+                writeln!(f, "{op}{ty}")
+            }
             MaplInstruction::Logical { left, right, op } => {
-                                                        Display::fmt(&left, f)?;
-                                                        Display::fmt(&right, f)?;
-                                                        writeln!(f, "{op}")
-                                                    },
+                Display::fmt(&left, f)?;
+                Display::fmt(&right, f)?;
+                writeln!(f, "{op}")
+            }
             MaplInstruction::Cast { mapl, from, to } => {
-                                                        Display::fmt(mapl, f)?;
-                                                        writeln!(f, "{from}2{to}")
-                                                    },
+                Display::fmt(mapl, f)?;
+                writeln!(f, "{from}2{to}")
+            }
             MaplInstruction::Push(lit) => {
-                                                        writeln!(f, "PUSH{suffix} {lit}", suffix = lit.get_type())
-                                                    }
+                writeln!(f, "PUSH{suffix} {lit}", suffix = lit.get_type())
+            }
             MaplInstruction::Pushaddr(addr) => {
-                                                        match addr {
-                                                            MemoryAddress::Absolute(abs) => writeln!(f, "PUSHA {abs}"),
-                                                            MemoryAddress::Relative(rel) => writeln!(f, "PUSHA bp\nPUSHI {rel}\nADDI"),
-                                                        }
-                                                    },
+                match addr {
+                    MemoryAddress::Absolute(abs) => writeln!(f, "PUSHA {abs}"),
+                    MemoryAddress::Relative(rel) => writeln!(f, "PUSHA bp\nPUSHI {rel}\nADDI"),
+                }
+            }
             MaplInstruction::Pop(ty) => writeln!(f, "POP{ty}"),
             MaplInstruction::Load(ty) => writeln!(f, "LOAD{ty}"),
             MaplInstruction::Store(ty) => writeln!(f, "STORE{ty}"),
             MaplInstruction::Compose(c) => {
-                                                        for ins in c {
-                                                            Display::fmt(ins, f)?;
-                                                        }
-                                                        Ok(())
-                                                    }
+                for ins in c {
+                    Display::fmt(ins, f)?;
+                }
+                Ok(())
+            }
             MaplInstruction::Call(l) => writeln!(f, "CALL {l}"),
             MaplInstruction::Halt => writeln!(f, "halt"),
             MaplInstruction::Out(ty) => writeln!(f, "OUT{ty}"),
             MaplInstruction::In(ty) => writeln!(f, "IN{ty}"),
             MaplInstruction::Empty => Ok(()),
-            MaplInstruction::Return { locals, params, ret_size } => writeln!(f, "ret {ret_size}, {locals}, {params}"),
+            MaplInstruction::Return {
+                locals,
+                params,
+                ret_size,
+            } => {
+                writeln!(f, "ret {ret_size}, {locals}, {params}")
+            }
             MaplInstruction::Literal(c) => writeln!(f, "{c}"),
             MaplInstruction::Not(ins) => {
                 Display::fmt(ins, f)?;

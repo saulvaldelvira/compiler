@@ -11,9 +11,16 @@ fn main() {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
-        let Some(prog) = comp.process(conf.emit) else { continue };
+        let Some(prog) = comp.process(conf.emit) else {
+            continue;
+        };
         let fname = conf.out_file.clone().unwrap_or_else(|| {
-            let ext = file.char_indices().rev().find(|&(_,c)| c == '.').map(|(i,_)| i).unwrap_or(0);
+            let ext = file
+                .char_indices()
+                .rev()
+                .find(|&(_, c)| c == '.')
+                .map(|(i, _)| i)
+                .unwrap_or(0);
             let start = &file[..ext];
             format!("{start}.out")
         });
@@ -25,14 +32,15 @@ fn main() {
             eprintln!("Error reading stdin: {err}");
             process::exit(1);
         });
-        let Some(out) = comp.process(conf.emit) else { return };
+        let Some(out) = comp.process(conf.emit) else {
+            return;
+        };
         match conf.out_file {
             Some(f) => {
                 fs::write(&f, out).unwrap();
                 println!("Program written to {f}");
-            },
-            None => println!("{out}")
+            }
+            None => println!("{out}"),
         }
     }
 }
-

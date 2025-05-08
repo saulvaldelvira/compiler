@@ -19,18 +19,10 @@ impl<'lex> Cursor<'lex> {
             col: 0,
         }
     }
-    pub fn step(&mut self) {
-        self.start_chars = self.chars.clone();
-    }
-    pub fn is_finished(&self) -> bool {
-        self.chars.as_str().is_empty()
-    }
-    pub fn current_offset(&self) -> usize {
-        self.start_chars.offset()
-    }
-    pub fn current_len(&self) -> usize {
-        self.chars.offset() - self.start_chars.offset()
-    }
+    pub fn step(&mut self) { self.start_chars = self.chars.clone(); }
+    pub fn is_finished(&self) -> bool { self.chars.as_str().is_empty() }
+    pub fn current_offset(&self) -> usize { self.start_chars.offset() }
+    pub fn current_len(&self) -> usize { self.chars.offset() - self.start_chars.offset() }
     pub fn current_lexem(&self) -> &str {
         let n = self.chars.offset() - self.start_chars.offset();
         &self.start_chars.as_str()[..n]
@@ -38,13 +30,13 @@ impl<'lex> Cursor<'lex> {
     pub fn current_span(&self) -> Span {
         Span {
             offset: self.start_chars.offset(),
-            len: self.chars.offset() - self.start_chars.offset()
+            len: self.chars.offset() - self.start_chars.offset(),
         }
     }
     pub fn line(&self) -> usize { self.line }
     pub fn col(&self) -> usize { self.col }
     pub fn advance(&mut self) -> char {
-        let c = self.chars.next().map(|(_,c)| c).unwrap_or('\0');
+        let c = self.chars.next().map(|(_, c)| c).unwrap_or('\0');
         self.col += 1;
         if c == '\n' {
             self.line += 1;
@@ -54,27 +46,21 @@ impl<'lex> Cursor<'lex> {
     }
     pub fn advance_while<F>(&mut self, f: F) -> bool
     where
-        F: Fn(&char) -> bool
+        F: Fn(&char) -> bool,
     {
         while f(&self.peek()) {
             self.advance();
-            if self.is_finished() { return false; }
+            if self.is_finished() {
+                return false;
+            }
         }
         true
     }
-    pub fn peek(&self) -> char {
-        self.chars
-            .clone()
-            .next()
-            .map(|(_,c)| c)
-            .unwrap_or('\0')
-    }
+    pub fn peek(&self) -> char { self.chars.clone().next().map(|(_, c)| c).unwrap_or('\0') }
     pub fn peek_next(&self) -> char {
         let mut iter = self.chars.clone();
         iter.next();
-        iter.next()
-            .map(|(_,c)| c)
-            .unwrap_or('\0')
+        iter.next().map(|(_, c)| c).unwrap_or('\0')
     }
     pub fn match_next(&mut self, c: char) -> bool {
         if self.peek() == c {

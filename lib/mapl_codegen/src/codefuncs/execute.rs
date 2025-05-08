@@ -1,12 +1,13 @@
 use hir::{Definition, HirId, Statement};
 use semantic::Semantic;
 use span::Span;
-use super::Eval;
-use crate::code_generator::CodeGenerator;
-use crate::codefuncs::{Address, Define, Metadata};
-use crate::mir::{MaplInstruction, MaplLiteral, MaplType};
 
-use super::Execute;
+use super::{Eval, Execute};
+use crate::{
+    code_generator::CodeGenerator,
+    codefuncs::{Address, Define, Metadata},
+    mir::{MaplInstruction, MaplLiteral, MaplType},
+};
 
 fn get_mapl_type(id: &HirId, sem: &Semantic<'_>) -> MaplType {
     let ty = sem.type_of(id).unwrap();
@@ -21,16 +22,17 @@ impl Execute for Definition<'_> {
                 if let Some(init) = init {
                     let ty = get_mapl_type(&self.id, cg.sem);
                     MaplInstruction::Compose(Box::new([
-                            self.address(cg),
-                            init.eval(cg),
-                            MaplInstruction::Store(ty)
+                        self.address(cg),
+                        init.eval(cg),
+                        MaplInstruction::Store(ty),
                     ]))
                 } else {
                     MaplInstruction::Empty
                 }
             }
-            DefinitionKind::Function { .. } |
-            DefinitionKind::Struct { .. } => unreachable!("We can only execute variable definitions"),
+            DefinitionKind::Function { .. } | DefinitionKind::Struct { .. } => {
+                unreachable!("We can only execute variable definitions")
+            }
         }
     }
 }
@@ -48,17 +50,18 @@ impl Execute for Statement<'_> {
                     expr
                 } else {
                     let ty = MaplType::from(ty);
-                    MaplInstruction::Compose(Box::new([
-                            expr,
-                            MaplInstruction::Pop(ty)
-                    ]))
+                    MaplInstruction::Compose(Box::new([expr, MaplInstruction::Pop(ty)]))
                 }
             }
             StatementKind::Block(statements) => {
                 let block = statements.iter().map(|stmt| stmt.execute(cg)).collect();
                 MaplInstruction::Compose(block)
-            },
-            StatementKind::If { cond, if_true, if_false } => {
+            }
+            StatementKind::If {
+                cond,
+                if_true,
+                if_false,
+            } => {
                 let else_label = cg.next_label();
                 let end_label = cg.next_label();
                 MaplInstruction::Compose(Box::new([
@@ -67,7 +70,9 @@ impl Execute for Statement<'_> {
                     if_true.execute(cg),
                     MaplInstruction::Jmp(end_label.clone()),
                     MaplInstruction::DefineLabel(else_label),
-                    if_false.map(|i| i.execute(cg)).unwrap_or(MaplInstruction::Empty),
+                    if_false
+                        .map(|i| i.execute(cg))
+                        .unwrap_or(MaplInstruction::Empty),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             }
@@ -82,8 +87,13 @@ impl Execute for Statement<'_> {
                     MaplInstruction::Jmp(cond_label),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
-            },
-            StatementKind::For { init, cond, inc, body } => {
+            }
+            StatementKind::For {
+                init,
+                cond,
+                inc,
+                body,
+            } => {
                 let mut ins = Vec::new();
                 let cond_label = cg.next_label();
                 let end_label = cg.next_label();
@@ -108,7 +118,7 @@ impl Execute for Statement<'_> {
                 ins.push(MaplInstruction::DefineLabel(end_label));
 
                 MaplInstruction::Compose(ins.into_boxed_slice())
-            },
+            }
             StatementKind::Empty => MaplInstruction::Empty,
             StatementKind::Break => todo!(),
             StatementKind::Continue => todo!(),
@@ -117,40 +127,31 @@ impl Execute for Statement<'_> {
                 let ret = MaplInstruction::Return {
                     locals: f.locals_size,
                     params: f.params_size,
-                    ret_size: f.ret_size
+                    ret_size: f.ret_size,
                 };
                 if let Some(expr) = expression {
-                    MaplInstruction::Compose(Box::new([
-                            expr.eval(cg),
-                            ret,
-                    ]))
+                    MaplInstruction::Compose(Box::new([expr.eval(cg), ret]))
                 } else {
                     ret
                 }
-            },
+            }
             StatementKind::Print(expression) => {
                 let ty = cg.sem.type_of(&expression.id).unwrap();
                 let ty = MaplType::from(ty);
-                MaplInstruction::Compose(Box::new([
-                        expression.eval(cg),
-                        MaplInstruction::Out(ty),
-                ]))
-            },
+                MaplInstruction::Compose(Box::new([expression.eval(cg), MaplInstruction::Out(ty)]))
+            }
             StatementKind::Read(expr) => {
                 let ty = cg.sem.type_of(&expr.id).unwrap();
                 let ty = MaplType::from(ty);
                 MaplInstruction::Compose(Box::new([
-                        expr.address(cg),
-                        MaplInstruction::In(ty),
-                        MaplInstruction::Store(ty),
+                    expr.address(cg),
+                    MaplInstruction::In(ty),
+                    MaplInstruction::Store(ty),
                 ]))
-            },
-            StatementKind::Def(definition) => definition.define(cg)
+            }
+            StatementKind::Def(definition) => definition.define(cg),
         };
 
-        MaplInstruction::Compose(Box::new([
-                md,
-                ins
-        ]))
+        MaplInstruction::Compose(Box::new([md, ins]))
     }
 }

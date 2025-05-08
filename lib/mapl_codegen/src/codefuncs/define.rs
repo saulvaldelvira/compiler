@@ -1,12 +1,11 @@
-use hir::def::DefinitionKind;
-use hir::{Definition, ModItem, Module, Statement};
-
-use crate::code_generator::{CodeGenerator, FunctionCtx, MemoryAddress};
-use crate::mir::{MaplInstruction, MaplType};
-use crate::size::assign_memory_locals;
-use crate::size::SizeOf;
+use hir::{Definition, ModItem, Module, Statement, def::DefinitionKind};
 
 use super::{Address, Define, Eval, Execute};
+use crate::{
+    code_generator::{CodeGenerator, FunctionCtx, MemoryAddress},
+    mir::{MaplInstruction, MaplType},
+    size::{SizeOf, assign_memory_locals},
+};
 
 impl Define for Definition<'_> {
     fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
@@ -19,17 +18,13 @@ impl Define for Definition<'_> {
                 }
                 if let Some(init) = init {
                     let ty = MaplType::from(ty);
-                    let ins = [
-                        self.address(cg),
-                        init.eval(cg),
-                        MaplInstruction::Store(ty)
-                    ];
-                    return MaplInstruction::Compose(Box::new(ins))
+                    let ins = [self.address(cg), init.eval(cg), MaplInstruction::Store(ty)];
+                    return MaplInstruction::Compose(Box::new(ins));
                 }
             }
             DefinitionKind::Function { params, body, .. } => {
-                return define_func(self, params, body, cg)
-            },
+                return define_func(self, params, body, cg);
+            }
             DefinitionKind::Struct { fields } => {
                 let mut acc = 0;
                 for f in fields {
@@ -37,7 +32,7 @@ impl Define for Definition<'_> {
                     let ty = cg.sem.type_of(&f.id).unwrap();
                     acc += ty.size_of() as i32;
                 }
-            },
+            }
         }
         MaplInstruction::Empty
     }
@@ -66,8 +61,7 @@ fn define_func<'hir>(
     params: &[Definition<'hir>],
     body: &[Statement<'hir>],
     cg: &mut CodeGenerator,
-) -> MaplInstruction
-{
+) -> MaplInstruction {
     let mut params_size: i32 = 4;
     for param in params.iter().rev() {
         cg.set_address(param.id, MemoryAddress::Relative(params_size));
@@ -79,7 +73,9 @@ fn define_func<'hir>(
     let (_, ret) = ty.as_function_type().unwrap();
     let ret_size = ret.size_of();
 
-    let locals = body.iter().fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt));
+    let locals = body
+        .iter()
+        .fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt));
     let mut vec = Vec::new();
 
     cg.mangle_symbol(def.id, &def.name.ident.sym.to_string());
@@ -87,7 +83,7 @@ fn define_func<'hir>(
     vec.push(MaplInstruction::DefineLabel(name));
     vec.push(MaplInstruction::Enter(locals as usize));
 
-    cg.enter_function(FunctionCtx{
+    cg.enter_function(FunctionCtx {
         ret_size: ret_size as u16,
         locals_size: (locals) as u16,
         params_size: (params_size - 4) as u16,
@@ -103,7 +99,7 @@ fn define_func<'hir>(
         vec.push(MaplInstruction::Return {
             locals: locals as u16,
             params: (params_size - 4) as u16,
-            ret_size: 0
+            ret_size: 0,
         });
     }
 

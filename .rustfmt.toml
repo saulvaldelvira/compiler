@@ -1,0 +1,9 @@
+imports_granularity="Crate"
+group_imports="StdExternalCrate"
+overflow_delimited_expr=true
+use_field_init_shorthand=true
+condense_wildcard_suffixes=true
+combine_control_expr=false
+fn_single_line=true
+force_multiline_blocks=true
+unstable_features=true

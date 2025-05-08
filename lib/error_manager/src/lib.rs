@@ -1,9 +1,7 @@
 use core::fmt;
-use std::borrow::Cow;
-use std::io;
-use std::ops::Deref;
+use std::{borrow::Cow, io, ops::Deref};
 
-use span::{Span,FilePosition};
+use span::{FilePosition, Span};
 
 pub trait Error {
     fn get_span(&self) -> Span;
@@ -16,13 +14,9 @@ pub struct StringError {
 }
 
 impl Error for StringError {
-    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result {
-        write!(out, "{}", self.msg)
-    }
+    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result { write!(out, "{}", self.msg) }
 
-    fn get_span(&self) -> Span {
-        self.span
-    }
+    fn get_span(&self) -> Span { self.span }
 }
 
 pub struct ErrorManager {
@@ -31,7 +25,11 @@ pub struct ErrorManager {
 }
 
 fn print_error(err: &dyn Error, src: &str, out: &mut dyn fmt::Write) -> fmt::Result {
-    let FilePosition { start_line, start_col, .. } = err.get_span().file_position(src);
+    let FilePosition {
+        start_line,
+        start_col,
+        ..
+    } = err.get_span().file_position(src);
     write!(out, "[{start_line}:{start_col}]: ")?;
     err.write_msg(out)?;
     writeln!(out)
@@ -39,16 +37,15 @@ fn print_error(err: &dyn Error, src: &str, out: &mut dyn fmt::Write) -> fmt::Res
 
 impl ErrorManager {
     pub fn new() -> Self {
-        Self { errors: Vec::new(), warnings: Vec::new() }
+        Self {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        }
     }
 
-    pub fn emit_error(&mut self, err: impl Error + 'static) {
-        self.errors.push(Box::new(err));
-    }
+    pub fn emit_error(&mut self, err: impl Error + 'static) { self.errors.push(Box::new(err)); }
 
-    pub fn emit_warning(&mut self, err: impl Error + 'static) {
-        self.warnings.push(Box::new(err));
-    }
+    pub fn emit_warning(&mut self, err: impl Error + 'static) { self.warnings.push(Box::new(err)); }
 
     pub fn n_errors(&self) -> usize { self.errors.len() }
 
@@ -82,7 +79,5 @@ impl ErrorManager {
 }
 
 impl Default for ErrorManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

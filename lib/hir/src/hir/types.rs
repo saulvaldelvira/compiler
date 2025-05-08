@@ -1,13 +1,10 @@
 use core::fmt;
 use std::hash::Hash;
 
-use crate::hir_id::HirNode;
-use crate::node_map::HirNodeKind;
-use crate::HirId;
-
 use super::Path;
+use crate::{HirId, hir_id::HirNode, node_map::HirNodeKind};
 
-#[derive(Hash,PartialEq,Eq,Clone)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub enum PrimitiveType {
     Int,
     Char,
@@ -34,7 +31,10 @@ pub enum TypeKind<'hir> {
     Ref(&'hir Type<'hir>),
     Array(&'hir Type<'hir>, usize),
     Path(Path),
-    Function { params: &'hir [Type<'hir>], ret_ty: &'hir Type<'hir> }
+    Function {
+        params: &'hir [Type<'hir>],
+        ret_ty: &'hir Type<'hir>,
+    },
 }
 
 impl fmt::Debug for TypeKind<'_> {
@@ -62,7 +62,7 @@ impl fmt::Debug for TypeKind<'_> {
                         write!(f, ",")?;
                     }
                     first = false;
-                        write!(f, "{p:?}")?;
+                    write!(f, "{p:?}")?;
                 }
                 write!(f, ") -> {ret_ty:?}")
             }
@@ -74,7 +74,7 @@ impl Hash for TypeKind<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeKind::Path(s) => s.segments.last().unwrap().ident.sym.hash(state),
-            _ => core::mem::discriminant(self).hash(state)
+            _ => core::mem::discriminant(self).hash(state),
         }
     }
 }
@@ -85,20 +85,30 @@ impl PartialEq for TypeKind<'_> {
             (Self::Primitive(l0), Self::Primitive(r0)) => l0 == r0,
             (Self::Ref(l0), Self::Ref(r0)) => l0 == r0,
             (Self::Array(l0, l1), Self::Array(r0, r1)) => l0 == r0 && l1 == r1,
-            (Self::Path(l0), Self::Path(r0)) => l0.segments.last().unwrap().ident.sym
-                                                    == r0.segments.last().unwrap().ident.sym,
-            (Self::Function { params: l_params, ret_ty: l_ret_ty }, Self::Function { params: r_params, ret_ty: r_ret_ty }) => l_params == r_params && l_ret_ty == r_ret_ty,
+            (Self::Path(l0), Self::Path(r0)) => {
+                l0.segments.last().unwrap().ident.sym == r0.segments.last().unwrap().ident.sym
+            }
+            (
+                Self::Function {
+                    params: l_params,
+                    ret_ty: l_ret_ty,
+                },
+                Self::Function {
+                    params: r_params,
+                    ret_ty: r_ret_ty,
+                },
+            ) => l_params == r_params && l_ret_ty == r_ret_ty,
             _ => false,
         }
     }
 }
 
-impl Eq for TypeKind<'_> { }
+impl Eq for TypeKind<'_> {}
 
 #[derive(Clone)]
 pub struct Type<'hir> {
     pub id: HirId,
-    pub kind: TypeKind<'hir>
+    pub kind: TypeKind<'hir>,
 }
 
 impl fmt::Debug for Type<'_> {
@@ -108,11 +118,26 @@ impl fmt::Debug for Type<'_> {
 }
 
 impl<'ty> Type<'ty> {
-    const INT: Self = Self { kind: TypeKind::Primitive(PrimitiveType::Int), id: HirId::DUMMY };
-    const FLOAT: Self = Self { kind: TypeKind::Primitive(PrimitiveType::Float), id: HirId::DUMMY };
-    const CHAR: Self = Self { kind: TypeKind::Primitive(PrimitiveType::Char), id: HirId::DUMMY };
-    const BOOL: Self = Self { kind: TypeKind::Primitive(PrimitiveType::Bool), id: HirId::DUMMY };
-    const EMPTY: Self = Self { kind: TypeKind::Primitive(PrimitiveType::Empty), id: HirId::DUMMY };
+    const INT: Self = Self {
+        kind: TypeKind::Primitive(PrimitiveType::Int),
+        id: HirId::DUMMY,
+    };
+    const FLOAT: Self = Self {
+        kind: TypeKind::Primitive(PrimitiveType::Float),
+        id: HirId::DUMMY,
+    };
+    const CHAR: Self = Self {
+        kind: TypeKind::Primitive(PrimitiveType::Char),
+        id: HirId::DUMMY,
+    };
+    const BOOL: Self = Self {
+        kind: TypeKind::Primitive(PrimitiveType::Bool),
+        id: HirId::DUMMY,
+    };
+    const EMPTY: Self = Self {
+        kind: TypeKind::Primitive(PrimitiveType::Empty),
+        id: HirId::DUMMY,
+    };
 
     pub const fn int() -> &'ty Self { &Self::INT }
     pub const fn float() -> &'ty Self { &Self::FLOAT }
@@ -122,18 +147,14 @@ impl<'ty> Type<'ty> {
 }
 
 impl Hash for Type<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.kind.hash(state);
-    }
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) { self.kind.hash(state); }
 }
 
 impl PartialEq for Type<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind
-    }
+    fn eq(&self, other: &Self) -> bool { self.kind == other.kind }
 }
 
-impl Eq for Type<'_> { }
+impl Eq for Type<'_> {}
 
 impl<'hir> Type<'hir> {
     pub fn new(kind: TypeKind<'hir>) -> Self {
@@ -147,11 +168,7 @@ impl<'hir> Type<'hir> {
 impl<'hir> HirNode<'hir> for Type<'hir> {
     fn get_hir_id(&self) -> HirId { self.id }
 
-    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> {
-        HirNodeKind::Ty(self)
-    }
+    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> { HirNodeKind::Ty(self) }
 
-    fn set_hir_id(&mut self, id: HirId) {
-        self.id = id;
-    }
+    fn set_hir_id(&mut self, id: HirId) { self.id = id; }
 }

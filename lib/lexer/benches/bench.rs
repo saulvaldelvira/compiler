@@ -24,11 +24,9 @@ int main(){
 
     b.iter(|| {
         Lexer::new(INPUT, &mut ErrorManager::new())
-        .into_token_stream()
-        .for_each(|token| {
-            let _ = hint::black_box(|| {
-                token
+            .into_token_stream()
+            .for_each(|token| {
+                let _ = hint::black_box(|| token);
             });
-        });
     });
 }

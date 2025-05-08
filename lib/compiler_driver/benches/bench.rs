@@ -70,7 +70,6 @@ fn bench_huge(b: &mut Bencher) {
 
     fs::write("/tmp/s", &src).unwrap();
 
-
     b.iter(|| {
         let comp = Compiler::from_string(&src).unwrap();
         comp.process(Emit::Mapl);

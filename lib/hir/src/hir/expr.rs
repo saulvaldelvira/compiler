@@ -1,10 +1,11 @@
 use session::Symbol;
 use span::Span;
 
-use crate::hir_id::{HirId, HirNode};
-use crate::node_map::HirNodeKind;
-
 use super::{Ident, Path, Type};
+use crate::{
+    hir_id::{HirId, HirNode},
+    node_map::HirNodeKind,
+};
 
 #[derive(Debug)]
 pub enum UnaryOp {
@@ -12,13 +13,13 @@ pub enum UnaryOp {
     Neg,
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum LogicalOp {
     And,
     Or,
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ArithmeticOp {
     Add,
     Sub,
@@ -27,7 +28,7 @@ pub enum ArithmeticOp {
     Mod,
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum CmpOp {
     Gt,
     Ge,
@@ -37,7 +38,7 @@ pub enum CmpOp {
     Neq,
 }
 
-#[derive(Clone,Debug,Copy)]
+#[derive(Clone, Debug, Copy)]
 pub enum LitValue {
     Int(i32),
     Float(f64),
@@ -49,20 +50,54 @@ pub enum LitValue {
 #[derive(Debug)]
 pub enum ExpressionKind<'hir> {
     Array(&'hir [Expression<'hir>]),
-    Unary { op: UnaryOp, expr: &'hir Expression<'hir> },
+    Unary {
+        op: UnaryOp,
+        expr: &'hir Expression<'hir>,
+    },
     Ref(&'hir Expression<'hir>),
     Deref(&'hir Expression<'hir>),
-    Logical { left: &'hir Expression<'hir>, op: LogicalOp, right: &'hir Expression<'hir> },
-    Comparison { left: &'hir Expression<'hir>, op: CmpOp, right: &'hir Expression<'hir> },
-    Arithmetic { left: &'hir Expression<'hir>, op: ArithmeticOp, right: &'hir Expression<'hir> },
-    Ternary { cond: &'hir Expression<'hir>, if_true: &'hir Expression<'hir>, if_false: &'hir Expression<'hir> },
-    Assignment { left: &'hir Expression<'hir>, right: &'hir Expression<'hir> },
+    Logical {
+        left: &'hir Expression<'hir>,
+        op: LogicalOp,
+        right: &'hir Expression<'hir>,
+    },
+    Comparison {
+        left: &'hir Expression<'hir>,
+        op: CmpOp,
+        right: &'hir Expression<'hir>,
+    },
+    Arithmetic {
+        left: &'hir Expression<'hir>,
+        op: ArithmeticOp,
+        right: &'hir Expression<'hir>,
+    },
+    Ternary {
+        cond: &'hir Expression<'hir>,
+        if_true: &'hir Expression<'hir>,
+        if_false: &'hir Expression<'hir>,
+    },
+    Assignment {
+        left: &'hir Expression<'hir>,
+        right: &'hir Expression<'hir>,
+    },
     Variable(Path),
     Literal(LitValue),
-    Call { callee: &'hir Expression<'hir>, args: &'hir [Expression<'hir>] },
-    Cast { expr: &'hir Expression<'hir>, to: &'hir Type<'hir> },
-    ArrayAccess { arr: &'hir Expression<'hir>, index: &'hir Expression<'hir> },
-    StructAccess { st: &'hir Expression<'hir>, field: Ident },
+    Call {
+        callee: &'hir Expression<'hir>,
+        args: &'hir [Expression<'hir>],
+    },
+    Cast {
+        expr: &'hir Expression<'hir>,
+        to: &'hir Type<'hir>,
+    },
+    ArrayAccess {
+        arr: &'hir Expression<'hir>,
+        index: &'hir Expression<'hir>,
+    },
+    StructAccess {
+        st: &'hir Expression<'hir>,
+        field: Ident,
+    },
 }
 
 #[derive(Debug)]
@@ -77,7 +112,7 @@ impl<'hir> Expression<'hir> {
         Self {
             kind,
             span,
-            id: HirId::DUMMY
+            id: HirId::DUMMY,
         }
     }
 }
@@ -85,12 +120,7 @@ impl<'hir> Expression<'hir> {
 impl<'hir> HirNode<'hir> for Expression<'hir> {
     fn get_hir_id(&self) -> HirId { self.id }
 
+    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> { HirNodeKind::Expr(self) }
 
-    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> {
-        HirNodeKind::Expr(self)
-    }
-
-    fn set_hir_id(&mut self, id: HirId) {
-        self.id = id;
-    }
+    fn set_hir_id(&mut self, id: HirId) { self.id = id; }
 }

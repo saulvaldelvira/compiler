@@ -1,11 +1,13 @@
-use std::cell::{Ref, RefCell};
-use std::fmt::Debug;
 use core::ops::Deref;
+use std::{
+    cell::{Ref, RefCell},
+    fmt::Debug,
+};
 
 pub enum NodeRefKind<T> {
     Resolved(T),
     Pending,
-    Err
+    Err,
 }
 
 impl<T: Debug> Debug for NodeRefKind<T> {
@@ -42,50 +44,49 @@ impl<T: Debug> Debug for NodeRef<T> {
 
 impl<T: Clone> Clone for NodeRef<T> {
     fn clone(&self) -> Self {
-        Self { inner: self.inner.clone() }
+        Self {
+            inner: self.inner.clone(),
+        }
     }
 }
 
 impl<T> NodeRef<T> {
     pub fn pending() -> Self {
-        Self { inner: RefCell::new(NodeRefKind::Pending) }
+        Self {
+            inner: RefCell::new(NodeRefKind::Pending),
+        }
     }
 
-    pub fn resolve(&self, val: T) {
-        *self.inner.borrow_mut() = NodeRefKind::Resolved(val);
-    }
+    pub fn resolve(&self, val: T) { *self.inner.borrow_mut() = NodeRefKind::Resolved(val); }
 
-    pub fn is_resolved(&self) -> bool {
-        matches!(&*self.inner.borrow(), NodeRefKind::Resolved(_))
-    }
+    pub fn is_resolved(&self) -> bool { matches!(&*self.inner.borrow(), NodeRefKind::Resolved(_)) }
 
-    pub fn state(&self) -> Ref<'_, NodeRefKind<T>> {
-        self.inner.borrow()
-    }
+    pub fn state(&self) -> Ref<'_, NodeRefKind<T>> { self.inner.borrow() }
 
     pub fn expect_resolved(&self) -> T
     where
-        T: Copy
+        T: Copy,
     {
-        self.get().unwrap_or_else(|| {
-            unreachable!("Expected NodeRef to be resolved")
-        })
+        self.get()
+            .unwrap_or_else(|| unreachable!("Expected NodeRef to be resolved"))
     }
 
     pub fn get(&self) -> Option<T>
     where
-        T: Copy
+        T: Copy,
     {
         match *self.inner.borrow() {
             NodeRefKind::Resolved(res) => Some(res),
-            _ => None
+            _ => None,
         }
     }
 }
 
 impl<T> From<T> for NodeRef<T> {
     fn from(value: T) -> Self {
-        Self { inner: RefCell::new(NodeRefKind::Resolved(value)) }
+        Self {
+            inner: RefCell::new(NodeRefKind::Resolved(value)),
+        }
     }
 }
 
@@ -95,7 +96,8 @@ impl<T> From<Option<T>> for NodeRef<T> {
             Some(val) => NodeRefKind::Resolved(val),
             None => NodeRefKind::Pending,
         };
-        Self { inner: RefCell::new(inner) }
+        Self {
+            inner: RefCell::new(inner),
+        }
     }
 }
-

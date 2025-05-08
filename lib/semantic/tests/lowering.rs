@@ -1,4 +1,7 @@
-use hir::{Type, types::{TypeKind, PrimitiveType}};
+use hir::{
+    Type,
+    types::{PrimitiveType, TypeKind},
+};
 use semantic::{Semantic, TypeLowering};
 
 #[test]
@@ -12,9 +15,7 @@ fn unique_types() {
         TypeKind::Primitive(PrimitiveType::Char),
     ];
 
-    let params = hir_sess.alloc_iter(params.into_iter().map(|p| {
-        Type::new(p)
-    }));
+    let params = hir_sess.alloc_iter(params.into_iter().map(Type::new));
 
     let ret_ty = hir_sess.alloc(Type::new(TypeKind::Primitive(PrimitiveType::Empty)));
 
@@ -35,6 +36,7 @@ fn unique_types() {
 
     assert_eq!(int.id, func_int.id);
 
-    let manual_int = sem.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Int));
+    let manual_int =
+        sem.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Int));
     assert_eq!(int.id, manual_int.id);
 }

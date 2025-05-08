@@ -1,7 +1,9 @@
-use std::mem::{self, MaybeUninit};
-use std::ptr::{slice_from_raw_parts_mut, NonNull};
+use std::{
+    mem::{self, MaybeUninit},
+    ptr::{NonNull, slice_from_raw_parts_mut},
+};
 
-pub (crate) struct ArenaChunk<T> {
+pub(crate) struct ArenaChunk<T> {
     elements: NonNull<[MaybeUninit<T>]>,
     len: usize,
 }
@@ -11,20 +13,13 @@ impl<T> ArenaChunk<T> {
         let array = Box::new_uninit_slice(len);
         let elements = Box::into_raw(array);
         let elements = unsafe { NonNull::new_unchecked(elements) };
-        Self {
-            elements,
-            len: 0,
-        }
+        Self { elements, len: 0 }
     }
 
-    pub fn capacity(&self) -> usize {
-        self.elements.len()
-    }
+    pub fn capacity(&self) -> usize { self.elements.len() }
 
     #[inline(always)]
-    pub fn start(&mut self) -> *mut T {
-        self.elements.as_ptr() as *mut T
-    }
+    pub fn start(&mut self) -> *mut T { self.elements.as_ptr() as *mut T }
 
     #[inline(always)]
     pub fn end(&mut self) -> *mut T {
@@ -35,16 +30,11 @@ impl<T> ArenaChunk<T> {
                 self.start().add(self.elements.len())
             }
         }
-
     }
 
-    pub fn add_len(&mut self, len: usize) {
-        self.len += len;
-    }
+    pub fn add_len(&mut self, len: usize) { self.len += len; }
 
-    pub fn can_alloc(&self, ammount: usize) -> bool {
-        self.len + ammount <= self.capacity()
-    }
+    pub fn can_alloc(&self, ammount: usize) -> bool { self.len + ammount <= self.capacity() }
 }
 
 impl<T> Drop for ArenaChunk<T> {

@@ -15,12 +15,13 @@ impl<'ctx> Person<'ctx> {
         }
     }
 
-    fn add_friend(&self, person: &'ctx Person<'ctx>) {
-        self.friends.borrow_mut().push(person);
-    }
+    fn add_friend(&self, person: &'ctx Person<'ctx>) { self.friends.borrow_mut().push(person); }
 
     fn print(&self) {
-        print!("Hi, I'm {}, and I'm {} years old. These are my friends: ", self.name, self.age);
+        print!(
+            "Hi, I'm {}, and I'm {} years old. These are my friends: ",
+            self.name, self.age
+        );
         for f in self.friends.borrow().iter() {
             print!("{}, ", f.name);
         }

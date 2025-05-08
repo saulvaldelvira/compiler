@@ -5,7 +5,7 @@ use std::fmt;
 use span::Span;
 
 /// Models all the types of token
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenKind {
     /// "("
     LeftParen,
@@ -183,14 +183,12 @@ pub enum TokenKind {
 }
 
 /// A token consist on a discriminator [TokenKind] and a [Span]
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
 }
 
 impl fmt::Display for TokenKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{:?}", self) }
 }

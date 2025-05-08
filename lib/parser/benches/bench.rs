@@ -1,10 +1,9 @@
 #![feature(test)]
 extern crate test;
 use error_manager::ErrorManager;
-use test::Bencher;
-
 use lexer::Lexer;
 use parser::parse;
+use test::Bencher;
 
 #[bench]
 fn bench(b: &mut Bencher) {
@@ -37,9 +36,7 @@ fn main() {
 
     b.iter(move || {
         let mut em = ErrorManager::new();
-        let stream = Lexer::new(INPUT, &mut em)
-                           .into_token_stream();
+        let stream = Lexer::new(INPUT, &mut em).into_token_stream();
         parse(stream, INPUT, &mut ErrorManager::new());
     })
 }
-

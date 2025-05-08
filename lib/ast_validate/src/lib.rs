@@ -1,13 +1,13 @@
-use ast::declaration::DeclarationKind;
-use ast::expr::ExpressionKind;
-use ast::stmt::StatementKind;
-use ast::{visitor, Expression, Module, Visitor};
+use ast::{
+    Expression, Module, Visitor, declaration::DeclarationKind, expr::ExpressionKind,
+    stmt::StatementKind, visitor,
+};
 use error::{Warning, WarningKind};
 use error_manager::ErrorManager;
 use precedence::Precedence;
 
-mod precedence;
 mod error;
+mod precedence;
 
 struct AstValidator<'v> {
     em: &'v mut ErrorManager,
@@ -41,21 +41,24 @@ impl Visitor<'_> for AstValidator<'_> {
                 for arg in &args.val {
                     self.warn_unnecesary_paren(arg, 0);
                 }
-            },
+            }
             ExpressionKind::ArrayAccess { index, .. } => {
                 self.warn_unnecesary_paren(index, 0);
-            },
+            }
             ExpressionKind::Binary { left, right, .. } => {
                 self.warn_unnecesary_paren(left, expr.precedence());
                 self.warn_unnecesary_paren(right, expr.precedence());
-            },
-            ExpressionKind::Ternary { cond, if_true, if_false } => {
+            }
+            ExpressionKind::Ternary {
+                cond,
+                if_true,
+                if_false,
+            } => {
                 self.warn_unnecesary_paren(cond, expr.precedence());
                 self.warn_unnecesary_paren(if_true, expr.precedence());
                 self.warn_unnecesary_paren(if_false, expr.precedence());
             }
             _ => {}
-
         }
     }
 
@@ -64,13 +67,13 @@ impl Visitor<'_> for AstValidator<'_> {
         match &stmt.kind {
             StatementKind::If { cond, .. } => {
                 self.warn_unnecesary_paren(&cond.val, 0);
-            },
-            StatementKind::Print(_, args ,_) => {
+            }
+            StatementKind::Print(_, args, _) => {
                 for arg in args {
                     self.warn_unnecesary_paren(arg, 0);
                 }
             }
-            StatementKind::Read(_, args ,_) => {
+            StatementKind::Read(_, args, _) => {
                 for arg in args {
                     self.warn_unnecesary_paren(arg, 0);
                 }
@@ -81,7 +84,10 @@ impl Visitor<'_> for AstValidator<'_> {
 
     fn visit_declaration(&mut self, decl: &'_ ast::Declaration) {
         visitor::walk_declaration(self, decl);
-        if let DeclarationKind::Variable { init: Some(init), .. } = &decl.kind {
+        if let DeclarationKind::Variable {
+            init: Some(init), ..
+        } = &decl.kind
+        {
             self.warn_unnecesary_paren(init, 1);
         }
     }

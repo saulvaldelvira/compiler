@@ -1,7 +1,7 @@
 use span::Span;
 
 pub enum WarningKind {
-    UnnecesaryParenthesis
+    UnnecesaryParenthesis,
 }
 
 pub struct Warning {

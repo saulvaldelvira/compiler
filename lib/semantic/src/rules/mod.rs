@@ -8,4 +8,3 @@ pub trait SemanticRule<'sem> {
 
     fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result;
 }
-

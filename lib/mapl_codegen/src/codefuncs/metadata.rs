@@ -1,13 +1,10 @@
 use core::fmt;
 
-use hir::def::DefinitionKind;
-use hir::{Definition, ModItem, Statement};
+use hir::{Definition, ModItem, Statement, def::DefinitionKind};
 use span::FilePosition;
 
-use crate::code_generator::CodeGenerator;
-use crate::mir::MaplInstruction;
-
 use super::Metadata;
+use crate::{code_generator::CodeGenerator, mir::MaplInstruction};
 
 impl Metadata for Statement<'_> {
     fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
@@ -17,17 +14,16 @@ impl Metadata for Statement<'_> {
 }
 
 fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Result {
-    use semantic::{TypeKind,PrimitiveType};
+    use semantic::{PrimitiveType, TypeKind};
     match ty.kind {
         TypeKind::Primitive(prim) => {
-            write!(out, "{}",
-                match prim {
-                    PrimitiveType::Int => "int",
-                    PrimitiveType::Char => "char",
-                    PrimitiveType::Float => "float",
-                    PrimitiveType::Bool => "int",
-                    PrimitiveType::Empty => unreachable!(),
-                })
+            write!(out, "{}", match prim {
+                PrimitiveType::Int => "int",
+                PrimitiveType::Char => "char",
+                PrimitiveType::Float => "float",
+                PrimitiveType::Bool => "int",
+                PrimitiveType::Empty => unreachable!(),
+            })
         }
         TypeKind::Ref(_) => todo!(),
         TypeKind::Array(ty, len) => {
@@ -47,7 +43,6 @@ fn def_var(global: &str, name: String, ty: &semantic::Ty<'_>) -> MaplInstruction
 
 impl Metadata for Definition<'_> {
     fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-
         match self.kind {
             DefinitionKind::Variable { .. } => {
                 let ty = cg.sem.type_of(&self.id).unwrap();
@@ -55,19 +50,19 @@ impl Metadata for Definition<'_> {
             }
             DefinitionKind::Struct { fields } => {
                 let mut v = Vec::new();
-                v.push(MaplInstruction::Literal(format!("#type {} : {{", self.name.ident.sym)));
+                v.push(MaplInstruction::Literal(format!(
+                    "#type {} : {{",
+                    self.name.ident.sym
+                )));
                 for field in fields {
                     let ty = cg.sem.type_of(&field.id).unwrap();
-                    v.push(
-                        def_var("", field.name.ident.sym.to_string(), ty)
-                    );
+                    v.push(def_var("", field.name.ident.sym.to_string(), ty));
                 }
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())
             }
-            DefinitionKind::Function { .. } => { MaplInstruction::Empty },
+            DefinitionKind::Function { .. } => MaplInstruction::Empty,
         }
-
     }
 }
 
@@ -79,4 +74,3 @@ impl Metadata for ModItem<'_> {
         }
     }
 }
-

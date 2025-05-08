@@ -2,8 +2,10 @@ mod __arena {
     ::arena::define_arenas!([visibility = pub]);
 }
 
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+};
 
 use __arena::Arena;
 
@@ -37,7 +39,6 @@ impl Default for Semantic<'_> {
 }
 
 impl<'sem> Semantic<'sem> {
-
     #[inline(always)]
     pub const fn get_arena(&self) -> &Arena<'sem> { &self.arena }
 
@@ -73,7 +74,7 @@ impl<'sem> Semantic<'sem> {
 
     pub fn get_or_intern_type(&self, kind: TypeKind<'sem>) -> &'sem Ty<'sem> {
         if let Some(ty) = self.kind_to_id_assoc.borrow().get(&kind) {
-            return self.types.borrow().get(ty).unwrap()
+            return self.types.borrow().get(ty).unwrap();
         }
 
         let id = self.next_id.get();

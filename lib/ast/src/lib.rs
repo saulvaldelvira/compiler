@@ -10,13 +10,12 @@ use std::fmt::Debug;
 pub use expr::Expression;
 use span::{Span, Spanned};
 pub use stmt::Statement;
-pub mod types;
 pub mod declaration;
+pub mod types;
 pub use declaration::Declaration;
 pub mod visitor;
-pub use visitor::Visitor;
-
 pub use session::Symbol;
+pub use visitor::Visitor;
 
 #[derive(Debug)]
 pub struct Block<T> {
@@ -33,9 +32,7 @@ pub struct Parenthesized<T> {
 }
 
 impl<T> Parenthesized<T> {
-    pub fn span(&self) -> Span {
-        self.open_paren.join(&self.close_paren)
-    }
+    pub fn span(&self) -> Span { self.open_paren.join(&self.close_paren) }
 }
 
 #[derive(Debug)]

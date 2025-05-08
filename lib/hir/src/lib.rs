@@ -1,5 +1,5 @@
-pub mod hir_id;
 mod hir;
+pub mod hir_id;
 use std::cell::{Cell, RefCell};
 pub mod node_map;
 
@@ -37,13 +37,9 @@ pub struct Session<'hir> {
 }
 
 impl<'hir> Session<'hir> {
-    pub fn set_root(&self, m: &'hir Module<'hir>) {
-        self.root.set(Some(m));
-    }
+    pub fn set_root(&self, m: &'hir Module<'hir>) { self.root.set(Some(m)); }
 
-    pub fn get_root(&self) -> &'hir Module<'hir> {
-        self.root.get().unwrap()
-    }
+    pub fn get_root(&self) -> &'hir Module<'hir> { self.root.get().unwrap() }
 
     /// Gets a node by their [HirId].
     /// This functions assumes that the id is valid, and exists
@@ -52,9 +48,10 @@ impl<'hir> Session<'hir> {
     /// # Panics
     /// - If the id dosn't match a node in the graph
     pub fn get_node(&self, id: &HirId) -> HirNodeKind<'hir> {
-        self.node_map.borrow().get_by_id(id).unwrap_or_else(|| {
-            unreachable!()
-        })
+        self.node_map
+            .borrow()
+            .get_by_id(id)
+            .unwrap_or_else(|| unreachable!())
     }
 }
 
@@ -69,9 +66,9 @@ impl Default for Session<'_> {
 }
 
 impl<'hir> Session<'hir> {
-    pub fn alloc<T,C>(&self, val: T) -> &'hir T
+    pub fn alloc<T, C>(&self, val: T) -> &'hir T
     where
-        T: ArenaAllocable<'hir, C> + HirNode<'hir>
+        T: ArenaAllocable<'hir, C> + HirNode<'hir>,
     {
         let elem = val.alloc_into(&self.arena);
         let mut map = self.node_map.borrow_mut();
@@ -83,7 +80,7 @@ impl<'hir> Session<'hir> {
     where
         T: ArenaAllocable<'hir, C> + HirNode<'hir>,
         I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator
+        <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
         let items = T::alloc_iter(val, &self.arena);
         let mut node_map = self.node_map.borrow_mut();
@@ -96,5 +93,3 @@ impl<'hir> Session<'hir> {
         items
     }
 }
-
-

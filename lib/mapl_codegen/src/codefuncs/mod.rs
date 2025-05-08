@@ -1,28 +1,27 @@
-use crate::code_generator::CodeGenerator;
-use crate::mir::MaplInstruction;
+use crate::{code_generator::CodeGenerator, mir::MaplInstruction};
 
-mod execute;
-mod eval;
 mod address;
 mod define;
+mod eval;
+mod execute;
 mod metadata;
 
 pub trait Execute {
-    fn execute(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction;
+    fn execute(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction;
 }
 
 pub trait Address {
-    fn address(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction;
+    fn address(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction;
 }
 
 pub trait Eval {
-    fn eval(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction;
+    fn eval(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction;
 }
 
 pub trait Define {
-    fn define(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction;
+    fn define(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction;
 }
 
 pub trait Metadata {
-    fn metadata(&self, cg: &mut CodeGenerator<'_,'_,'_>) -> MaplInstruction;
+    fn metadata(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction;
 }

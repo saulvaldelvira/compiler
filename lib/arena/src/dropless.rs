@@ -1,8 +1,11 @@
 use core::slice;
-use std::alloc::Layout;
-use std::cell::{Cell, RefCell};
-use std::marker::PhantomData;
-use std::{cmp, mem, ptr};
+use std::{
+    alloc::Layout,
+    cell::{Cell, RefCell},
+    cmp,
+    marker::PhantomData,
+    mem, ptr,
+};
 
 use crate::chunk::ArenaChunk;
 
@@ -77,9 +80,9 @@ impl<'ctx> DroplessArena<'ctx> {
     }
 
     /// Writes len elements from the given iterator into ptr
-    fn fill_array<T,I>(&self, mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
+    fn fill_array<T, I>(&self, mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
     where
-        I: Iterator<Item = T>
+        I: Iterator<Item = T>,
     {
         for i in 0..len {
             let Some(elem) = iter.next() else {
@@ -150,7 +153,7 @@ impl Default for DroplessArena<'_> {
             elems: Default::default(),
             start: Cell::new(ptr::null_mut()),
             end: Cell::new(ptr::null_mut()),
-            _marker: Default::default()
+            _marker: Default::default(),
         }
     }
 }

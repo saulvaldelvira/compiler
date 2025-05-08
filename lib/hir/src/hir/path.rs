@@ -1,16 +1,13 @@
-use crate::hir_id::HirNode;
-use crate::node_map::HirNodeKind;
+use super::{HirId, Ident, NodeRef};
+use crate::{hir_id::HirNode, node_map::HirNodeKind};
 
-use super::{Ident, NodeRef};
-use super::HirId;
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct PathSegment {
     pub ident: Ident,
     pub def: NodeRef<HirId>,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Path {
     pub segments: Box<[PathSegment]>,
 }
@@ -24,17 +21,17 @@ impl Path {
     pub fn from_ident(ident: Ident) -> Self {
         let segment = PathSegment {
             ident,
-            def: NodeRef::pending()
+            def: NodeRef::pending(),
         };
-        Self { segments: Box::new([segment]) }
+        Self {
+            segments: Box::new([segment]),
+        }
     }
 
-    pub fn def(&self) -> &NodeRef<HirId> {
-        &self.segments.last().unwrap().def
-    }
+    pub fn def(&self) -> &NodeRef<HirId> { &self.segments.last().unwrap().def }
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct PathDef {
     pub ident: Ident,
     pub id: HirId,
@@ -50,16 +47,9 @@ impl PathDef {
 }
 
 impl<'hir> HirNode<'hir> for PathDef {
-    fn get_hir_id(&self) -> HirId {
-        self.id
-    }
+    fn get_hir_id(&self) -> HirId { self.id }
 
-    fn set_hir_id(&mut self, id: HirId) {
-        self.id = id;
-    }
+    fn set_hir_id(&mut self, id: HirId) { self.id = id; }
 
-    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> {
-        HirNodeKind::PathDef(self)
-    }
+    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> { HirNodeKind::PathDef(self) }
 }
-

@@ -1,7 +1,6 @@
 //! Utilities for unescaping strings
 
-use std::char;
-use std::str::Chars;
+use std::{char, str::Chars};
 
 /// Escapes the given char.
 ///
@@ -20,7 +19,7 @@ pub const fn escape_char(c: char) -> Option<char> {
         '\\' => '\\',
         '\'' => '\'',
         '"' => '\"',
-        _ => return None
+        _ => return None,
     };
     Some(c)
 }
@@ -50,8 +49,7 @@ impl Iterator for Unescaped<'_> {
 impl<'src> From<&'src str> for Unescaped<'src> {
     fn from(value: &'src str) -> Self {
         Self {
-            chars: value.chars()
+            chars: value.chars(),
         }
     }
 }
-

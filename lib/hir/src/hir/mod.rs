@@ -1,22 +1,22 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use crate::hir_id::{HirId, HirNode};
-use crate::impl_hir_node;
-use crate::node_map::HirNodeKind;
+use std::{collections::HashMap, fmt::Debug};
 
-#[derive(Debug,Clone,Copy)]
+use crate::{
+    hir_id::{HirId, HirNode},
+    impl_hir_node,
+    node_map::HirNodeKind,
+};
+
+#[derive(Debug, Clone, Copy)]
 pub struct Ident {
     pub sym: Symbol,
     pub span: Span,
 }
 
 impl PartialEq for Ident {
-    fn eq(&self, other: &Self) -> bool {
-        self.sym == other.sym
-    }
+    fn eq(&self, other: &Self) -> bool { self.sym == other.sym }
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Constness {
     Const,
     Default,
@@ -29,24 +29,24 @@ pub mod stmt;
 pub use stmt::Statement;
 
 pub mod expr;
+pub use def::Definition;
 pub use expr::Expression;
 use session::Symbol;
 use span::Span;
-pub use def::Definition;
 
 pub mod def;
 mod node_ref;
 pub mod path;
-pub use path::{PathDef, Path};
 pub use node_ref::{NodeRef, NodeRefKind};
+pub use path::{Path, PathDef};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ModItemKind<'hir> {
     Mod(&'hir Module<'hir>),
     Def(&'hir Definition<'hir>),
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ModItem<'hir> {
     pub kind: ModItemKind<'hir>,
     pub id: HirId,
@@ -55,7 +55,10 @@ pub struct ModItem<'hir> {
 impl<'hir> ModItem<'hir> {
     #[inline(always)]
     pub const fn new(kind: ModItemKind<'hir>) -> Self {
-        Self { kind, id: HirId::DUMMY }
+        Self {
+            kind,
+            id: HirId::DUMMY,
+        }
     }
 
     pub const fn inner_id(&self) -> HirId {
@@ -80,17 +83,23 @@ pub struct Module<'hir> {
 impl Debug for Module<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Module")
-         .field("id", &self.id)
-         .field("items", &self.items)
-         .field("name", &self.name)
-         .field("span", &self.span)
-         .finish()
+            .field("id", &self.id)
+            .field("items", &self.items)
+            .field("name", &self.name)
+            .field("span", &self.span)
+            .finish()
     }
 }
 
 impl<'hir> Module<'hir> {
     pub fn new(name: Symbol, defs: &'hir [ModItem<'hir>], span: Span) -> Self {
-        let mut m = Self { name, items: defs, span, id: HirId::DUMMY, item_map: HashMap::new() };
+        let mut m = Self {
+            name,
+            items: defs,
+            span,
+            id: HirId::DUMMY,
+            item_map: HashMap::new(),
+        };
         for item in defs {
             match item.kind {
                 ModItemKind::Mod(module) => m.item_map.insert(module.name, item),

@@ -1,11 +1,10 @@
-
 struct AstLowering<'low, 'hir: 'low> {
     sess: &'low hir::Session<'hir>,
 }
 
+mod def;
 mod expr;
 mod stmt;
-mod def;
 mod ty;
 
 use ast::{ModItem, Symbol};
@@ -19,16 +18,14 @@ pub fn lower(sess: &hir::Session<'_>, prog: &ast::Module) {
 }
 
 fn ident(spanned: &Spanned<Symbol>) -> Ident {
-    Ident { sym: spanned.val, span: spanned.span }
+    Ident {
+        sym: spanned.val,
+        span: spanned.span,
+    }
 }
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
-
-    fn new(sess: &'low hir::Session<'hir>) -> Self {
-        Self {
-            sess,
-        }
-    }
+    fn new(sess: &'low hir::Session<'hir>) -> Self { Self { sess } }
 
     fn lower_module(&mut self, m: &ast::Module) -> &'hir hir::Module<'hir> {
         let m = self.lower_module_owned(m);
@@ -42,9 +39,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
     }
 
     fn lower_mod_items(&mut self, mi: &[ast::ModItem]) -> &'hir [hir::ModItem<'hir>] {
-        self.sess.alloc_iter(
-            mi.iter().map(|mi| self.lower_mod_item_owned(mi))
-        )
+        self.sess
+            .alloc_iter(mi.iter().map(|mi| self.lower_mod_item_owned(mi)))
     }
 
     fn lower_mod_item_owned(&mut self, mi: &ast::ModItem) -> hir::ModItem<'hir> {
@@ -55,5 +51,4 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
         hir::ModItem::new(kind)
     }
-
 }

@@ -1,18 +1,20 @@
 use std::collections::HashMap;
+
 use error_manager::ErrorManager;
-use hir::node_map::HirNodeKind;
-use hir::path::PathSegment;
-use hir::visitor::{walk_function_definition, walk_module, walk_variable, Visitor};
-use hir::HirId;
+use hir::{
+    HirId,
+    node_map::HirNodeKind,
+    path::PathSegment,
+    visitor::{Visitor, walk_function_definition, walk_module, walk_variable},
+};
 use session::Symbol;
 
 #[derive(Default)]
 struct SymbolTable {
-    scopes: Vec<HashMap<Symbol,HirId>>,
+    scopes: Vec<HashMap<Symbol, HirId>>,
 }
 
 impl SymbolTable {
-
     fn define(&mut self, sym: Symbol, id: HirId) {
         self.scopes.last_mut().unwrap().insert(sym, id);
     }
@@ -26,13 +28,9 @@ impl SymbolTable {
         None
     }
 
-    fn enter_scope(&mut self) {
-        self.scopes.push(Default::default());
-    }
+    fn enter_scope(&mut self) { self.scopes.push(Default::default()); }
 
-    fn exit_scope(&mut self) {
-        self.scopes.pop();
-    }
+    fn exit_scope(&mut self) { self.scopes.pop(); }
 }
 
 pub struct Identification<'ident, 'hir> {
@@ -68,29 +66,36 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn resolve_relative_segment(&mut self, left: &'hir PathSegment, right: &'hir PathSegment) {
-
         let Some(def) = left.def.get() else { return };
         let node = self.hir_sess.get_node(&def).unwrap_if_mod_item();
 
         match node {
             HirNodeKind::Module(module) => {
-               match module.find_item(&right.ident.sym) {
-                   Some(def) => right.def.resolve(def.inner_id()),
-                   None => {
-                       self.em.emit_error(error_manager::StringError {
-                           msg: format!("Undefined symbol '{:#?}::{:#?}'", module.name, right.ident.sym).into(),
-                           span: right.ident.span,
-                       });
-                   }
-               }
+                match module.find_item(&right.ident.sym) {
+                    Some(def) => right.def.resolve(def.inner_id()),
+                    None => {
+                        self.em.emit_error(error_manager::StringError {
+                            msg: format!(
+                                "Undefined symbol '{:#?}::{:#?}'",
+                                module.name, right.ident.sym
+                            )
+                            .into(),
+                            span: right.ident.span,
+                        });
+                    }
+                }
             }
             HirNodeKind::Def(definition) => {
                 self.em.emit_error(error_manager::StringError {
-                    msg: format!("Can't access item '{:#?}' of '{:#?}'", right.ident.sym, definition.name.ident.sym).into(),
+                    msg: format!(
+                        "Can't access item '{:#?}' of '{:#?}'",
+                        right.ident.sym, definition.name.ident.sym
+                    )
+                    .into(),
                     span: right.ident.span,
                 });
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -111,18 +116,18 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
             if !matches!(node, HirNodeKind::Def(_)) {
                 self.em.emit_error(error_manager::StringError {
                     msg: "Variable path must resolve to a definition".into(),
-                    span: base.span
+                    span: base.span,
                 });
             }
         }
     }
 
     fn visit_function_definition(
-            &mut self,
-            def: &'hir hir::Definition<'hir>,
-            params: &'hir [hir::Definition<'hir>],
-            ret_ty: &'hir hir::Type<'hir>,
-            body: &'hir [hir::Statement<'hir>]
+        &mut self,
+        def: &'hir hir::Definition<'hir>,
+        params: &'hir [hir::Definition<'hir>],
+        ret_ty: &'hir hir::Type<'hir>,
+        body: &'hir [hir::Statement<'hir>],
     ) {
         self.st.enter_scope();
         walk_function_definition(self, def, params, ret_ty, body);
@@ -147,5 +152,3 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 }
-
-

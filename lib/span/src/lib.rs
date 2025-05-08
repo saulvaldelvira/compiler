@@ -1,11 +1,9 @@
 //! Utilities to represent spans inside a file
 
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::{fmt, str};
+use std::{fmt, fmt::Debug, ops::Deref, str};
 
 /// Represents a span in a buffer, bounded by an offset and a len
-#[derive(Clone,Copy,Default,PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Span {
     /// Offset of the span inside the buffer
     pub offset: usize,
@@ -22,7 +20,7 @@ impl Debug for Span {
 
 /// Represents a [`Span`] in a file, bounded by
 /// it's start line and col, plus it's end line and col
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct FilePosition {
     pub start_line: usize,
     pub start_col: usize,
@@ -32,36 +30,36 @@ pub struct FilePosition {
 
 impl fmt::Display for FilePosition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let FilePosition { start_line, start_col, end_line, end_col } = self;
+        let FilePosition {
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+        } = self;
         write!(f, "[{start_line}:{start_col},{end_line}:{end_col}]")
     }
 }
 
 impl Span {
-    pub const fn new() -> Span {
-        Span { offset: 0, len: 0 }
-    }
+    pub const fn new() -> Span { Span { offset: 0, len: 0 } }
     /// Joins two spans together.
     /// Returns the smallest Span that covers both.
     #[must_use]
     pub const fn join(&self, other: &Span) -> Span {
-        let (left,right) =
-            if self.offset < other.offset {
-                (self,other)
-            } else {
-                (other,self)
-            };
+        let (left, right) = if self.offset < other.offset {
+            (self, other)
+        } else {
+            (other, self)
+        };
         Span {
             offset: left.offset,
-            len: right.end_offset() - left.offset
+            len: right.end_offset() - left.offset,
         }
     }
     /// Slices the given string with this span
     #[must_use]
     #[inline(always)]
-    pub fn slice<'a>(&self, src: &'a str) -> &'a str {
-        &src[self.offset..self.offset + self.len]
-    }
+    pub fn slice<'a>(&self, src: &'a str) -> &'a str { &src[self.offset..self.offset + self.len] }
     /// Gets the [file position] of this span in the given string slice
     ///
     /// [file position]: FilePosition
@@ -99,9 +97,7 @@ impl Span {
     /// offset of the span plus it's length
     #[must_use]
     #[inline(always)]
-    pub const fn end_offset(&self) -> usize {
-        self.offset + self.len
-    }
+    pub const fn end_offset(&self) -> usize { self.offset + self.len }
 }
 
 impl fmt::Display for Span {
@@ -119,19 +115,18 @@ pub struct Spanned<T> {
 impl<T> Deref for Spanned<T> {
     type Target = T;
 
-    fn deref(&self) -> &Self::Target {
-        &self.val
-    }
+    fn deref(&self) -> &Self::Target { &self.val }
 }
 
 impl<T: Clone> Clone for Spanned<T> {
     fn clone(&self) -> Self {
-        Self { val: self.val.clone(), span: self.span }
+        Self {
+            val: self.val.clone(),
+            span: self.span,
+        }
     }
 }
 
 impl<T: PartialEq> PartialEq for Spanned<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.val == other.val
-    }
+    fn eq(&self, other: &Self) -> bool { self.val == other.val }
 }

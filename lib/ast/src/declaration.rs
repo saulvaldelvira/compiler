@@ -3,8 +3,7 @@ use core::fmt;
 use session::Symbol;
 use span::{Span, Spanned};
 
-use crate::{Block, Expression, Statement};
-use crate::types::Type;
+use crate::{types::Type, Block, Expression, Statement};
 
 #[derive(Debug)]
 pub enum VariableConstness {
@@ -55,7 +54,5 @@ pub struct Declaration {
 }
 
 impl fmt::Debug for Declaration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#?}", self.kind)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:#?}", self.kind) }
 }

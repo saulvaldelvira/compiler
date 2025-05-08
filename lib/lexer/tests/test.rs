@@ -1,8 +1,7 @@
 use core::str;
 
 use error_manager::ErrorManager;
-use lexer::token::TokenKind;
-use lexer::Lexer;
+use lexer::{token::TokenKind, Lexer};
 
 #[test]
 fn tokenize_test() {
@@ -24,12 +23,16 @@ fn tokenize_test() {
     let idents = ["a", "12", "1.2", "'a'", "'\\n'", "\"hiiii\""];
     let mut ident_iter = idents.iter();
 
-    for (act,&exp) in stream.zip(expected.iter()) {
+    for (act, &exp) in stream.zip(expected.iter()) {
         assert_eq!(act.kind, exp);
-        if matches!(act.kind, TokenKind::Identifier | TokenKind::IntLiteral
-                             | TokenKind::FloatLiteral | TokenKind::CharLiteral
-                             | TokenKind::String)
-        {
+        if matches!(
+            act.kind,
+            TokenKind::Identifier
+                | TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::CharLiteral
+                | TokenKind::String
+        ) {
             let span = act.span.slice(INPUT);
             let exp_ident = ident_iter.next().unwrap();
             assert_eq!(span, *exp_ident);

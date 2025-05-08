@@ -1,13 +1,19 @@
 use hir::Expression;
 use semantic::Semantic;
 
-use crate::code_generator::CodeGenerator;
-use crate::codefuncs::Address;
-use crate::mir::{MaplArithmetic, MaplComparison, MaplInstruction, MaplLiteral, MaplLogical, MaplType};
-
 use super::Eval;
+use crate::{
+    code_generator::CodeGenerator,
+    codefuncs::Address,
+    mir::{MaplArithmetic, MaplComparison, MaplInstruction, MaplLiteral, MaplLogical, MaplType},
+};
 
-fn cast(semantic: &Semantic<'_>, ins: MaplInstruction, from: &Expression, to: &Expression) -> MaplInstruction {
+fn cast(
+    semantic: &Semantic<'_>,
+    ins: MaplInstruction,
+    from: &Expression,
+    to: &Expression,
+) -> MaplInstruction {
     let from_ty = semantic.type_of(&from.id).unwrap();
     let to_ty = semantic.type_of(&to.id).unwrap();
 
@@ -15,12 +21,16 @@ fn cast(semantic: &Semantic<'_>, ins: MaplInstruction, from: &Expression, to: &E
     let to_ty = MaplType::from(to_ty);
 
     if from_ty == to_ty {
-        return ins
+        return ins;
     }
 
     match (from_ty, to_ty) {
         (MaplType::Float, MaplType::Byte) => {
-            let c1 = MaplInstruction::Cast { mapl: Box::new(ins), from: MaplType::Float, to: MaplType::Int };
+            let c1 = MaplInstruction::Cast {
+                mapl: Box::new(ins),
+                from: MaplType::Float,
+                to: MaplType::Int,
+            };
             MaplInstruction::Cast {
                 mapl: Box::new(c1),
                 from: MaplType::Int,
@@ -28,14 +38,24 @@ fn cast(semantic: &Semantic<'_>, ins: MaplInstruction, from: &Expression, to: &E
             }
         }
         (MaplType::Byte, MaplType::Float) => {
-            let c1 = MaplInstruction::Cast { mapl: Box::new(ins), from: MaplType::Byte, to: MaplType::Int };
+            let c1 = MaplInstruction::Cast {
+                mapl: Box::new(ins),
+                from: MaplType::Byte,
+                to: MaplType::Int,
+            };
             MaplInstruction::Cast {
                 mapl: Box::new(c1),
                 from: MaplType::Int,
                 to: MaplType::Float,
             }
         }
-        _ => MaplInstruction::Cast { mapl: Box::new(ins), from: from_ty, to: to_ty }
+        _ => {
+            MaplInstruction::Cast {
+                mapl: Box::new(ins),
+                from: from_ty,
+                to: to_ty,
+            }
+        }
     }
 }
 
@@ -67,19 +87,14 @@ impl Eval for Expression<'_> {
                         }
                     }
                 }
-            },
-            ExpressionKind::Ref(expr) => {
-                expr.address(cg)
-            },
+            }
+            ExpressionKind::Ref(expr) => expr.address(cg),
             ExpressionKind::Deref(expr) => {
                 let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
 
-                MaplInstruction::Compose(Box::new([
-                    expr.eval(cg),
-                    MaplInstruction::Load(ty),
-                ]))
-            },
+                MaplInstruction::Compose(Box::new([expr.eval(cg), MaplInstruction::Load(ty)]))
+            }
             ExpressionKind::Arithmetic { left, op, right } => {
                 let left = left.eval(cg).into();
                 let right = right.eval(cg).into();
@@ -87,8 +102,13 @@ impl Eval for Expression<'_> {
                 let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
 
-                MaplInstruction::Arithmetic { left, right, op, ty }
-            },
+                MaplInstruction::Arithmetic {
+                    left,
+                    right,
+                    op,
+                    ty,
+                }
+            }
             ExpressionKind::Comparison { left, op, right } => {
                 let ty = cg.sem.type_of(&left.id).unwrap();
                 let ty = MaplType::from(ty);
@@ -97,8 +117,13 @@ impl Eval for Expression<'_> {
                 let right = right.eval(cg).into();
                 let op = MaplComparison::from(*op);
 
-                MaplInstruction::Comparison { left, right, op, ty }
-            },
+                MaplInstruction::Comparison {
+                    left,
+                    right,
+                    op,
+                    ty,
+                }
+            }
             ExpressionKind::Logical { left, op, right } => {
                 let left = left.eval(cg).into();
                 let right = right.eval(cg).into();
@@ -106,7 +131,11 @@ impl Eval for Expression<'_> {
 
                 MaplInstruction::Logical { left, right, op }
             }
-            ExpressionKind::Ternary { cond, if_true, if_false } => {
+            ExpressionKind::Ternary {
+                cond,
+                if_true,
+                if_false,
+            } => {
                 let else_label = cg.next_label();
                 let end_label = cg.next_label();
                 MaplInstruction::Compose(Box::new([
@@ -118,7 +147,7 @@ impl Eval for Expression<'_> {
                     if_false.eval(cg),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
-            },
+            }
             ExpressionKind::Assignment { left, right } => {
                 let ty = cg.sem.type_of(&left.id).unwrap().into();
                 let ins = [
@@ -129,15 +158,15 @@ impl Eval for Expression<'_> {
                     MaplInstruction::Load(ty),
                 ];
                 MaplInstruction::Compose(Box::from(ins))
-            },
+            }
             ExpressionKind::Literal(lit_value) => {
                 use hir::expr::LitValue;
                 let lit = match lit_value {
                     LitValue::Int(n) => MaplLiteral::Int(*n as i16),
                     LitValue::Float(f) => MaplLiteral::Float(*f as f32),
-                    LitValue::Bool(b) => MaplLiteral::Int( if *b { 1 } else { 0 }),
+                    LitValue::Bool(b) => MaplLiteral::Int(if *b { 1 } else { 0 }),
                     LitValue::Char(c) => MaplLiteral::Byte(u8::try_from(*c).unwrap()),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 MaplInstruction::Push(lit)
             }
@@ -148,20 +177,17 @@ impl Eval for Expression<'_> {
                 }
                 vec.push(callee.address(cg));
                 MaplInstruction::Compose(vec.into_boxed_slice())
-            },
+            }
             ExpressionKind::Cast { expr, .. } => {
                 let ins = expr.eval(cg);
                 cast(cg.sem, ins, expr, self)
-            },
-            ExpressionKind::Variable(_) |
-            ExpressionKind::ArrayAccess { .. } |
-            ExpressionKind::StructAccess { .. } => {
+            }
+            ExpressionKind::Variable(_)
+            | ExpressionKind::ArrayAccess { .. }
+            | ExpressionKind::StructAccess { .. } => {
                 let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
-                MaplInstruction::Compose(Box::new([
-                        self.address(cg),
-                        MaplInstruction::Load(ty),
-                ]))
+                MaplInstruction::Compose(Box::new([self.address(cg), MaplInstruction::Load(ty)]))
             }
         }
     }

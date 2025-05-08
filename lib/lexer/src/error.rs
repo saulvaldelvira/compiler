@@ -19,10 +19,18 @@ impl error_manager::Error for LexerError {
 
     fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
         match self.kind {
-            LexerErrorKind::FloatLitWithoutIntegralPart => write!(out, "Float literal must have an integral part"),
-            LexerErrorKind::FloatLitWithoutFloatingPart => write!(out, "Float literal must have a floating part"),
-            LexerErrorKind::UnexpectedCharacter(c) => write!(out, "Encountered unexpected character '{c}'"),
-            LexerErrorKind::ExpectedClosingTickOnCharLiteral => write!(out, "Expected closing ', on char literal"),
+            LexerErrorKind::FloatLitWithoutIntegralPart => {
+                write!(out, "Float literal must have an integral part")
+            }
+            LexerErrorKind::FloatLitWithoutFloatingPart => {
+                write!(out, "Float literal must have a floating part")
+            }
+            LexerErrorKind::UnexpectedCharacter(c) => {
+                write!(out, "Encountered unexpected character '{c}'")
+            }
+            LexerErrorKind::ExpectedClosingTickOnCharLiteral => {
+                write!(out, "Expected closing ', on char literal")
+            }
             LexerErrorKind::UnterminatedComment => write!(out, "Unterminated comment"),
             LexerErrorKind::UnterminatedString => write!(out, "Unterminated string"),
         }

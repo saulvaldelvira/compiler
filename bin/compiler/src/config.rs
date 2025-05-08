@@ -1,5 +1,5 @@
-use std::env::Args;
-use std::process;
+use std::{env::Args, process};
+
 use compiler_driver::Emit;
 
 pub struct Config {
@@ -10,7 +10,7 @@ pub struct Config {
 
 impl Config {
     pub fn parse(args: Args) -> Self {
-        let mut conf = Self{
+        let mut conf = Self {
             files: Vec::new(),
             out_file: None,
             emit: Emit::Mapl,
@@ -19,10 +19,12 @@ impl Config {
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 /* Parse args */
-                "-o" => conf.out_file = Some(args.next().unwrap_or_else(|| {
-                    eprintln!("Missing argument for '-o'");
-                    process::exit(1);
-                })),
+                "-o" => {
+                    conf.out_file = Some(args.next().unwrap_or_else(|| {
+                        eprintln!("Missing argument for '-o'");
+                        process::exit(1);
+                    }))
+                }
                 "--emit" => {
                     let em = args.next().unwrap_or_else(|| {
                         eprintln!("Missing argument for '--emit'");

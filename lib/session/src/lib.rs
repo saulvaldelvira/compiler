@@ -1,9 +1,11 @@
-use std::fmt::{Debug, Display};
-use std::sync::RwLock;
+use std::{
+    fmt::{Debug, Display},
+    sync::RwLock,
+};
 
 use interner::StringInterner;
 
-#[derive(Clone,Copy,Hash,Eq,PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Symbol(interner::Symbol<str>);
 
@@ -13,9 +15,7 @@ impl PartialEq<&str> for Symbol {
     ///
     /// NOTE: If the symbol doesn't exist in the session
     /// storage, it returns false.
-    fn eq(&self, other: &&str) -> bool {
-        symbol_equals(*self, other)
-    }
+    fn eq(&self, other: &&str) -> bool { symbol_equals(*self, other) }
 }
 
 impl Debug for Symbol {
@@ -23,7 +23,7 @@ impl Debug for Symbol {
         try_with_symbol(*self, |sym| {
             match sym {
                 Some(s) => write!(f, "{s}"),
-                None => write!(f, "{:?}", self.0)
+                None => write!(f, "{:?}", self.0),
             }
         })
     }
@@ -31,9 +31,7 @@ impl Debug for Symbol {
 
 impl Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        with_symbol(*self, |s| {
-            write!(f, "{s}")
-        })
+        with_symbol(*self, |s| write!(f, "{s}"))
     }
 }
 
@@ -62,15 +60,14 @@ impl Interner {
     }
 }
 
-
 pub struct Session {
-    pub string_interner: Interner
+    pub string_interner: Interner,
 }
 
 impl Session {
     fn new() -> Self {
         Self {
-            string_interner: Interner(RwLock::new(interner::Interner::new()))
+            string_interner: Interner(RwLock::new(interner::Interner::new())),
         }
     }
 }
@@ -80,50 +77,33 @@ thread_local! {
 }
 
 #[inline(always)]
-pub fn with_session<R>(f: impl FnOnce(&Session) -> R) -> R {
-    SESSION.with(|sess| f(sess))
-}
-
+pub fn with_session<R>(f: impl FnOnce(&Session) -> R) -> R { SESSION.with(|sess| f(sess)) }
 
 #[inline(always)]
 pub fn with_session_interner<R>(f: impl FnOnce(&Interner) -> R) -> R {
-    with_session(|sess| {
-        f(&sess.string_interner)
-    })
+    with_session(|sess| f(&sess.string_interner))
 }
 
 #[inline(always)]
 pub fn try_with_symbol<R>(sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
-    with_session_interner(|i| {
-        i.resolve(sym,f)
-    })
+    with_session_interner(|i| i.resolve(sym, f))
 }
 
 #[inline(always)]
 pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
-    with_session_interner(|i| {
-        i.resolve_unchecked(sym, f)
-    })
+    with_session_interner(|i| i.resolve_unchecked(sym, f))
 }
 
 #[inline(always)]
 pub fn symbol_into_owned(sym: Symbol) -> String {
-    with_session_interner(|i| {
-        i.resolve_unchecked(sym, |s| {
-            s.to_string()
-        })
-    })
+    with_session_interner(|i| i.resolve_unchecked(sym, |s| s.to_string()))
 }
 
 #[inline(always)]
-pub fn symbol_equals(sym: Symbol, o: &str) -> bool {
-    with_symbol(sym, |s| s == o)
-}
+pub fn symbol_equals(sym: Symbol, o: &str) -> bool { with_symbol(sym, |s| s == o) }
 
 #[inline(always)]
-pub fn intern_str(src: &str) -> Symbol {
-    with_session_interner(|i| i.get_or_intern(src))
-}
+pub fn intern_str(src: &str) -> Symbol { with_session_interner(|i| i.get_or_intern(src)) }
 
 #[inline(always)]
 #[cold]

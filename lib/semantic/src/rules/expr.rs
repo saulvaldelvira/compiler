@@ -1,12 +1,12 @@
 use error_manager::ErrorManager;
-use hir::{Expression, Ident};
+use hir::{Expression, Ident, expr::ExpressionKind};
 use span::Span;
-use crate::errors::{SemanticError, SemanticErrorKind};
-use crate::{PrimitiveType, Ty, TypeId, TypeKind};
 
 use super::SemanticRule;
-
-use hir::expr::ExpressionKind;
+use crate::{
+    PrimitiveType, Ty, TypeId, TypeKind,
+    errors::{SemanticError, SemanticErrorKind},
+};
 
 pub trait Lvalue {
     fn is_lvalue(&self) -> bool;
@@ -15,21 +15,21 @@ pub trait Lvalue {
 impl Lvalue for hir::Expression<'_> {
     fn is_lvalue(&self) -> bool {
         match &self.kind {
-            ExpressionKind::ArrayAccess { .. }  |
-            ExpressionKind::Deref(_) |
-            ExpressionKind::StructAccess { .. } |
-            ExpressionKind::Variable(_) => true,
+            ExpressionKind::ArrayAccess { .. }
+            | ExpressionKind::Deref(_)
+            | ExpressionKind::StructAccess { .. }
+            | ExpressionKind::Variable(_) => true,
             ExpressionKind::Assignment { left, .. } => left.is_lvalue(),
-            ExpressionKind::Array(_) |
-            ExpressionKind::Unary { .. } |
-            ExpressionKind::Ref(_) |
-            ExpressionKind::Logical { .. } |
-            ExpressionKind::Comparison { .. } |
-            ExpressionKind::Arithmetic { .. } |
-            ExpressionKind::Ternary { .. } |
-            ExpressionKind::Literal(_) |
-            ExpressionKind::Cast { .. } |
-            ExpressionKind::Call { .. } => false,
+            ExpressionKind::Array(_)
+            | ExpressionKind::Unary { .. }
+            | ExpressionKind::Ref(_)
+            | ExpressionKind::Logical { .. }
+            | ExpressionKind::Comparison { .. }
+            | ExpressionKind::Arithmetic { .. }
+            | ExpressionKind::Ternary { .. }
+            | ExpressionKind::Literal(_)
+            | ExpressionKind::Cast { .. }
+            | ExpressionKind::Call { .. } => false,
         }
     }
 }
@@ -41,10 +41,11 @@ pub trait SideEffect {
 impl SideEffect for hir::Expression<'_> {
     fn has_side_effect(&self) -> bool {
         match &self.kind {
-            ExpressionKind::Assignment { .. } |
-            ExpressionKind::Call { .. } => true,
+            ExpressionKind::Assignment { .. } | ExpressionKind::Call { .. } => true,
 
-            ExpressionKind::ArrayAccess { arr, index } => arr.has_side_effect() || index.has_side_effect(),
+            ExpressionKind::ArrayAccess { arr, index } => {
+                arr.has_side_effect() || index.has_side_effect()
+            }
             ExpressionKind::Deref(e) => e.has_side_effect(),
             ExpressionKind::StructAccess { st, .. } => st.has_side_effect(),
             ExpressionKind::Array(arr) => arr.iter().any(SideEffect::has_side_effect),
@@ -59,13 +60,14 @@ impl SideEffect for hir::Expression<'_> {
             ExpressionKind::Arithmetic { left, right, .. } => {
                 left.has_side_effect() || right.has_side_effect()
             }
-            ExpressionKind::Ternary { cond, if_true, if_false, .. } => {
-                cond.has_side_effect() || if_true.has_side_effect()
-                    || if_false.has_side_effect()
-            }
+            ExpressionKind::Ternary {
+                cond,
+                if_true,
+                if_false,
+                ..
+            } => cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
             ExpressionKind::Cast { expr, .. } => expr.has_side_effect(),
-            ExpressionKind::Literal(_) |
-            ExpressionKind::Variable(_) => false,
+            ExpressionKind::Literal(_) | ExpressionKind::Variable(_) => false,
         }
     }
 }
@@ -82,7 +84,7 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
         let arr_ty = sem.type_of(&self.arr.id);
         let index_ty = sem.type_of(&self.index.id);
 
-        if arr_ty.is_some_and(|arr| !matches!(arr.kind, TypeKind::Array(_,_))) {
+        if arr_ty.is_some_and(|arr| !matches!(arr.kind, TypeKind::Array(_, _))) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::IndexToNonArray,
                 span: self.arr.span,
@@ -93,14 +95,17 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
             if !matches!(ind.kind, TypeKind::Primitive(PrimitiveType::Int)) {
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::NonIntegerIndex,
-                    span: self.index.span
+                    span: self.index.span,
                 });
             }
         }
 
         match arr_ty {
-            Some(Ty { kind: TypeKind::Array(of, _), ..}) => Some(of.id),
-            _ => None
+            Some(Ty {
+                kind: TypeKind::Array(of, _),
+                ..
+            }) => Some(of.id),
+            _ => None,
         }
     }
 }
@@ -125,15 +130,18 @@ impl SemanticRule<'_> for ValidateAssignment<'_> {
         let left_ty = sem.type_of(&self.left.id)?;
         let right_ty = sem.type_of(&self.right.id)?;
 
-        right_ty.promote_to(left_ty).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{}", left_ty.kind);
-            let r = format!("{}", right_ty.kind);
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::CantPromote(r, l),
-                span: self.span,
-            });
-            Default::default()
-        })
+        right_ty
+            .promote_to(left_ty)
+            .map(|t| Some(t.id))
+            .unwrap_or_else(|| {
+                let l = format!("{}", left_ty.kind);
+                let r = format!("{}", right_ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::CantPromote(r, l),
+                    span: self.span,
+                });
+                Default::default()
+            })
     }
 }
 
@@ -146,19 +154,18 @@ impl SemanticRule<'_> for ValidateFieldAccess<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
-
         let struct_ty = sem.type_of(&self.st.id)?;
 
         struct_ty
-        .access_field(&self.field.sym)
-        .map(|ty| Some(ty.id))
-        .unwrap_or_else(|kind| {
-            em.emit_error(SemanticError {
-                kind,
-                span: self.field.span,
-            });
-            Default::default()
-        })
+            .access_field(&self.field.sym)
+            .map(|ty| Some(ty.id))
+            .unwrap_or_else(|kind| {
+                em.emit_error(SemanticError {
+                    kind,
+                    span: self.field.span,
+                });
+                Default::default()
+            })
     }
 }
 
@@ -175,15 +182,18 @@ impl SemanticRule<'_> for ValidateArithmetic<'_> {
         let left_ty = sem.type_of(&self.left.id)?;
         let right_ty = sem.type_of(&self.right.id)?;
 
-        left_ty.arithmetic(right_ty).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{}", left_ty.kind);
-            let r = format!("{}", right_ty.kind);
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::Arithmetic(l, r),
-                span: self.span
-            });
-            Default::default()
-        })
+        left_ty
+            .arithmetic(right_ty)
+            .map(|t| Some(t.id))
+            .unwrap_or_else(|| {
+                let l = format!("{}", left_ty.kind);
+                let r = format!("{}", right_ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::Arithmetic(l, r),
+                    span: self.span,
+                });
+                Default::default()
+            })
     }
 }
 
@@ -200,15 +210,18 @@ impl SemanticRule<'_> for ValidateLogical<'_> {
         let left_ty = sem.type_of(&self.left.id)?;
         let right_ty = sem.type_of(&self.right.id)?;
 
-        left_ty.logical(right_ty, sem).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{}", left_ty.kind);
-            let r = format!("{}", right_ty.kind);
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::Logical(l, r),
-                span: self.span
-            });
-            Default::default()
-        })
+        left_ty
+            .logical(right_ty, sem)
+            .map(|t| Some(t.id))
+            .unwrap_or_else(|| {
+                let l = format!("{}", left_ty.kind);
+                let r = format!("{}", right_ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::Logical(l, r),
+                    span: self.span,
+                });
+                Default::default()
+            })
     }
 }
 
@@ -225,15 +238,18 @@ impl SemanticRule<'_> for ValidateComparison<'_> {
         let left_ty = sem.type_of(&self.left.id)?;
         let right_ty = sem.type_of(&self.right.id)?;
 
-        left_ty.comparison(right_ty, sem).map(|t| Some(t.id)).unwrap_or_else(|| {
-            let l = format!("{}", left_ty.kind);
-            let r = format!("{}", right_ty.kind);
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::Compare(l, r),
-                span: self.span
-            });
-            Default::default()
-        })
+        left_ty
+            .comparison(right_ty, sem)
+            .map(|t| Some(t.id))
+            .unwrap_or_else(|| {
+                let l = format!("{}", left_ty.kind);
+                let r = format!("{}", right_ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::Compare(l, r),
+                    span: self.span,
+                });
+                Default::default()
+            })
     }
 }
 
@@ -254,30 +270,36 @@ impl SemanticRule<'_> for ValidateCall<'_> {
                 kind: SemanticErrorKind::CallToNonFunction,
                 span: self.callee.span,
             });
-            return Default::default()
+            return Default::default();
         };
 
-        if params.len() !=  self.args.len() {
+        if params.len() != self.args.len() {
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::MismatchedArgsNum { expected: params.len(), received: self.args.len() },
-                span: self.span
+                kind: SemanticErrorKind::MismatchedArgsNum {
+                    expected: params.len(),
+                    received: self.args.len(),
+                },
+                span: self.span,
             });
-            return Default::default()
+            return Default::default();
         }
 
-        let args_tys = self.args.iter().map(|expr| {
-            sem.type_of(&expr.id).map(|ty| (ty, expr.span))
-        });
+        let args_tys = self
+            .args
+            .iter()
+            .map(|expr| sem.type_of(&expr.id).map(|ty| (ty, expr.span)));
         let mut error = false;
         for (param, arg) in params.iter().zip(args_tys) {
-            let Some((arg,arg_span)) = arg else { return Default::default() };
+            let Some((arg, arg_span)) = arg else {
+                return Default::default();
+            };
 
             if !arg.kind.can_be_promoted_to(&param.kind) {
                 let l = format!("{}", param.kind);
                 let r = format!("{}", arg.kind);
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::CantPromote(l, r),
-                    span: arg_span
+                    span: arg_span,
                 });
                 error = true;
             }
@@ -288,7 +310,6 @@ impl SemanticRule<'_> for ValidateCall<'_> {
         } else {
             Some(ret_ty.id)
         }
-
     }
 }
 
@@ -309,7 +330,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
         if !matches!(from_ty.kind, TypeKind::Primitive(_)) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::NonPrimitiveCast(from_ty.kind.to_string()),
-                span: self.span
+                span: self.span,
             });
             errored = true;
         }
@@ -317,7 +338,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
         if !matches!(self.to.kind, TypeKind::Primitive(_)) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::NonPrimitiveCast(self.to.kind.to_string()),
-                span: self.span
+                span: self.span,
             });
             errored = true;
         }
@@ -350,7 +371,10 @@ impl<'sem> SemanticRule<'sem> for ValidateTernary<'_> {
         let ift_ty = sem.type_of(&self.if_true.id)?;
         let iff_ty = sem.type_of(&self.if_false.id)?;
 
-        if !cond_ty.kind.can_be_promoted_to(&TypeKind::Primitive(PrimitiveType::Bool)) {
+        if !cond_ty
+            .kind
+            .can_be_promoted_to(&TypeKind::Primitive(PrimitiveType::Bool))
+        {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::CantPromote(cond_ty.kind.to_string(), "bool".to_string()),
                 span: self.span,

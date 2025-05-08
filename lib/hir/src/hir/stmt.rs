@@ -1,17 +1,21 @@
 use span::Span;
 
-use crate::hir_id::HirNode;
-use crate::node_map::HirNodeKind;
-use crate::{impl_hir_node, HirId};
-
 use super::{Definition, Expression};
+use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum StatementKind<'hir> {
     Expr(&'hir Expression<'hir>),
     Block(&'hir [Statement<'hir>]),
-    If { cond: &'hir Expression<'hir>, if_true: &'hir Statement<'hir>, if_false: Option<&'hir Statement<'hir>> },
-    While { cond: &'hir Expression<'hir>, body: &'hir Statement<'hir> },
+    If {
+        cond: &'hir Expression<'hir>,
+        if_true: &'hir Statement<'hir>,
+        if_false: Option<&'hir Statement<'hir>>,
+    },
+    While {
+        cond: &'hir Expression<'hir>,
+        body: &'hir Statement<'hir>,
+    },
     For {
         init: Option<&'hir Definition<'hir>>,
         cond: Option<&'hir Expression<'hir>>,
@@ -27,7 +31,7 @@ pub enum StatementKind<'hir> {
     Def(&'hir Definition<'hir>),
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Statement<'hir> {
     pub kind: StatementKind<'hir>,
     pub span: Span,
