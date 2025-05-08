@@ -40,7 +40,7 @@ impl<T> Parenthesized<T> {
 
 #[derive(Debug)]
 pub enum ModItem {
-    Decl(Declaration),
+    Decl(Box<Declaration>),
     Mod(Module),
 }
 

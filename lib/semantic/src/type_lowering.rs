@@ -83,7 +83,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
 
     fn lower_hir_type_owned(&mut self, ty: &'hir hir::Type<'hir>) -> TypeKind<'ty> {
         use hir::types::TypeKind as HTK;
-        let kind = match &ty.kind {
+        match &ty.kind {
             HTK::Primitive(primitive_type) => TypeKind::Primitive(PrimitiveType::from(primitive_type)),
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
@@ -93,9 +93,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
                 TypeKind::Function { params, ret_ty }
             },
             HTK::Path(_) => unreachable!(),
-        };
-
-        kind
+        }
     }
 
 }

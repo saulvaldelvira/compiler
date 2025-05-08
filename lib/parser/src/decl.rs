@@ -15,20 +15,16 @@ use crate::{Parser,Result};
     }
 
     pub(super) fn mod_item(&mut self) -> Result<ModItem> {
-        self.try_mod_item().ok_or_else(|| {
-            ParseErrorKind::ExpectedNode("module")
-        })?
+        self.try_mod_item().ok_or(ParseErrorKind::ExpectedNode("module"))?
     }
 
     fn try_mod_item(&mut self) -> Option<Result<ModItem>> {
         if let Some(decl) = self.try_declaration() {
-            Some(decl.map(ModItem::Decl))
-        }
-        else if let Some(m) = self.try_module() {
-            Some(m.map(ModItem::Mod))
+            Some(decl.map(|d| ModItem::Decl(Box::new(d))))
         }
         else {
-            None
+            self.try_module()
+                .map(|m| m.map(ModItem::Mod))
         }
     }
 
@@ -64,12 +60,7 @@ use crate::{Parser,Result};
         else if let Some(func) = self.try_function() {
             Some(func)
         }
-        else if let Some(s) = self.try_struct() {
-            Some(s)
-        }
-        else {
-            None
-        }
+        else { self.try_struct() }
     }
 
     fn try_function(&mut self) -> Option<Result<Declaration>> {

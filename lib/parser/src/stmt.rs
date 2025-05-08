@@ -6,12 +6,11 @@ use super::{Parser,Result};
 
 impl Parser<'_,'_> {
     pub(super) fn statement(&mut self) -> Result<Statement> {
-        let stmt =
         if let Some(vdecl) = self.try_var_decl() {
             let vdecl = vdecl?;
             let span = vdecl.span;
             let stmt = Statement {
-                kind: StatementKind::Decl(vdecl),
+                kind: StatementKind::Decl(Box::new(vdecl)),
                 span
             };
             Ok(stmt)
@@ -32,9 +31,8 @@ impl Parser<'_,'_> {
             self.ret_stmt()
         }
         else {
-            return self.single_line_stmt();
-        };
-        stmt
+            self.single_line_stmt()
+        }
     }
     fn ret_stmt(&mut self) -> Result<Statement> {
         let kw_ret = self.previous_span()?;
@@ -84,7 +82,7 @@ impl Parser<'_,'_> {
         let kw_for = self.previous_span()?;
         self.consume(TokenKind::LeftParen)?;
         let init = if self.check_types(&[TokenKind::Let,TokenKind::Const]) {
-            Some(self.var_decl()?)
+            Some(Box::new(self.var_decl()?))
         } else { None };
         let cond = if !self.check(TokenKind::Semicolon) {
             Some(self.expression()?)
