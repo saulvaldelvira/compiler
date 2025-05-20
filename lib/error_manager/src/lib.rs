@@ -3,6 +3,7 @@ use std::{borrow::Cow, io, ops::Deref};
 
 use span::{FilePosition, Span};
 
+/// An error sent to the [ErrorManager]
 pub trait Error {
     fn get_span(&self) -> Span;
     fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result;
@@ -19,6 +20,7 @@ impl Error for StringError {
     fn get_span(&self) -> Span { self.span }
 }
 
+/// Registers [errors](Error)
 pub struct ErrorManager {
     errors: Vec<Box<dyn Error>>,
     warnings: Vec<Box<dyn Error>>,

@@ -3,5 +3,6 @@ Compiler
 This is a toy compiler I'm working on
 
 == Documentation ==
-To build the code documentation, run `cargo doc`
+To build the code documentation, run `cargo doc`, or
+browse it online at https://doc.saulv.es/compiler/rustdoc/
 There's a markdown book on the /doc folder
