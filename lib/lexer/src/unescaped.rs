@@ -38,10 +38,10 @@ impl Iterator for Unescaped<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let c = self.chars.next()?;
-        if c != '\\' {
-            Some(c)
-        } else {
+        if c == '\\' {
             escape_char(self.chars.next()?)
+        } else {
+            Some(c)
         }
     }
 }

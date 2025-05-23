@@ -29,7 +29,7 @@ impl fmt::Debug for PrimitiveType {
 pub enum TypeKind<'hir> {
     Primitive(PrimitiveType),
     Ref(&'hir Type<'hir>),
-    Array(&'hir Type<'hir>, usize),
+    Array(&'hir Type<'hir>, u32),
     Path(Path),
     Function {
         params: &'hir [Type<'hir>],

@@ -10,6 +10,7 @@ pub enum MemoryAddress {
 }
 
 #[derive(Clone)]
+#[allow(clippy::struct_field_names)]
 pub struct FunctionCtx {
     pub ret_size: u16,
     pub locals_size: u16,
@@ -19,7 +20,7 @@ pub struct FunctionCtx {
 pub struct CodeGenerator<'cg, 'sem, 'hir> {
     addresses: HashMap<HirId, MemoryAddress>,
     functions: Vec<FunctionCtx>,
-    global_offset: usize,
+    global_offset: u64,
     labels: usize,
     source: &'cg str,
     mangle_prefix: Vec<String>,
@@ -36,7 +37,7 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
         hir: &'cg hir::Session<'hir>,
     ) -> Self {
         Self {
-            addresses: Default::default(),
+            addresses: HashMap::default(),
             labels: Default::default(),
             functions: Vec::new(),
             global_offset: 0,
@@ -56,7 +57,8 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
 
     pub fn current_function(&mut self) -> Option<FunctionCtx> { self.functions.last().cloned() }
 
-    pub fn next_global_offset(&mut self, size: usize) -> MemoryAddress {
+    pub fn next_global_offset(&mut self, size: u64) -> MemoryAddress {
+        #[allow(clippy::cast_possible_truncation)]
         let addr = MemoryAddress::Absolute(self.global_offset as u16);
         self.global_offset += size;
         addr
@@ -72,7 +74,7 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
         self.mangles.insert(id, name);
     }
 
-    pub fn get_mangled_symbol(&self, id: &HirId) -> Option<String> { self.mangles.get(id).cloned() }
+    pub fn get_mangled_symbol(&self, id: HirId) -> Option<String> { self.mangles.get(&id).cloned() }
 
     pub fn enter_module(&mut self, name: String) { self.mangle_prefix.push(name); }
 
@@ -83,8 +85,8 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
         self.addresses.insert(hid, addr);
     }
 
-    pub fn address_of(&self, hid: &HirId) -> Option<MemoryAddress> {
-        self.addresses.get(hid).copied()
+    pub fn address_of(&self, hid: HirId) -> Option<MemoryAddress> {
+        self.addresses.get(&hid).copied()
     }
 
     pub fn next_label(&mut self) -> String {

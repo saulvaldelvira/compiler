@@ -16,11 +16,11 @@
 //! inside it, a variable 'a' with type int.
 //!
 //! In the HIR, those two types are different HIR nodes, and have different
-//! [HirId](hir::HirId)s.
+//! [`HirId`](hir::HirId)s.
 //!
 //! Prior to type checking, we need to lower all those HIR Types into the
 //! semantic types.
-//! So foo's return type and a's type will have the same [TypeId].
+//! So foo's return type and a's type will have the same [`TypeId`].
 
 use std::collections::HashMap;
 
@@ -59,7 +59,7 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
                     "We should NEVER add a TypeId to map that hasn't been interned into types."
                 );
             });
-        };
+        }
 
         if let hir::types::TypeKind::Path(path) = &ty.kind {
             let def = path.def().expect_resolved();

@@ -25,9 +25,9 @@ impl AstValidator<'_> {
                 self.em.emit_warning(Warning {
                     kind: WarningKind::UnnecesaryParenthesis,
                     span: no_paren.span,
-                })
+                });
             }
-        };
+        }
     }
 }
 
@@ -68,12 +68,8 @@ impl Visitor<'_> for AstValidator<'_> {
             StatementKind::If { cond, .. } => {
                 self.warn_unnecesary_paren(&cond.val, 0);
             }
-            StatementKind::Print(_, args, _) => {
-                for arg in args {
-                    self.warn_unnecesary_paren(arg, 0);
-                }
-            }
-            StatementKind::Read(_, args, _) => {
+            StatementKind::Print(_, args, _)
+            | StatementKind::Read(_, args, _) => {
                 for arg in args {
                     self.warn_unnecesary_paren(arg, 0);
                 }

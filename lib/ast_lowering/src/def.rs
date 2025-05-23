@@ -61,8 +61,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         use hir::def::DefinitionKind as HDK;
 
         let name = match &def.kind {
-            DK::Variable { name, .. } => ident(name),
-            DK::Function { name, .. } => ident(name),
+            DK::Variable { name, .. } |
+            DK::Function { name, .. } |
             DK::Struct { name, .. } => ident(name),
         };
 
@@ -97,8 +97,9 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let params = self.lower_params(params);
                 let ret_ty = return_type
                     .as_ref()
-                    .map(|rt| self.lower_type(rt))
-                    .unwrap_or_else(|| hir::Type::empty());
+                    .map_or_else(
+                        hir::Type::empty,
+                        |rt| self.lower_type(rt));
                 HDK::Function {
                     params,
                     body,

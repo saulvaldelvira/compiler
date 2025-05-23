@@ -8,7 +8,7 @@ use span::Spanned;
 use super::{Parser, Result};
 use crate::error::ParseErrorKind;
 
-impl<'sess, 'src> Parser<'sess, 'src> {
+impl Parser<'_, '_> {
     pub(super) fn expression(&mut self) -> Result<Expression> { self.assignment() }
 
     pub(super) fn try_expression(&mut self) -> Option<Expression> { self.expression().ok() }
@@ -71,7 +71,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         while self.match_types(&[TokenKind::Or, TokenKind::And]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidBinaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidBinaryOp(op.kind))?;
             let op = Spanned {
                 val: ops,
                 span: op.span,
@@ -94,7 +94,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         while self.match_types(&[TokenKind::BangEqual, TokenKind::EqualEqual]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidBinaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidBinaryOp(op.kind))?;
             let op = Spanned {
                 val: ops,
                 span: op.span,
@@ -123,7 +123,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         ]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidBinaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidBinaryOp(op.kind))?;
             let op = Spanned {
                 val: ops,
                 span: op.span,
@@ -146,7 +146,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         while self.match_types(&[TokenKind::Minus, TokenKind::Plus]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidBinaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidBinaryOp(op.kind))?;
             let op = Spanned {
                 val: ops,
                 span: op.span,
@@ -169,7 +169,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         while self.match_types(&[TokenKind::Slash, TokenKind::Star, TokenKind::Modulo]) {
             let op = self.previous()?;
             let ops = BinaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidBinaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidBinaryOp(op.kind))?;
             let op = Spanned {
                 val: ops,
                 span: op.span,
@@ -214,7 +214,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         ]) {
             let op = self.previous()?;
             let opk = UnaryExprOp::try_from(op.kind)
-                .map_err(|_| ParseErrorKind::InvalidUnaryOp(op.kind))?;
+                .map_err(|()| ParseErrorKind::InvalidUnaryOp(op.kind))?;
             let op = Spanned {
                 val: opk,
                 span: op.span,

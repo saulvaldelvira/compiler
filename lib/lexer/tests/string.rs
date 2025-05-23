@@ -11,5 +11,5 @@ fn string() {
         .collect::<Vec<_>>();
     assert_eq!(tokens.len(), 1);
     let slice = tokens[0].span.slice(INPUT);
-    assert_eq!(slice, r#"" And I said, \"Hello world!\" ""#)
+    assert_eq!(slice, r#"" And I said, \"Hello world!\" ""#);
 }

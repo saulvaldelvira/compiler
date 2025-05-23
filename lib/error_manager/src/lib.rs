@@ -1,9 +1,9 @@
 use core::fmt;
-use std::{borrow::Cow, io, ops::Deref};
+use std::{borrow::Cow, io};
 
 use span::{FilePosition, Span};
 
-/// An error sent to the [ErrorManager]
+/// An error sent to the [`ErrorManager`]
 pub trait Error {
     fn get_span(&self) -> Span;
     fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result;
@@ -57,7 +57,7 @@ impl ErrorManager {
         let mut buf = String::new();
         for err in &self.errors {
             out.write_all("ERROR ".as_bytes()).unwrap();
-            print_error(err.deref(), src, &mut buf)?;
+            print_error(&**err, src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();
         }
@@ -72,7 +72,7 @@ impl ErrorManager {
         let mut buf = String::new();
         for err in &self.warnings {
             out.write_all("WARNING ".as_bytes()).unwrap();
-            print_error(err.deref(), src, &mut buf)?;
+            print_error(&**err, src, &mut buf)?;
             out.write_all(buf.as_bytes()).unwrap();
             buf.clear();
         }

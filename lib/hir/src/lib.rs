@@ -12,7 +12,7 @@ use hir_id::HirNode;
 use node_map::{HirNodeKind, NodeMap};
 
 mod _arena {
-    use super::*;
+    use super::{Expression, Type, Module};
 
     ::arena::define_arenas!(
         [visibility = pub]
@@ -29,7 +29,7 @@ pub use ::arena::markers;
 ///
 /// This struct represents a hir compilation session
 /// It holds an arena with all the nodes of the tree, and
-/// a map to find nodes by their [HirId]
+/// a map to find nodes by their [`HirId`]
 pub struct Session<'hir> {
     root: Cell<Option<&'hir Module<'hir>>>,
     node_map: RefCell<NodeMap<'hir>>,
@@ -41,7 +41,7 @@ impl<'hir> Session<'hir> {
 
     pub fn get_root(&self) -> &'hir Module<'hir> { self.root.get().unwrap() }
 
-    /// Gets a node by their [HirId].
+    /// Gets a node by their [`HirId`].
     /// This functions assumes that the id is valid, and exists
     /// in the tree.
     ///

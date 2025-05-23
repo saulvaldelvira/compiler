@@ -58,7 +58,7 @@ impl Span {
     }
     /// Slices the given string with this span
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub fn slice<'a>(&self, src: &'a str) -> &'a str { &src[self.offset..self.offset + self.len] }
     /// Gets the [file position] of this span in the given string slice
     ///
@@ -96,7 +96,7 @@ impl Span {
     /// Returns the end offset of the span. This is, the
     /// offset of the span plus it's length
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn end_offset(&self) -> usize { self.offset + self.len }
 }
 

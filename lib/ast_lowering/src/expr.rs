@@ -9,15 +9,16 @@ use span::Spanned;
 use crate::{AstLowering, ident};
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
-    pub(super) fn lower_path(&self, spanned: &[Spanned<Symbol>]) -> hir::Path {
+    pub(super) fn lower_path(spanned: &[Spanned<Symbol>]) -> hir::Path {
         let mut segments = vec![];
         for sp in spanned {
-            segments.push(self.lower_path_segment(sp));
+            segments.push(Self::lower_path_segment(sp));
         }
         hir::Path::new(segments.into_boxed_slice())
     }
 
-    fn lower_path_segment(&self, seg: &Spanned<Symbol>) -> PathSegment {
+    #[allow(clippy::too_many_lines)]
+    fn lower_path_segment(seg: &Spanned<Symbol>) -> PathSegment {
         PathSegment {
             ident: ident(seg),
             def: NodeRef::pending(),
@@ -39,6 +40,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         self.sess.alloc(self.lower_expression_owned(expr))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn lower_expression_owned(&mut self, expr: &ast::Expression) -> hir::Expression<'hir> {
         use ast::expr::{ExpressionKind as EK, UnaryExprOp};
         let kind = match &expr.kind {
@@ -70,9 +72,10 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 HExprKind::Cast { expr, to }
             }
             EK::Binary { op, left, right } => {
+                use ast::expr::BinaryExprOp as BOP;
+
                 let left = self.lower_expression(left);
                 let right = self.lower_expression(right);
-                use ast::expr::BinaryExprOp as BOP;
                 match op.val {
                     BOP::Add | BOP::Sub | BOP::Mul | BOP::Div | BOP::Mod => {
                         let op = match op.val {
@@ -122,7 +125,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     if_false,
                 }
             }
-            EK::Path(spanned) => HExprKind::Variable(self.lower_path(spanned)),
+            EK::Path(spanned) => HExprKind::Variable(Self::lower_path(spanned)),
             EK::Literal(spanned) => {
                 use ast::expr::LitValue as ALV;
                 use hir::expr::LitValue as HLV;

@@ -28,12 +28,12 @@ impl<'hir> HirNodeKind<'hir> {
         }
     }
 
-    /// Expects this node to be a [ModItem] variant.
+    /// Expects this node to be a [`ModItem`] variant.
     ///
     /// # Panics
-    /// - If the node is NOT a [ModItem] variant
+    /// - If the node is NOT a [`ModItem`] variant
     ///
-    /// [ModItem]: HirNodeKind::ModItem
+    /// [`ModItem`]: HirNodeKind::ModItem
     pub fn expect_module_item(self) -> &'hir ModItem<'hir> {
         match self {
             Self::ModItem(mi) => mi,
@@ -41,6 +41,7 @@ impl<'hir> HirNodeKind<'hir> {
         }
     }
 
+    #[must_use]
     pub fn unwrap_if_mod_item(self) -> HirNodeKind<'hir> {
         match self {
             HirNodeKind::ModItem(mod_item) => {

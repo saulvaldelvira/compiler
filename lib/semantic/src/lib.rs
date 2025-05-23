@@ -30,16 +30,16 @@ impl Default for Semantic<'_> {
     fn default() -> Self {
         Self {
             arena: Arena::new(),
-            types: Default::default(),
-            hir_to_typeid_assoc: Default::default(),
-            kind_to_id_assoc: Default::default(),
+            types: RefCell::default(),
+            hir_to_typeid_assoc: RefCell::default(),
+            kind_to_id_assoc: RefCell::default(),
             next_id: Cell::new(100),
         }
     }
 }
 
 impl<'sem> Semantic<'sem> {
-    #[inline(always)]
+    #[inline]
     pub const fn get_arena(&self) -> &Arena<'sem> { &self.arena }
 
     pub fn set_type_of(&self, hir_id: HirId, id: TypeId) {

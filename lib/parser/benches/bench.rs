@@ -7,7 +7,7 @@ use test::Bencher;
 
 #[bench]
 fn bench(b: &mut Bencher) {
-    const INPUT: &str = r#"
+    const INPUT: &str = "
 fn main() {
     let a = 12;
     let b = 23;
@@ -32,11 +32,11 @@ fn main() {
         }
     }
 }
-"#;
+";
 
     b.iter(move || {
         let mut em = ErrorManager::new();
         let stream = Lexer::new(INPUT, &mut em).into_token_stream();
         parse(stream, INPUT, &mut ErrorManager::new());
-    })
+    });
 }

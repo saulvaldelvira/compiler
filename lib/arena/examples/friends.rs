@@ -11,7 +11,7 @@ impl<'ctx> Person<'ctx> {
         Self {
             age,
             name: name.into(),
-            friends: Default::default(),
+            friends: RefCell::default(),
         }
     }
 

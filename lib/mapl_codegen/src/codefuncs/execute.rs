@@ -9,8 +9,8 @@ use crate::{
     mir::{MaplInstruction, MaplLiteral, MaplType},
 };
 
-fn get_mapl_type(id: &HirId, sem: &Semantic<'_>) -> MaplType {
-    let ty = sem.type_of(id).unwrap();
+fn get_mapl_type(id: HirId, sem: &Semantic<'_>) -> MaplType {
+    let ty = sem.type_of(&id).unwrap();
     MaplType::from(ty)
 }
 
@@ -20,7 +20,7 @@ impl Execute for Definition<'_> {
         match self.kind {
             DefinitionKind::Variable { init, .. } => {
                 if let Some(init) = init {
-                    let ty = get_mapl_type(&self.id, cg.sem);
+                    let ty = get_mapl_type(self.id, cg.sem);
                     MaplInstruction::Compose(Box::new([
                         self.address(cg),
                         init.eval(cg),
@@ -38,6 +38,7 @@ impl Execute for Definition<'_> {
 }
 
 impl Execute for Statement<'_> {
+    #[allow(clippy::too_many_lines)]
     fn execute(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         use hir::stmt::StatementKind;
         let md = self.metadata(cg);
@@ -71,8 +72,7 @@ impl Execute for Statement<'_> {
                     MaplInstruction::Jmp(end_label.clone()),
                     MaplInstruction::DefineLabel(else_label),
                     if_false
-                        .map(|i| i.execute(cg))
-                        .unwrap_or(MaplInstruction::Empty),
+                        .map_or(MaplInstruction::Empty, |i| i.execute(cg)),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             }

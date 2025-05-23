@@ -33,7 +33,7 @@ impl<'ctx, T> TypedArena<'ctx, T> {
 
     /// Allocs an slice of elements from the given [Iterator]
     ///
-    /// The iterator must be an [ExactSizeIterator]
+    /// The iterator must be an [`ExactSizeIterator`]
     #[allow(clippy::mut_from_ref)]
     pub fn alloc_iter<I>(&self, values: I) -> &'ctx mut [T]
     where
@@ -47,7 +47,11 @@ impl<'ctx, T> TypedArena<'ctx, T> {
             self.grow(cmp::max(32, len));
         }
 
-        self.elems.borrow_mut().last_mut().unwrap().add_len(len);
+        self.elems
+            .borrow_mut()
+            .last_mut()
+            .expect("We've grown the vector, so it's imposible it doesn't have, at least, one element")
+            .add_len(len);
 
         let ptr = self.start.get();
         unsafe {
@@ -67,7 +71,11 @@ impl<'ctx, T> TypedArena<'ctx, T> {
             self.grow(32);
         }
 
-        self.elems.borrow_mut().last_mut().unwrap().add_len(1);
+        self.elems
+            .borrow_mut()
+            .last_mut()
+            .expect("We've grown the vector, so it's imposible it doesn't have, at least, one element")
+            .add_len(1);
 
         let ptr = self.start.get();
         unsafe {
@@ -81,10 +89,10 @@ impl<'ctx, T> TypedArena<'ctx, T> {
 impl<T> Default for TypedArena<'_, T> {
     fn default() -> Self {
         Self {
-            elems: Default::default(),
-            _marker: Default::default(),
+            elems: RefCell::default(),
             start: Cell::new(ptr::null_mut()),
             end: Cell::new(ptr::null_mut()),
+            _marker: PhantomData,
         }
     }
 }

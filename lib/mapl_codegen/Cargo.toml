@@ -7,3 +7,6 @@ edition = "2024"
 hir = { path = "../hir" }
 semantic = { path = "../semantic" }
 span = { path = "../span" }
+
+[lints]
+workspace = true

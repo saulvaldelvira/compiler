@@ -36,7 +36,7 @@ impl<'lex> Cursor<'lex> {
     pub fn line(&self) -> usize { self.line }
     pub fn col(&self) -> usize { self.col }
     pub fn advance(&mut self) -> char {
-        let c = self.chars.next().map(|(_, c)| c).unwrap_or('\0');
+        let c = self.chars.next().map_or('\0', |(_, c)| c);
         self.col += 1;
         if c == '\n' {
             self.line += 1;
@@ -56,11 +56,11 @@ impl<'lex> Cursor<'lex> {
         }
         true
     }
-    pub fn peek(&self) -> char { self.chars.clone().next().map(|(_, c)| c).unwrap_or('\0') }
+    pub fn peek(&self) -> char { self.chars.clone().next().map_or('\0', |(_, c)| c) }
     pub fn peek_next(&self) -> char {
         let mut iter = self.chars.clone();
         iter.next();
-        iter.next().map(|(_, c)| c).unwrap_or('\0')
+        iter.next().map_or('\0', |(_, c)| c)
     }
     pub fn match_next(&mut self, c: char) -> bool {
         if self.peek() == c {

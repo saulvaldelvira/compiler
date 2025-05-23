@@ -7,3 +7,6 @@ edition = "2024"
 hir = { path = "../hir" }
 session = { path = "../session" }
 error_manager = { path = "../error_manager" }
+
+[lints]
+workspace = true

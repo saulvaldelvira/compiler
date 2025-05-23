@@ -84,11 +84,11 @@ impl Address for Definition<'_> {
     fn address(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction {
         match &self.kind {
             DefinitionKind::Variable { .. } => {
-                let addr = cg.address_of(&self.id).unwrap();
+                let addr = cg.address_of(self.id).unwrap();
                 MaplInstruction::Pushaddr(addr)
             }
             DefinitionKind::Function { .. } => {
-                let name = cg.get_mangled_symbol(&self.id).unwrap();
+                let name = cg.get_mangled_symbol(self.id).unwrap();
                 MaplInstruction::Call(name)
             }
             DefinitionKind::Struct { .. } => unreachable!(),

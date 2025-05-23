@@ -79,7 +79,7 @@ fn define_func<'hir>(
     let mut vec = Vec::new();
 
     cg.mangle_symbol(def.id, &def.name.ident.sym.to_string());
-    let name = cg.get_mangled_symbol(&def.id).unwrap();
+    let name = cg.get_mangled_symbol(def.id).unwrap();
     vec.push(MaplInstruction::DefineLabel(name));
     vec.push(MaplInstruction::Enter(locals as usize));
 

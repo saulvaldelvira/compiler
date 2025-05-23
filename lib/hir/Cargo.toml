@@ -7,3 +7,6 @@ edition = "2024"
 arena = { path = "../arena" }
 session = { path = "../session" }
 span = { path = "../span" }
+
+[lints]
+workspace = true

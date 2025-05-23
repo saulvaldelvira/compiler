@@ -14,7 +14,7 @@ pub enum TypeKind {
         open_brace: Span,
         ty: Box<Type>,
         semicollon: Span,
-        length: usize,
+        length: u32,
         close_brace: Span,
     },
     Path(Path),

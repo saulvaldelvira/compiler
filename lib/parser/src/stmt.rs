@@ -93,16 +93,16 @@ impl Parser<'_, '_> {
         } else {
             None
         };
-        let cond = if !self.check(TokenKind::Semicolon) {
-            Some(self.expression()?)
-        } else {
+        let cond = if self.check(TokenKind::Semicolon) {
             None
+        } else {
+            Some(self.expression()?)
         };
         self.consume(TokenKind::Semicolon)?;
-        let inc = if !self.check(TokenKind::RightParen) {
-            Some(self.expression()?)
-        } else {
+        let inc = if self.check(TokenKind::RightParen) {
             None
+        } else {
+            Some(self.expression()?)
         };
         self.consume(TokenKind::RightParen)?;
         let body = Box::new(self.statement()?);

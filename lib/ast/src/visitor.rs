@@ -89,13 +89,9 @@ where
 {
     match &stmt.kind {
         StatementKind::Expression(expression, _) => v.visit_expression(expression),
-        StatementKind::Print(_, expressions, _) => {
-            for expr in expressions {
-                v.visit_expression(expr);
-            }
-            V::Result::output()
-        }
-        StatementKind::Read(_, expressions, _) => {
+        StatementKind::Print(_, expressions, _)
+        | StatementKind::Read(_, expressions, _) =>
+        {
             for expr in expressions {
                 v.visit_expression(expr);
             }
@@ -282,7 +278,7 @@ impl<T> VisitorResult for Option<T> {
     fn from_branch(b: ControlFlow<Self::Residual, Self::T>) -> Self {
         match b {
             ControlFlow::Continue(c) => Some(c),
-            ControlFlow::Break(_) => None,
+            ControlFlow::Break(()) => None,
         }
     }
 

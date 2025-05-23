@@ -49,15 +49,12 @@ impl SideEffect for hir::Expression<'_> {
             ExpressionKind::Deref(e) => e.has_side_effect(),
             ExpressionKind::StructAccess { st, .. } => st.has_side_effect(),
             ExpressionKind::Array(arr) => arr.iter().any(SideEffect::has_side_effect),
-            ExpressionKind::Unary { expr, .. } => expr.has_side_effect(),
+            ExpressionKind::Unary { expr, .. }
+            | ExpressionKind::Cast { expr, .. } => expr.has_side_effect(),
             ExpressionKind::Ref(r) => r.has_side_effect(),
-            ExpressionKind::Logical { left, right, .. } => {
-                left.has_side_effect() || right.has_side_effect()
-            }
-            ExpressionKind::Comparison { left, right, .. } => {
-                left.has_side_effect() || right.has_side_effect()
-            }
-            ExpressionKind::Arithmetic { left, right, .. } => {
+            ExpressionKind::Logical { left, right, .. }
+            | ExpressionKind::Comparison { left, right, .. }
+            | ExpressionKind::Arithmetic { left, right, .. } => {
                 left.has_side_effect() || right.has_side_effect()
             }
             ExpressionKind::Ternary {
@@ -66,7 +63,6 @@ impl SideEffect for hir::Expression<'_> {
                 if_false,
                 ..
             } => cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
-            ExpressionKind::Cast { expr, .. } => expr.has_side_effect(),
             ExpressionKind::Literal(_) | ExpressionKind::Variable(_) => false,
         }
     }

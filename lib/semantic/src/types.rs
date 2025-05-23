@@ -4,7 +4,7 @@ use session::Symbol;
 
 use crate::errors::SemanticErrorKind;
 
-/// A TypeId uniquely identifies a type
+/// A `TypeId` uniquely identifies a type
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct TypeId(pub(crate) usize);
 
@@ -52,7 +52,7 @@ pub struct Field<'ty> {
 pub enum TypeKind<'ty> {
     Primitive(PrimitiveType),
     Ref(&'ty Ty<'ty>),
-    Array(&'ty Ty<'ty>, usize),
+    Array(&'ty Ty<'ty>, u32),
     Struct {
         name: Symbol,
         fields: &'ty [Field<'ty>],
@@ -127,17 +127,17 @@ impl Display for Ty<'_> {
 }
 
 impl<'ty> Ty<'ty> {
-    #[inline(always)]
+    #[inline]
     pub const fn is_empty_type(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
     }
 
-    #[inline(always)]
+    #[inline]
     pub const fn is_boolean(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Bool))
     }
 
-    #[inline(always)]
+    #[inline]
     pub const fn as_function_type(&self) -> Option<(&'ty [&'ty Ty<'ty>], &'ty Ty<'ty>)> {
         match self.kind {
             TypeKind::Function { params, ret_ty } => Some((params, ret_ty)),

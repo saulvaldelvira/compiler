@@ -19,8 +19,7 @@ fn main() {
                 .char_indices()
                 .rev()
                 .find(|&(_, c)| c == '.')
-                .map(|(i, _)| i)
-                .unwrap_or(0);
+                .map_or(0, |(i, _)| i);
             let start = &file[..ext];
             format!("{start}.out")
         });

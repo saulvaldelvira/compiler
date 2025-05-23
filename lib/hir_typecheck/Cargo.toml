@@ -7,3 +7,6 @@ edition = "2024"
 hir = { path = "../hir" }
 error_manager = { path = "../error_manager" }
 semantic = { path = "../semantic" }
+
+[lints]
+workspace = true

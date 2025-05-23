@@ -182,7 +182,7 @@ pub enum TokenKind {
     Modulo,
 }
 
-/// A token consist on a discriminator [TokenKind] and a [Span]
+/// A token consist on a discriminator [`TokenKind`] and a [Span]
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
@@ -190,5 +190,5 @@ pub struct Token {
 }
 
 impl fmt::Display for TokenKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{:?}", self) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{self:?}") }
 }

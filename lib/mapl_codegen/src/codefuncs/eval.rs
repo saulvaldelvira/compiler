@@ -60,6 +60,8 @@ fn cast(
 }
 
 impl Eval for Expression<'_> {
+
+    #[allow(clippy::too_many_lines)]
     fn eval(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         use hir::expr::ExpressionKind;
         match &self.kind {
@@ -164,9 +166,9 @@ impl Eval for Expression<'_> {
                 let lit = match lit_value {
                     LitValue::Int(n) => MaplLiteral::Int(*n as i16),
                     LitValue::Float(f) => MaplLiteral::Float(*f as f32),
-                    LitValue::Bool(b) => MaplLiteral::Int(if *b { 1 } else { 0 }),
+                    LitValue::Bool(b) => MaplLiteral::Int(i16::from(*b)),
                     LitValue::Char(c) => MaplLiteral::Byte(u8::try_from(*c).unwrap()),
-                    _ => unreachable!(),
+                    LitValue::Str(_) => unreachable!(),
                 };
                 MaplInstruction::Push(lit)
             }

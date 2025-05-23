@@ -9,3 +9,6 @@ error_manager = { path = "../error_manager" }
 session = { path = "../session" }
 arena = { path = "../arena" }
 span = { path = "../span" }
+
+[lints]
+workspace = true

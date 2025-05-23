@@ -12,7 +12,7 @@ impl Parser<'_, '_> {
         let ty = Box::new(self.ty()?);
         let sc = self.consume(TokenKind::Semicolon)?.span;
         self.consume(TokenKind::IntLiteral)?;
-        let length = self.previous_parse::<usize>()?;
+        let length = self.previous_parse::<u32>()?;
         let cb = self.consume(TokenKind::RightBracket)?.span;
         let span = ob.join(&cb);
         Ok(Type {

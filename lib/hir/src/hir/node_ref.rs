@@ -1,9 +1,9 @@
-use core::ops::Deref;
 use std::{
     cell::{Ref, RefCell},
     fmt::Debug,
 };
 
+#[derive(Clone, Copy)]
 pub enum NodeRefKind<T> {
     Resolved(T),
     Pending,
@@ -13,24 +13,12 @@ pub enum NodeRefKind<T> {
 impl<T: Debug> Debug for NodeRefKind<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Resolved(arg0) => write!(f, "{:#?}", arg0),
+            Self::Resolved(arg0) => write!(f, "{arg0:#?}"),
             Self::Pending => write!(f, "Pending"),
             Self::Err => write!(f, "Err"),
         }
     }
 }
-
-impl<T: Clone> Clone for NodeRefKind<T> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Resolved(arg0) => Self::Resolved(arg0.clone()),
-            Self::Pending => Self::Pending,
-            Self::Err => Self::Err,
-        }
-    }
-}
-
-impl<T: Copy> Copy for NodeRefKind<T> {}
 
 pub struct NodeRef<T> {
     inner: RefCell<NodeRefKind<T>>,
@@ -38,7 +26,7 @@ pub struct NodeRef<T> {
 
 impl<T: Debug> Debug for NodeRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?}", self.inner.borrow().deref())
+        write!(f, "{:#?}", &*self.inner.borrow())
     }
 }
 

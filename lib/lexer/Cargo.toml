@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 span = { path = "../span" }
 error_manager = { path = "../error_manager" }
+
+[lints]
+workspace = true

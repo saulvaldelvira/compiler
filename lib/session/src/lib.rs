@@ -9,6 +9,12 @@ use interner::StringInterner;
 #[repr(transparent)]
 pub struct Symbol(interner::Symbol<str>);
 
+impl Symbol {
+    pub fn try_borrow<R>(&self, f: impl FnOnce(&str) -> R) -> R {
+        with_symbol(*self, f)
+    }
+}
+
 impl PartialEq<&str> for Symbol {
     /// Attemps to resolve the symbol, and compares it
     /// with the given string
@@ -76,35 +82,35 @@ thread_local! {
     static SESSION: Session = Session::new();
 }
 
-#[inline(always)]
+#[inline]
 pub fn with_session<R>(f: impl FnOnce(&Session) -> R) -> R { SESSION.with(|sess| f(sess)) }
 
-#[inline(always)]
+#[inline]
 pub fn with_session_interner<R>(f: impl FnOnce(&Interner) -> R) -> R {
     with_session(|sess| f(&sess.string_interner))
 }
 
-#[inline(always)]
+#[inline]
 pub fn try_with_symbol<R>(sym: Symbol, f: impl FnOnce(Option<&str>) -> R) -> R {
     with_session_interner(|i| i.resolve(sym, f))
 }
 
-#[inline(always)]
+#[inline]
 pub fn with_symbol<R>(sym: Symbol, f: impl FnOnce(&str) -> R) -> R {
     with_session_interner(|i| i.resolve_unchecked(sym, f))
 }
 
-#[inline(always)]
+#[inline]
 pub fn symbol_into_owned(sym: Symbol) -> String {
-    with_session_interner(|i| i.resolve_unchecked(sym, |s| s.to_string()))
+    with_session_interner(|i| i.resolve_unchecked(sym, str::to_string))
 }
 
-#[inline(always)]
+#[inline]
 pub fn symbol_equals(sym: Symbol, o: &str) -> bool { with_symbol(sym, |s| s == o) }
 
-#[inline(always)]
+#[inline]
 pub fn intern_str(src: &str) -> Symbol { with_session_interner(|i| i.get_or_intern(src)) }
 
-#[inline(always)]
+#[inline]
 #[cold]
 fn cold() {}

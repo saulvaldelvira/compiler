@@ -18,10 +18,10 @@ impl<T> ArenaChunk<T> {
 
     pub fn capacity(&self) -> usize { self.elements.len() }
 
-    #[inline(always)]
+    #[inline]
     pub fn start(&mut self) -> *mut T { self.elements.as_ptr() as *mut T }
 
-    #[inline(always)]
+    #[inline]
     pub fn end(&mut self) -> *mut T {
         unsafe {
             if size_of::<T>() == 0 {

@@ -1,3 +1,6 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
+
 use code_generator::CodeGenerator;
 use codefuncs::{Define, Metadata};
 use hir::{ModItemKind, def::DefinitionKind};
@@ -23,8 +26,9 @@ where
     let mut ins = Vec::new();
 
     let fname = std::path::absolute(fname)
-        .map(|pb| pb.to_str().unwrap().to_owned())
-        .unwrap_or_else(|_| fname.to_owned());
+        .map_or_else(
+            |_| fname.to_owned(),
+            |pb| pb.to_str().unwrap().to_owned());
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
     let prog = hir.get_root();

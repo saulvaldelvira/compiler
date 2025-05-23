@@ -1,5 +1,6 @@
 use core::fmt;
 
+use hir::Ident;
 use hir::{Definition, ModItem, Statement, def::DefinitionKind};
 use span::FilePosition;
 
@@ -18,10 +19,10 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
     match ty.kind {
         TypeKind::Primitive(prim) => {
             write!(out, "{}", match prim {
-                PrimitiveType::Int => "int",
+                PrimitiveType::Int |
+                PrimitiveType::Bool => "int",
                 PrimitiveType::Char => "char",
                 PrimitiveType::Float => "float",
-                PrimitiveType::Bool => "int",
                 PrimitiveType::Empty => unreachable!(),
             })
         }
@@ -35,10 +36,12 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
     }
 }
 
-fn def_var(global: &str, name: String, ty: &semantic::Ty<'_>) -> MaplInstruction {
+fn def_var(global: &str, name: &Ident, ty: &semantic::Ty<'_>) -> MaplInstruction {
     let mut s = String::new();
     mapl_ty_metadata(ty, &mut s).unwrap();
-    MaplInstruction::Literal(format!("{global} {name} : {s}"))
+    name.sym.try_borrow(|name| {
+        MaplInstruction::Literal(format!("{global} {name} : {s}"))
+    })
 }
 
 impl Metadata for Definition<'_> {
@@ -46,7 +49,7 @@ impl Metadata for Definition<'_> {
         match self.kind {
             DefinitionKind::Variable { .. } => {
                 let ty = cg.sem.type_of(&self.id).unwrap();
-                def_var("#global", self.name.ident.sym.to_string(), ty)
+                def_var("#global", &self.name.ident, ty)
             }
             DefinitionKind::Struct { fields } => {
                 let mut v = Vec::new();
@@ -56,7 +59,7 @@ impl Metadata for Definition<'_> {
                 )));
                 for field in fields {
                     let ty = cg.sem.type_of(&field.id).unwrap();
-                    v.push(def_var("", field.name.ident.sym.to_string(), ty));
+                    v.push(def_var("", &field.name.ident, ty));
                 }
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())

@@ -21,12 +21,14 @@ const ALIGNMENT: usize = mem::size_of::<usize>();
 const PAGE: usize = 4096;
 const HUGE_PAGE: usize = 2 * 1024 * 1024;
 
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn align_down(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
     val & !(align - 1)
 }
 
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn align_up(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
@@ -67,6 +69,7 @@ impl<'ctx> DroplessArena<'ctx> {
     }
 
     /// Allocs an element, and returns a reference to it
+    #[allow(clippy::missing_panics_doc)]
     pub fn alloc<T>(&self, value: T) -> &'ctx mut T {
         assert!(!mem::needs_drop::<T>());
         assert!(mem::size_of::<T>() != 0);
@@ -79,8 +82,8 @@ impl<'ctx> DroplessArena<'ctx> {
         }
     }
 
-    /// Writes len elements from the given iterator into ptr
-    fn fill_array<T, I>(&self, mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
+/// Writes len elements from the given iterator into ptr
+fn fill_array<T, I>(mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
     where
         I: Iterator<Item = T>,
     {
@@ -98,7 +101,7 @@ impl<'ctx> DroplessArena<'ctx> {
 
     /// Allocs an slice of elements from the given [Iterator]
     ///
-    /// The iterator must be an [ExactSizeIterator]
+    /// The iterator must be an [`ExactSizeIterator`]
     pub fn alloc_iter<T, I>(&self, iter: I) -> &'ctx mut [T]
     where
         I: IntoIterator<Item = T>,
@@ -116,7 +119,7 @@ impl<'ctx> DroplessArena<'ctx> {
 
         let ptr = self.alloc_raw(Layout::array::<T>(length).unwrap()) as *mut T;
 
-        self.fill_array(iter, ptr, length)
+        Self::fill_array(iter, ptr, length)
     }
 
     fn grow(&self, layout: Layout) {
@@ -150,10 +153,10 @@ impl<'ctx> DroplessArena<'ctx> {
 impl Default for DroplessArena<'_> {
     fn default() -> Self {
         Self {
-            elems: Default::default(),
+            elems: RefCell::default(),
             start: Cell::new(ptr::null_mut()),
             end: Cell::new(ptr::null_mut()),
-            _marker: Default::default(),
+            _marker: PhantomData,
         }
     }
 }

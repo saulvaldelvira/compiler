@@ -97,16 +97,15 @@ impl Parser<'_, '_> {
         loop {
             if self.check(TokenKind::RightBrace) {
                 break;
-            };
+            }
 
             let field = self.struct_field()?;
             fields.push(field);
 
             if self.match_type(TokenKind::Comma) {
                 continue;
-            } else {
-                break;
             }
+            break;
         }
 
         let end_span = self.consume(TokenKind::RightBrace)?.span;

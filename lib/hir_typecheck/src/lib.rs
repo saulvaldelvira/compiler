@@ -45,7 +45,7 @@ struct TypeChecking<'tc, 'hir, 'sem> {
     ctx: TypeCheckingCtx<'hir>,
 }
 
-impl<'tc, 'hir, 'sem> TypeChecking<'tc, 'hir, 'sem> {
+impl<'hir> TypeChecking<'_, 'hir, '_> {
     fn check_boolean_condition(&mut self, cond: &'hir Expression<'hir>, name: &'static str) {
         if self
             .semantic
@@ -349,7 +349,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         def: &'hir Definition<'hir>,
         constness: &hir::Constness,
         ty: Option<&'hir Type<'hir>>,
-        init: &Option<&'hir Expression<'hir>>,
+        init: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_variable_definition(self, def, constness, ty, init);
         let ty = ty.expect("TODO: Infer types");

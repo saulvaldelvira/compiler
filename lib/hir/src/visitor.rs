@@ -29,7 +29,7 @@ pub trait Visitor<'hir> {
         def: &'hir Definition<'hir>,
         constness: &Constness,
         ty: Option<&'hir Type<'hir>>,
-        init: &Option<&'hir Expression<'hir>>,
+        init: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_variable_definition(self, def, constness, ty, init)
     }
@@ -331,7 +331,7 @@ where
             walk_iter!(v, params, visit_type);
             v.visit_type(ret_ty);
         }
-        _ => {}
+        TypeKind::Primitive(_) => {}
     }
     V::Result::output()
 }
@@ -340,15 +340,16 @@ pub fn walk_definition<'hir, V>(v: &mut V, def: &'hir Definition<'hir>) -> V::Re
 where
     V: Visitor<'hir> + ?Sized,
 {
+    use crate::def::DefinitionKind;
+
     v.visit_pathdef(def.id, def.name);
 
-    use crate::def::DefinitionKind;
     match &def.kind {
         DefinitionKind::Variable {
             constness,
             ty,
             init,
-        } => v.visit_variable_definition(def, constness, ty.as_deref(), init),
+        } => v.visit_variable_definition(def, constness, ty.as_deref(), *init),
         DefinitionKind::Function {
             params,
             body,
@@ -363,7 +364,7 @@ pub fn walk_variable_definition<'hir, V>(
     _def: &'hir Definition<'hir>,
     _constness: &Constness,
     ty: Option<&'hir Type<'hir>>,
-    init: &Option<&'hir Expression<'hir>>,
+    init: Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -815,7 +816,7 @@ impl<T> VisitorResult for Option<T> {
     fn from_branch(b: ControlFlow<Self::Residual, Self::T>) -> Self {
         match b {
             ControlFlow::Continue(c) => Some(c),
-            ControlFlow::Break(_) => None,
+            ControlFlow::Break(()) => None,
         }
     }
 
@@ -839,7 +840,7 @@ pub struct BaseVisitorCtx<'hir> {
 }
 
 impl<'hir> BaseVisitorCtx<'hir> {
-    pub fn current_function(&self) -> Option<&'hir Definition<'hir>> { self.funcs.last().cloned() }
+    pub fn current_function(&self) -> Option<&'hir Definition<'hir>> { self.funcs.last().copied() }
 }
 
 impl<'hir> VisitorCtx<'hir> for BaseVisitorCtx<'hir> {

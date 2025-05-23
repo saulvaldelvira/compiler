@@ -7,3 +7,6 @@ edition = "2024"
 ast = { path = "../ast" }
 span = { path = "../span" }
 error_manager = { path = "../error_manager" }
+
+[lints]
+workspace = true

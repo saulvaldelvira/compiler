@@ -9,8 +9,8 @@ use semantic::Semantic;
 
 pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> String {
     let prog = hir.get_root();
-    let ser = HirPrinter { sem };
-    let node = ser.serialize_module(prog);
+    let serializer = HirPrinter { sem };
+    let node = serializer.serialize_module(prog);
     let mut html = String::from(
         r#"<html>
         <script>
@@ -81,7 +81,7 @@ impl HirPrinter<'_, '_> {
 
         if let Some(ty) = self.sem.type_of(&def.id) {
             keyval!(ul, "type" => ty.to_string());
-        };
+        }
 
         match &def.kind {
             DefinitionKind::Variable {
@@ -127,6 +127,7 @@ impl HirPrinter<'_, '_> {
         Node::Collapse(Node::List(nodes).into(), Node::Ul(ul).into())
     }
 
+    #[allow(clippy::too_many_lines)]
     fn serialize_expr(&self, expr: &Expression<'_>) -> Node {
         let mut title = vec![/* Node::Id(expr.id) */];
 

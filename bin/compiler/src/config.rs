@@ -9,6 +9,8 @@ pub struct Config {
 }
 
 impl Config {
+
+    #[must_use]
     pub fn parse(args: Args) -> Self {
         let mut conf = Self {
             files: Vec::new(),
@@ -23,7 +25,7 @@ impl Config {
                     conf.out_file = Some(args.next().unwrap_or_else(|| {
                         eprintln!("Missing argument for '-o'");
                         process::exit(1);
-                    }))
+                    }));
                 }
                 "--emit" => {
                     let em = args.next().unwrap_or_else(|| {

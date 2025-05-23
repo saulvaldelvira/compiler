@@ -22,12 +22,12 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T, ParseErrorKind>;
 
-/// Parsers the given [TokenStream] and produces an AST.
+/// Parsers the given [`TokenStream`] and produces an AST.
 ///
 /// # Arguments
 /// - stream: The token stream
 /// - src: The source file
-/// - em: An [ErrorManager], where all the errors will be sent
+/// - em: An [`ErrorManager`], where all the errors will be sent
 pub fn parse<'src>(
     stream: TokenStream<'_, 'src>,
     src: &'src str,
@@ -177,13 +177,13 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             }
         }
     }
-    #[inline(always)]
+    #[inline]
     fn bump(&mut self) { self.stream.next(); }
     fn advance(&mut self) -> Result<&Token> {
         self.bump();
         self.previous()
     }
-    #[inline(always)]
+    #[inline]
     pub fn is_finished(&self) -> bool { self.stream.is_finished() }
     #[inline]
     fn peek(&self) -> Result<&Token> { self.stream.peek().ok_or(ParseErrorKind::CantPeek) }

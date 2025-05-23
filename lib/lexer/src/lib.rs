@@ -23,11 +23,11 @@ impl TokenStream<'_, '_> {
     pub fn is_finished(&self) -> bool { self.lexer.c.is_finished() }
 
     /// Returns the previous token, if present
-    #[inline(always)]
+    #[inline]
     pub fn previous(&self) -> Option<&Token> { self.prev.as_ref() }
 
     /// Returns the next token, if present, without consuming it
-    #[inline(always)]
+    #[inline]
     pub fn peek(&self) -> Option<&Token> { self.next.as_ref() }
 }
 
@@ -75,11 +75,11 @@ impl Iterator for TokenStream<'_, '_> {
 
     /// Returns the next token from the stream.
     ///
-    /// This is similar to [Lexer::next_token], but also
+    /// This is similar to [`Lexer::next_token`], but also
     /// keeps track of the previous and next [tokens](Token)
     fn next(&mut self) -> Option<Self::Item> {
         let ret = self.next.take();
-        self.prev = ret.clone();
+        self.prev.clone_from(&ret);
         self.next = self.lexer.next_token();
 
         ret
@@ -92,8 +92,8 @@ impl<'lex, 'src> IntoIterator for Lexer<'lex, 'src> {
 
     /// Converts this [Lexer] into an iterator of [tokens](Token)
     ///
-    /// This is the same as calling [Self::into_token_stream]
-    #[inline(always)]
+    /// This is the same as calling [`Self::into_token_stream`]
+    #[inline]
     fn into_iter(self) -> Self::IntoIter { self.into_token_stream() }
 }
 
@@ -102,7 +102,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     ///
     /// # Arguments
     /// - text: Source code to tokenize
-    /// - em: An [ErrorManager], where all the errors will be sent
+    /// - em: An [`ErrorManager`], where all the errors will be sent
     pub fn new(text: &'src str, em: &'lex mut ErrorManager) -> Self {
         Self {
             c: Cursor::new(text),
@@ -110,7 +110,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
         }
     }
 
-    /// Turns this [Lexer] into a [TokenStream]
+    /// Turns this [Lexer] into a [`TokenStream`]
     pub fn into_token_stream(mut self) -> TokenStream<'lex, 'src> {
         let next = self.next_token();
         TokenStream {
@@ -135,6 +135,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn add_token(&self, kind: TokenKind) -> Option<Token> {
         Some(Token {
             kind,
@@ -246,7 +247,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     fn char_literal(&mut self) -> Option<Token> {
         if self.c.advance() == '\\' {
             self.c.advance();
-        };
+        }
         if !self.c.match_next('\'') {
             self.error(LexerErrorKind::ExpectedClosingTickOnCharLiteral);
         }
@@ -280,12 +281,12 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     }
     fn floating(&mut self) -> Option<Token> {
         self.c.advance(); /* Consume the . */
-        if !self.c.peek().is_numeric() {
-            self.error(LexerErrorKind::FloatLitWithoutFloatingPart);
-            None
-        } else {
+        if self.c.peek().is_numeric() {
             self.c.advance_while(char::is_ascii_digit);
             self.add_token(TokenKind::FloatLiteral)
+        } else {
+            self.error(LexerErrorKind::FloatLitWithoutFloatingPart);
+            None
         }
     }
     fn number(&mut self) -> Option<Token> {

@@ -46,6 +46,11 @@ fn step_emit(text: &str, em: &mut ErrorManager) -> Option<()> {
 }
 
 impl Compiler {
+
+    /// Creates a new compiler instance for the given filename
+    ///
+    /// # Errors
+    /// If it fails to read the given path
     pub fn from_filename<P: AsRef<Path>>(fname: P) -> io::Result<Self> {
         let source = std::fs::read_to_string(&fname)?;
         Ok(Self {
@@ -53,15 +58,19 @@ impl Compiler {
         })
     }
 
-    pub fn from_string(src: impl Into<String>) -> io::Result<Self> {
-        Ok(Self {
+    pub fn from_string(src: impl Into<String>) -> Self {
+        Self {
             source: CompilerSource {
-                filename: "".into(),
+                filename: String::new(),
                 text: src.into(),
             },
-        })
+        }
     }
 
+    /// Creates a new compiler instance for the contents of the standard input
+    ///
+    /// # Errors
+    /// If it fails to read stdin
     pub fn from_stdin() -> io::Result<Self> {
         let mut source = String::new();
         stdin().read_to_string(&mut source)?;

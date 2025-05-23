@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 compiler_driver = { path = "../../lib/compiler_driver" }
+
+[lints]
+workspace = true

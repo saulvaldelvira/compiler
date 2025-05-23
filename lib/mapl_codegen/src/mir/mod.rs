@@ -31,8 +31,8 @@ impl From<hir::expr::ArithmeticOp> for MaplArithmetic {
         match value {
             ArithmeticOp::Add => MaplArithmetic::Add,
             ArithmeticOp::Sub => MaplArithmetic::Sub,
-            ArithmeticOp::Mul => MaplArithmetic::Div,
-            ArithmeticOp::Div => MaplArithmetic::Mod,
+            ArithmeticOp::Mul => MaplArithmetic::Mul,
+            ArithmeticOp::Div => MaplArithmetic::Div,
             ArithmeticOp::Mod => MaplArithmetic::Mod,
         }
     }
@@ -150,10 +150,10 @@ impl From<&'_ Ty<'_>> for MaplType {
         match &value.kind {
             TypeKind::Primitive(primitive_type) => {
                 match primitive_type {
-                    PrimitiveType::Int => MaplType::Int,
+                    PrimitiveType::Int |
+                    PrimitiveType::Bool => MaplType::Int,
                     PrimitiveType::Char => MaplType::Byte,
                     PrimitiveType::Float => MaplType::Float,
-                    PrimitiveType::Bool => MaplType::Int,
                     PrimitiveType::Empty => todo!(),
                 }
             }

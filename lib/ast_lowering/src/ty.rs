@@ -20,7 +20,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let ty = self.lower_type(ty);
                 HTK::Array(ty, *length)
             }
-            TypeKind::Path(spanned) => HTK::Path(self.lower_path(spanned)),
+            TypeKind::Path(spanned) => HTK::Path(Self::lower_path(spanned)),
             TypeKind::Ref { of, .. } => HTK::Ref(self.lower_type(of)),
         };
         hir::Type::new(kind)

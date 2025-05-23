@@ -30,8 +30,8 @@ impl Precedence for Expression {
             | ExpressionKind::Path(_)
             | ExpressionKind::Literal(_) => 9,
             ExpressionKind::Cast { .. } => 7,
-            ExpressionKind::Call { .. } => 8,
-            ExpressionKind::ArrayAccess { .. } => 8,
+            ExpressionKind::Call { .. } |
+            ExpressionKind::ArrayAccess { .. } |
             ExpressionKind::StructAccess { .. } => 8,
         }
     }

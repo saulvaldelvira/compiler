@@ -5,7 +5,7 @@ use compiler_driver::{Compiler, Emit};
 use test::Bencher;
 extern crate test;
 
-const INPUT: &str = r#"
+const INPUT: &str = "
     mod abc {
         fn lol() -> int {
             return 1;
@@ -50,12 +50,12 @@ const INPUT: &str = r#"
 
         }
     }
-"#;
+";
 
 #[bench]
 fn bench_compilation(b: &mut Bencher) {
     b.iter(|| {
-        let comp = Compiler::from_string(INPUT).unwrap();
+        let comp = Compiler::from_string(INPUT);
         comp.process(Emit::Mapl);
     });
 }
@@ -71,7 +71,7 @@ fn bench_huge(b: &mut Bencher) {
     fs::write("/tmp/s", &src).unwrap();
 
     b.iter(|| {
-        let comp = Compiler::from_string(&src).unwrap();
+        let comp = Compiler::from_string(&src);
         comp.process(Emit::Mapl);
     });
 }

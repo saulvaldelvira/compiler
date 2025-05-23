@@ -53,7 +53,8 @@ pub struct ModItem<'hir> {
 }
 
 impl<'hir> ModItem<'hir> {
-    #[inline(always)]
+
+    #[inline]
     pub const fn new(kind: ModItemKind<'hir>) -> Self {
         Self {
             kind,

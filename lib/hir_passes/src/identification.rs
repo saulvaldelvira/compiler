@@ -19,16 +19,16 @@ impl SymbolTable {
         self.scopes.last_mut().unwrap().insert(sym, id);
     }
 
-    fn get(&mut self, sym: &Symbol) -> Option<HirId> {
+    fn get(&mut self, sym: Symbol) -> Option<HirId> {
         for scope in self.scopes.iter().rev() {
-            if let Some(id) = scope.get(sym) {
+            if let Some(id) = scope.get(&sym) {
                 return Some(*id);
             }
         }
         None
     }
 
-    fn enter_scope(&mut self) { self.scopes.push(Default::default()); }
+    fn enter_scope(&mut self) { self.scopes.push(HashMap::default()); }
 
     fn exit_scope(&mut self) { self.scopes.pop(); }
 }
@@ -53,7 +53,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn visit_path_segment(&mut self, path: &'hir PathSegment) {
-        let found_def = self.st.get(&path.ident.sym);
+        let found_def = self.st.get(path.ident.sym);
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {

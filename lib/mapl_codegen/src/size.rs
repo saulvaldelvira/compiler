@@ -5,27 +5,27 @@ use span::Span;
 use crate::code_generator::{CodeGenerator, MemoryAddress};
 
 pub trait SizeOf {
-    fn size_of(&self) -> usize;
+    fn size_of(&self) -> u64;
 }
 
 impl SizeOf for PrimitiveType {
-    fn size_of(&self) -> usize {
+    fn size_of(&self) -> u64 {
         match self {
-            PrimitiveType::Int => 2,
+            PrimitiveType::Int |
+            PrimitiveType::Bool => 2,
             PrimitiveType::Char => 1,
             PrimitiveType::Float => 4,
-            PrimitiveType::Bool => 2,
             PrimitiveType::Empty => 0,
         }
     }
 }
 
 impl SizeOf for Ty<'_> {
-    fn size_of(&self) -> usize {
+    fn size_of(&self) -> u64 {
         match self.kind {
             TypeKind::Primitive(p) => p.size_of(),
             TypeKind::Ref(_) => PrimitiveType::Int.size_of(),
-            TypeKind::Array(ty, len) => ty.size_of() * len,
+            TypeKind::Array(ty, len) => ty.size_of() * u64::from(len),
             TypeKind::Struct { fields, .. } => fields.iter().map(|f| f.ty.size_of()).sum(),
             TypeKind::Function { .. } => todo!(),
         }
