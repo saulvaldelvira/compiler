@@ -6,3 +6,10 @@ This is a toy compiler I'm working on
 To build the code documentation, run `cargo doc`, or
 browse it online at https://doc.saulv.es/compiler/rustdoc/
 There's a markdown book on the /doc folder
+
+====
+Copyright (C) 2025 Saúl Valdelvira
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, version 3.
