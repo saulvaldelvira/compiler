@@ -14,3 +14,6 @@ missing_errors_doc = "allow"
 similar_names = "allow"
 default_trait_access = "allow"
 map_unwrap_or = "allow"
+
+[workspace.dependencies]
+tiny-vec = { version = ">=0.4.1", git = "https://github.com/saulvaldelvira/tiny-vec" }

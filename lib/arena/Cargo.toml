@@ -5,3 +5,6 @@ edition = "2024"
 
 [lints]
 workspace = true
+
+[dependencies]
+tiny-vec.workspace = true

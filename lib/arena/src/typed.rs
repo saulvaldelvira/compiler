@@ -6,6 +6,8 @@ use std::{
     ptr::slice_from_raw_parts_mut,
 };
 
+use tiny_vec::TinyVec;
+
 use crate::chunk::ArenaChunk;
 
 pub struct TypedArena<'ctx, T> {
@@ -40,7 +42,7 @@ impl<'ctx, T> TypedArena<'ctx, T> {
         I: IntoIterator<Item = T>,
         <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
-        let mut values = values.into_iter().collect::<Vec<_>>();
+        let mut values: TinyVec<_, 8> = values.into_iter().collect();
         let len = values.len();
 
         if self.must_grow(len) {
