@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Definition, Expression, HirId, ModItem, Module, PathDef, Statement, Type, def::Field};
+use crate::{Definition, Expression, HirId, Module, PathDef, Statement, Type, def::Field};
 
 #[derive(Clone, Copy, Debug)]
 pub enum HirNodeKind<'hir> {
@@ -11,7 +11,6 @@ pub enum HirNodeKind<'hir> {
     Field(&'hir Field<'hir>),
     Ty(&'hir Type<'hir>),
     Module(&'hir Module<'hir>),
-    ModItem(&'hir ModItem<'hir>),
 }
 
 impl<'hir> HirNodeKind<'hir> {
@@ -25,32 +24,6 @@ impl<'hir> HirNodeKind<'hir> {
         match self {
             Self::Def(def) => def,
             _ => unreachable!("Expected definition"),
-        }
-    }
-
-    /// Expects this node to be a [`ModItem`] variant.
-    ///
-    /// # Panics
-    /// - If the node is NOT a [`ModItem`] variant
-    ///
-    /// [`ModItem`]: HirNodeKind::ModItem
-    pub fn expect_module_item(self) -> &'hir ModItem<'hir> {
-        match self {
-            Self::ModItem(mi) => mi,
-            _ => unreachable!("Expected module_item"),
-        }
-    }
-
-    #[must_use]
-    pub fn unwrap_if_mod_item(self) -> HirNodeKind<'hir> {
-        match self {
-            HirNodeKind::ModItem(mod_item) => {
-                match mod_item.kind {
-                    crate::ModItemKind::Mod(module) => HirNodeKind::Module(module),
-                    crate::ModItemKind::Def(definition) => HirNodeKind::Def(definition),
-                }
-            }
-            nk => nk,
         }
     }
 }

@@ -40,16 +40,15 @@ pub mod path;
 pub use node_ref::{NodeRef, NodeRefKind};
 pub use path::{Path, PathDef};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ModItemKind<'hir> {
-    Mod(&'hir Module<'hir>),
-    Def(&'hir Definition<'hir>),
+    Mod(Module<'hir>),
+    Def(Definition<'hir>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ModItem<'hir> {
     pub kind: ModItemKind<'hir>,
-    pub id: HirId,
 }
 
 impl<'hir> ModItem<'hir> {
@@ -58,19 +57,36 @@ impl<'hir> ModItem<'hir> {
     pub const fn new(kind: ModItemKind<'hir>) -> Self {
         Self {
             kind,
-            id: HirId::DUMMY,
         }
     }
 
     pub const fn inner_id(&self) -> HirId {
-        match self.kind {
+        match &self.kind {
             ModItemKind::Mod(module) => module.id,
             ModItemKind::Def(definition) => definition.id,
         }
     }
 }
 
-impl_hir_node!(ModItem<'hir>, ModItem);
+impl<'hir> HirNode<'hir> for ModItem<'hir> {
+    fn get_hir_id(&self) -> HirId {
+        self.inner_id()
+    }
+
+    fn set_hir_id(&mut self, id: HirId) {
+        match &mut self.kind {
+            ModItemKind::Mod(module) => module.id = id,
+            ModItemKind::Def(definition) => definition.id = id,
+        }
+    }
+
+    fn get_hir_node_kind(&'hir self) -> HirNodeKind<'hir> {
+        match &self.kind {
+            ModItemKind::Mod(module) => HirNodeKind::Module(module),
+            ModItemKind::Def(definition) => HirNodeKind::Def(definition)
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Module<'hir> {
@@ -102,7 +118,7 @@ impl<'hir> Module<'hir> {
             item_map: HashMap::new(),
         };
         for item in defs {
-            match item.kind {
+            match &item.kind {
                 ModItemKind::Mod(module) => m.item_map.insert(module.name, item),
                 ModItemKind::Def(definition) => m.item_map.insert(definition.name.ident.sym, item),
             };

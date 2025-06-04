@@ -77,7 +77,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         let node = path
             .def()
             .get()
-            .map(|id| self.hir.get_node(&id).unwrap_if_mod_item());
+            .map(|id| self.hir.get_node(&id));
         let Some(HirNodeKind::Def(def)) = node else {
             unreachable!()
         };

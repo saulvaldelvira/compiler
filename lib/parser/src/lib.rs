@@ -164,18 +164,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     }
     fn check_types(&mut self, types: &[TokenKind]) -> bool { types.iter().any(|t| self.check(*t)) }
     fn check(&mut self, t: TokenKind) -> bool {
-        if self.is_finished() {
-            return false;
-        }
-        match self.peek() {
-            Ok(token) => token.kind == t,
-            Err(_) => {
-                unreachable!(
-                    "Parser::is_finished returned false, \
-                              so peek can't fail"
-                )
-            }
-        }
+        self.peek().is_ok_and(|token| token.kind == t)
     }
     #[inline]
     fn bump(&mut self) { self.stream.next(); }

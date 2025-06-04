@@ -40,7 +40,7 @@ impl Define for Definition<'_> {
 
 impl Define for ModItem<'_> {
     fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-        match self.kind {
+        match &self.kind {
             hir::ModItemKind::Mod(module) => module.define(cg),
             hir::ModItemKind::Def(definition) => definition.define(cg),
         }

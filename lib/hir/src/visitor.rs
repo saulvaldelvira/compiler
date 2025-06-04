@@ -306,7 +306,7 @@ pub fn walk_module_item<'hir, V>(v: &mut V, item: &'hir ModItem<'hir>) -> V::Res
 where
     V: Visitor<'hir> + ?Sized,
 {
-    match item.kind {
+    match &item.kind {
         ModItemKind::Mod(module) => v.visit_module(module),
         ModItemKind::Def(definition) => v.visit_definition(definition),
     }

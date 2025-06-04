@@ -67,7 +67,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
 
     fn resolve_relative_segment(&mut self, left: &'hir PathSegment, right: &'hir PathSegment) {
         let Some(def) = left.def.get() else { return };
-        let node = self.hir_sess.get_node(&def).unwrap_if_mod_item();
+        let node = self.hir_sess.get_node(&def);
 
         match node {
             HirNodeKind::Module(module) => {
@@ -112,7 +112,7 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         walk_variable(self, path);
 
         if let Some(id) = path.def().get() {
-            let node = self.hir_sess.get_node(&id).unwrap_if_mod_item();
+            let node = self.hir_sess.get_node(&id);
             if !matches!(node, HirNodeKind::Def(_)) {
                 self.em.emit_error(error_manager::StringError {
                     msg: "Variable path must resolve to a definition".into(),

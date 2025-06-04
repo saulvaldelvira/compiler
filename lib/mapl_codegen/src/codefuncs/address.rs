@@ -15,7 +15,7 @@ impl Address for Expression<'_> {
         match &self.kind {
             ExpressionKind::Variable(path) => {
                 let def_id = path.def().expect_resolved();
-                let node = cg.hir.get_node(&def_id).unwrap_if_mod_item();
+                let node = cg.hir.get_node(&def_id);
                 let HirNodeKind::Def(def) = node else {
                     unreachable!()
                 };

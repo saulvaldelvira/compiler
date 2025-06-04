@@ -59,7 +59,7 @@ impl HirPrinter<'_, '_> {
     }
 
     fn serialize_mod_item(&self, mi: &ModItem) -> Node {
-        match mi.kind {
+        match &mi.kind {
             hir::ModItemKind::Mod(module) => self.serialize_module(module),
             hir::ModItemKind::Def(definition) => self.serialize_definition(definition),
         }

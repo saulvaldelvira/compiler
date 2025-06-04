@@ -45,8 +45,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     fn lower_mod_item_owned(&mut self, mi: &ast::ModItem) -> hir::ModItem<'hir> {
         let kind = match mi {
-            ModItem::Decl(declaration) => hir::ModItemKind::Def(self.lower_definition(declaration)),
-            ModItem::Mod(module) => hir::ModItemKind::Mod(self.lower_module(module)),
+            ModItem::Decl(declaration) => hir::ModItemKind::Def(self.lower_definition_owned(declaration)),
+            ModItem::Mod(module) => hir::ModItemKind::Mod(self.lower_module_owned(module)),
         };
 
         hir::ModItem::new(kind)
