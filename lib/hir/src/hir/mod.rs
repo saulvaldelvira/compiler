@@ -92,7 +92,7 @@ impl<'hir> HirNode<'hir> for ModItem<'hir> {
 pub struct Module<'hir> {
     pub id: HirId,
     pub items: &'hir [ModItem<'hir>],
-    pub name: Symbol,
+    pub name: &'hir PathDef,
     pub span: Span,
     item_map: HashMap<Symbol, &'hir ModItem<'hir>>,
 }
@@ -109,7 +109,7 @@ impl Debug for Module<'_> {
 }
 
 impl<'hir> Module<'hir> {
-    pub fn new(name: Symbol, defs: &'hir [ModItem<'hir>], span: Span) -> Self {
+    pub fn new(name: &'hir PathDef, defs: &'hir [ModItem<'hir>], span: Span) -> Self {
         let mut m = Self {
             name,
             items: defs,
@@ -119,7 +119,7 @@ impl<'hir> Module<'hir> {
         };
         for item in defs {
             match &item.kind {
-                ModItemKind::Mod(module) => m.item_map.insert(module.name, item),
+                ModItemKind::Mod(module) => m.item_map.insert(module.name.ident.sym, item),
                 ModItemKind::Def(definition) => m.item_map.insert(definition.name.ident.sym, item),
             };
         }

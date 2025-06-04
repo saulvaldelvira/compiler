@@ -28,7 +28,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         )
     }
 
-    fn lower_pathdef(&mut self, ident: Ident) -> &'hir hir::PathDef {
+    pub(super) fn lower_pathdef(&mut self, ident: Ident) -> &'hir hir::PathDef {
         let pd = hir::PathDef::new(ident);
         self.sess.alloc(pd)
     }

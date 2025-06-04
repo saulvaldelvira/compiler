@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{borrow::Cow, io};
 
-use span::{FilePosition, Span};
+pub use span::{FilePosition, Span};
 
 /// An error sent to the [`ErrorManager`]
 pub trait Error {
@@ -15,7 +15,9 @@ pub struct StringError {
 }
 
 impl Error for StringError {
-    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result { write!(out, "{}", self.msg) }
+    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+        write!(out, "{}", self.msg)
+    }
 
     fn get_span(&self) -> Span { self.span }
 }

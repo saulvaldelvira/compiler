@@ -34,7 +34,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     fn lower_module_owned(&mut self, m: &ast::Module) -> hir::Module<'hir> {
         let items = self.lower_mod_items(&m.elems);
-        let name = m.name.val;
+        let name = self.lower_pathdef(ident(&m.name));
         hir::Module::new(name, items, m.span)
     }
 

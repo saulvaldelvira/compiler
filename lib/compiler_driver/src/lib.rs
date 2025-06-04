@@ -99,7 +99,7 @@ impl Compiler {
         let hir_sess = hir::Session::default();
         ast_lowering::lower(&hir_sess, &program);
 
-        hir_passes::identify(&hir_sess, &mut em);
+        hir_passes::identify(&hir_sess, &self.source.text, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
         let semantic = Semantic::default();

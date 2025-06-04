@@ -336,10 +336,10 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_field(
         &mut self,
-        def: &'hir Definition<'hir>,
+        _def: &'hir Definition<'hir>,
         field: &'hir hir::def::Field<'hir>,
     ) -> Self::Result {
-        walk_field(self, def, field);
+        walk_field(self, field);
         let ty = self.lowerer.lower_hir_type(field.ty).id;
         self.semantic.set_type_of(field.id, ty);
     }

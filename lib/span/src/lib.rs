@@ -33,10 +33,9 @@ impl fmt::Display for FilePosition {
         let FilePosition {
             start_line,
             start_col,
-            end_line,
-            end_col,
+            ..
         } = self;
-        write!(f, "[{start_line}:{start_col},{end_line}:{end_col}]")
+        write!(f, "[{start_line}:{start_col}]")
     }
 }
 

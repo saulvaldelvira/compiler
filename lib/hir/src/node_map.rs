@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use span::Span;
+
 use crate::{Definition, Expression, HirId, Module, PathDef, Statement, Type, def::Field};
 
 #[derive(Clone, Copy, Debug)]
@@ -25,6 +27,18 @@ impl<'hir> HirNodeKind<'hir> {
             Self::Def(def) => def,
             _ => unreachable!("Expected definition"),
         }
+    }
+
+    pub fn get_span(&self) -> Option<Span> {
+        Some(match self {
+            HirNodeKind::Expr(expression) => expression.span,
+            HirNodeKind::Def(definition) => definition.span,
+            HirNodeKind::Stmt(statement) => statement.span,
+            HirNodeKind::Field(field) => field.span,
+            HirNodeKind::PathDef(_) |
+            HirNodeKind::Ty(_) => return None,
+            HirNodeKind::Module(module) => module.span,
+        })
     }
 }
 

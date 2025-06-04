@@ -49,7 +49,7 @@ impl Define for ModItem<'_> {
 
 impl Define for Module<'_> {
     fn define(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-        cg.enter_module(self.name.to_string());
+        cg.enter_module(self.name.ident.sym.to_string());
         let defs = self.items.iter().map(|d| d.define(cg)).collect();
         cg.exit_module();
         MaplInstruction::Compose(defs)

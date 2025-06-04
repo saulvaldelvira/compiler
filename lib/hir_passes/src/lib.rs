@@ -4,8 +4,8 @@ use identification::Identification;
 
 mod identification;
 
-pub fn identify(sess: &hir::Session<'_>, em: &mut ErrorManager) {
+pub fn identify(sess: &hir::Session<'_>, source: &str, em: &mut ErrorManager) {
     let prog = sess.get_root();
-    let mut ident = Identification::new(sess, em);
+    let mut ident = Identification::new(sess, source, em);
     ident.visit_module(prog);
 }

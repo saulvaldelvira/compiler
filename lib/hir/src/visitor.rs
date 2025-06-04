@@ -152,10 +152,10 @@ pub trait Visitor<'hir> {
 
     fn visit_field(
         &mut self,
-        def: &'hir Definition<'hir>,
+        _def: &'hir Definition<'hir>,
         param: &'hir Field<'hir>,
     ) -> Self::Result {
-        walk_field(self, def, param)
+        walk_field(self, param)
     }
 
     fn visit_statement(&mut self, stmt: &'hir Statement<'hir>) -> Self::Result {
@@ -296,9 +296,12 @@ pub fn walk_module<'hir, V>(v: &mut V, prog: &'hir Module<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
+    v.visit_pathdef(prog.id, prog.name);
+    v.get_ctx().enter_module(prog);
     for item in prog.items {
         v.visit_module_item(item);
     }
+    v.get_ctx().exit_module();
     V::Result::output()
 }
 
@@ -412,13 +415,12 @@ where
 
 pub fn walk_field<'hir, V>(
     v: &mut V,
-    def: &'hir Definition<'hir>,
     f: &'hir Field<'hir>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    v.visit_pathdef(def.id, f.name);
+    v.visit_pathdef(f.id, f.name);
     V::Result::output()
 }
 
@@ -831,6 +833,9 @@ impl<T> VisitorResult for Option<T> {
 pub trait VisitorCtx<'ast> {
     fn enter_function(&mut self, _func: &'ast hir::Definition<'ast>) {}
     fn exit_function(&mut self) {}
+
+    fn enter_module(&mut self, _mod: &'ast hir::Module<'ast>) {}
+    fn exit_module(&mut self) {}
 }
 
 impl VisitorCtx<'_> for () {}

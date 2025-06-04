@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
-use error_manager::ErrorManager;
+use error_manager::{ErrorManager, FilePosition, Span};
+use hir::def::DefinitionKind;
+use hir::visitor::{walk_struct_definition, VisitorCtx};
 use hir::{
     HirId,
     node_map::HirNodeKind,
     path::PathSegment,
-    visitor::{Visitor, walk_function_definition, walk_module, walk_variable},
+    visitor::{Visitor, walk_variable},
 };
 use session::Symbol;
 
@@ -15,6 +17,11 @@ struct SymbolTable {
 }
 
 impl SymbolTable {
+
+    fn get_top(&self, sym: Symbol) -> Option<HirId> {
+        self.scopes.last().unwrap().get(&sym).copied()
+    }
+
     fn define(&mut self, sym: Symbol, id: HirId) {
         self.scopes.last_mut().unwrap().insert(sym, id);
     }
@@ -33,27 +40,51 @@ impl SymbolTable {
     fn exit_scope(&mut self) { self.scopes.pop(); }
 }
 
+pub struct Ctx {
+    st: SymbolTable,
+}
+
+impl<'ast> VisitorCtx<'ast> for Ctx {
+    fn enter_function(&mut self, _func: &'ast hir::Definition<'ast>) {
+        self.st.enter_scope();
+    }
+
+    fn exit_function(&mut self) {
+        self.st.exit_scope();
+    }
+
+    fn enter_module(&mut self, _mod: &'ast hir::Module<'ast>) {
+        self.st.enter_scope();
+    }
+
+    fn exit_module(&mut self) {
+        self.st.exit_scope();
+    }
+}
+
 pub struct Identification<'ident, 'hir> {
     hir_sess: &'ident hir::Session<'hir>,
     em: &'ident mut ErrorManager,
-    st: SymbolTable,
-    ctx: (),
+    source: &'ident str,
+    ctx: Ctx,
 }
 
 impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
-    pub fn new(hir_sess: &'ident hir::Session<'hir>, em: &'ident mut ErrorManager) -> Self {
+    pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident str, em: &'ident mut ErrorManager) -> Self {
         let mut ident = Self {
-            st: SymbolTable::default(),
+            ctx: Ctx {
+                st: SymbolTable::default(),
+            },
+            source,
             hir_sess,
             em,
-            ctx: (),
         };
-        ident.st.enter_scope();
+        ident.ctx.st.enter_scope();
         ident
     }
 
     fn visit_path_segment(&mut self, path: &'hir PathSegment) {
-        let found_def = self.st.get(path.ident.sym);
+        let found_def = self.ctx.st.get(path.ident.sym);
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {
@@ -100,12 +131,57 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 }
 
+fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
+    match node {
+        HirNodeKind::Def(definition) => {
+            match definition.kind {
+                DefinitionKind::Variable { .. } => Ok(()),
+                DefinitionKind::Function { .. } => Err("function"),
+                DefinitionKind::Struct { .. } => Err("struct")
+            }
+        }
+        HirNodeKind::Field(_) => Err("field"),
+        HirNodeKind::Module(_) => Err("module"),
+        _ => unreachable!(),
+    }
+}
+
 impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     type Result = ();
-    type Ctx = ();
+    type Ctx = Ctx;
 
     fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) {
-        self.st.define(pdef.ident.sym, owner);
+        let name = pdef.ident.sym;
+        if let Some(prev) = self.ctx.st.get_top(name) {
+            let prev = self.hir_sess.get_node(&prev);
+            if let Err(shadowed_ty) = try_shadow(prev) {
+                let owner = self.hir_sess.get_node(&owner);
+                let prev_span = prev.get_span().unwrap();
+                let pos = prev_span.file_position(self.source);
+                self.em.emit_error(IdentificationError {
+                    kind: IdentificationErrorKind::Redefinition {
+                        node_type: shadowed_ty,
+                        name: name.to_string(),
+                        prev: pos,
+                    },
+                    span: owner.get_span().unwrap(),
+                });
+
+                return;
+            }
+        }
+
+        self.ctx.st.define(name, owner);
+    }
+
+    fn visit_struct_definition(
+        &mut self,
+        base: &'hir hir::Definition<'hir>,
+        fields: &'hir [hir::def::Field<'hir>],
+    ) -> Self::Result {
+        self.ctx.st.enter_scope();
+        walk_struct_definition(self, base, fields);
+        self.ctx.st.exit_scope();
     }
 
     fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) {
@@ -122,25 +198,6 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         }
     }
 
-    fn visit_function_definition(
-        &mut self,
-        def: &'hir hir::Definition<'hir>,
-        params: &'hir [hir::Definition<'hir>],
-        ret_ty: &'hir hir::Type<'hir>,
-        body: &'hir [hir::Statement<'hir>],
-    ) {
-        self.st.enter_scope();
-        walk_function_definition(self, def, params, ret_ty, body);
-        self.st.exit_scope();
-    }
-
-    fn visit_module(&mut self, m: &'hir hir::Module<'hir>) {
-        self.st.define(m.name, m.id);
-        self.st.enter_scope();
-        walk_module(self, m);
-        self.st.exit_scope();
-    }
-
     fn visit_path(&mut self, path: &'hir hir::Path) {
         self.visit_path_segment(&path.segments[0]);
         let it = path.segments.iter().skip(1);
@@ -151,4 +208,29 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
+}
+
+enum IdentificationErrorKind {
+    Redefinition {
+        name: String,
+        node_type: &'static str,
+        prev: FilePosition,
+    }
+}
+
+struct IdentificationError {
+    kind: IdentificationErrorKind,
+    span: Span,
+}
+
+impl error_manager::Error for IdentificationError {
+    fn get_span(&self) -> Span { self.span }
+
+    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+        match &self.kind {
+            IdentificationErrorKind::Redefinition { name, node_type, prev } => {
+                write!(out, "Redefinition of '{name}' (previous definition: {node_type} at {prev})")
+            }
+        }
+    }
 }
