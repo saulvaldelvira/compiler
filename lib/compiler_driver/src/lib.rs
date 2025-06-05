@@ -99,16 +99,16 @@ impl Compiler {
         Some(program)
     }
 
-    pub fn generate_hir<'hir>(&self, root: &ast::Module, hir_sess: &hir::Session<'hir>) -> &'hir hir::Module<'hir> {
-        ast_lowering::lower(hir_sess, root);
-        hir_sess.get_root()
+    pub fn generate_hir<'hir>(&self, root: &ast::Module) -> hir::Session<'hir> {
+        let hir_sess = hir::Session::default();
+        ast_lowering::lower(&hir_sess, root);
+        hir_sess
     }
 
     pub fn process(&self, emit: Emit) -> Option<String> {
         let program = self.generate_ast()?;
 
-        let hir_sess = hir::Session::default();
-        self.generate_hir(&program, &hir_sess);
+        let hir_sess = self.generate_hir(&program);
 
         ast_lowering::lower(&hir_sess, &program);
 

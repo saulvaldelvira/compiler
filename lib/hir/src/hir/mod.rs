@@ -126,8 +126,8 @@ impl<'hir> Module<'hir> {
         m
     }
 
-    pub fn find_item(&self, name: &Symbol) -> Option<&'hir ModItem<'hir>> {
-        self.item_map.get(name).map(|v| &**v)
+    pub fn find_item(&self, name: Symbol) -> Option<&'hir ModItem<'hir>> {
+        self.item_map.get(&name).map(|v| &**v)
     }
 }
 

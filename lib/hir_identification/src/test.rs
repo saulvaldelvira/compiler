@@ -1,5 +1,10 @@
 use compiler_driver::Compiler;
-use error_manager::ErrorManager;
+use error_manager::{ErrorManager, FilePosition};
+use hir::def::DefinitionKind;
+use hir::expr::ExpressionKind;
+use hir::stmt::StatementKind;
+use hir::{Definition, Expression, ModItemKind};
+use session::Symbol;
 
 use crate::{IdentificationError, IdentificationErrorKind};
 
@@ -22,17 +27,82 @@ fn simple_main_undefined() {
 }
 
 #[test]
-fn simple_main_ok() {
-    Tester::all_ok("fn main() {
-        let a: int = 12;
+fn simple_redefinition() {
+    let input: &str = "
+        let a: int;
+        struct S {
+            a: int, // OK
+            b: char,
+            a: char, // BAD
+        }
+        fn foo() {
+            let S: int = 12; // OK
+            print S;
+        }
+        struct foo { }
+        struct GOOD {
+            foo: int, // OK
+        }
+        ";
 
-        a = 12;
+    let expected = vec![
+        IdentificationErrorKind::Redefinition {
+            name: "a".to_string(),
+            node_type: "field",
+            prev: FilePosition { start_line: 4, start_col: 13, end_line: 4, end_col: 19 }
+        },
+        IdentificationErrorKind::Redefinition {
+            name: "foo".to_string(),
+            node_type: "function",
+            prev: FilePosition { start_line: 8, start_col: 9, end_line: 11, end_col: 10 }
+        },
+    ];
 
-        let a: char;
-        a = 'a';
+    Tester {
+        input,
+        expected,
+    }.test();
+}
 
-        print a;
-    }");
+#[test]
+fn simple_ok() {
+    let hir = Tester::all_ok("
+ fn foo() { }
+ fn main() {
+     let a: int = 12;
+
+     a = a + 1;
+
+     let a: char = 'a';
+
+     print a;
+
+     foo();
+
+     let foo: float = 1.2;
+     foo = foo * 1.2;
+ },");
+
+    let root = hir.get_root();
+
+    let main = root.find_item(Symbol::new("main")).unwrap();
+    let ModItemKind::Def(Definition { kind: DefinitionKind::Function { body, .. }, .. }) = main.kind else {
+        panic!();
+    };
+
+    let StatementKind::Def(Definition { id: def1_id, .. }) = &body[0].kind else { panic!() };
+    let assignment = body[1];
+    let StatementKind::Expr(Expression { kind: ExpressionKind::Assignment { left, .. }, ..}) = assignment.kind else { panic!() };
+    let ExpressionKind::Variable(path) = &left.kind else { panic!() };
+    let def = path.def();
+    assert_eq!(*def1_id, def.get().unwrap());
+
+    let StatementKind::Def(Definition { id: def2_id, .. }) = &body[2].kind else { panic!() };
+    let StatementKind::Print(Expression { kind: ExpressionKind::Variable(path), .. }) = &body[3].kind else { panic!() };
+    let def = path.def();
+    assert_eq!(*def2_id, def.get().unwrap());
+
+    assert_ne!(def1_id, def2_id);
 }
 
 pub struct Tester<'a> {
@@ -41,23 +111,24 @@ pub struct Tester<'a> {
 }
 
 impl Tester<'_> {
-    fn test(self) {
+    fn test<'hir>(&self) -> hir::Session<'hir> {
         let compiler = Compiler::from_string(self.input);
-        let ast = compiler.generate_ast().unwrap();
-        let hir = hir::Session::default();
-        compiler.generate_hir(&ast, &hir);
+        let ast = compiler.generate_ast().expect("AST should generate correctly");
+        let hir = compiler.generate_hir(&ast);
 
         let mut em = ErrorManager::new();
         crate::identify(&hir, self.input, &mut em);
 
         let errors = em.errors_iterator_cast::<IdentificationError>();
 
-        for (err, exp) in errors.zip(self.expected.into_iter()) {
-            assert_eq!(err.kind, exp);
+        for (err, exp) in errors.zip(self.expected.iter()) {
+            assert_eq!(&err.kind, exp);
         }
+
+        hir
     }
 
-    fn all_ok(input: &str) {
-        Tester { input, expected: vec![] }.test();
+    fn all_ok<'hir>(input: &str) -> hir::Session<'hir> {
+        Tester { input, expected: vec![] }.test()
     }
 }

@@ -1,3 +1,27 @@
+//! Identification phase
+//!
+//! The main goal of the identification phase is to link
+//! all [paths](hir::Path) with their corresponding [definition](hir::PathDef)
+//!
+//! # Example
+//! ```text
+//! fn foo() { /* (id: 1) */ }
+//! fn main() {
+//!     let a: int = 12; // (id: 2)
+//!
+//!     a = a + 1; // (a -> 2)
+//!
+//!     let a: char = 'a'; // (id: 3)
+//!
+//!     print a; // (b -> 3)
+//!
+//!     foo(); // foo -> 1
+//!
+//!     let foo: float = 1.2; // (id: 4)
+//!     foo = foo * 1.2; // (foo -> 4)
+//! }
+//! ```
+
 use error_manager::ErrorManager;
 use hir::visitor::Visitor;
 
@@ -14,6 +38,7 @@ use hir::{
 };
 use session::Symbol;
 
+/// Performs identification for the given hir tree
 pub fn identify(sess: &hir::Session<'_>, source: &str, em: &mut ErrorManager) {
     let prog = sess.get_root();
     let mut ident = Identification::new(sess, source, em);
@@ -111,7 +136,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
 
         match node {
             HirNodeKind::Module(module) => {
-                match module.find_item(&right.ident.sym) {
+                match module.find_item(right.ident.sym) {
                     Some(def) => right.def.resolve(def.inner_id()),
                     None => {
                         self.em.emit_error(error_manager::StringError {

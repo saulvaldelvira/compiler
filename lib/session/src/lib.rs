@@ -1,3 +1,4 @@
+use core::str::FromStr;
 use std::{
     fmt::{Debug, Display},
     sync::RwLock,
@@ -12,6 +13,19 @@ pub struct Symbol(interner::Symbol<str>);
 impl Symbol {
     pub fn try_borrow<R>(&self, f: impl FnOnce(&str) -> R) -> R {
         with_symbol(*self, f)
+    }
+
+    #[inline]
+    pub fn new(s: &str) -> Self {
+        with_session_interner(|i| i.get_or_intern(s))
+    }
+}
+
+impl FromStr for Symbol {
+    type Err = core::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(s))
     }
 }
 
