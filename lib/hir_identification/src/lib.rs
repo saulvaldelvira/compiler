@@ -1,15 +1,24 @@
+use error_manager::ErrorManager;
+use hir::visitor::Visitor;
+
 use std::collections::HashMap;
 
-use error_manager::{ErrorManager, FilePosition, Span};
+use error_manager::{FilePosition, Span};
 use hir::def::DefinitionKind;
 use hir::visitor::{walk_struct_definition, VisitorCtx};
 use hir::{
     HirId,
     node_map::HirNodeKind,
     path::PathSegment,
-    visitor::{Visitor, walk_variable},
+    visitor::walk_variable,
 };
 use session::Symbol;
+
+pub fn identify(sess: &hir::Session<'_>, source: &str, em: &mut ErrorManager) {
+    let prog = sess.get_root();
+    let mut ident = Identification::new(sess, source, em);
+    ident.visit_module(prog);
+}
 
 #[derive(Default)]
 struct SymbolTable {
@@ -88,8 +97,8 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {
-                self.em.emit_error(error_manager::StringError {
-                    msg: format!("Undefined symbol '{:#?}'", path.ident.sym).into(),
+                self.em.emit_error(IdentificationError {
+                    kind: IdentificationErrorKind::Undefined(path.ident.sym.to_string()),
                     span: path.ident.span,
                 });
             }
@@ -210,14 +219,17 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 }
 
+#[derive(Debug, PartialEq)]
 enum IdentificationErrorKind {
     Redefinition {
         name: String,
         node_type: &'static str,
         prev: FilePosition,
-    }
+    },
+    Undefined(String),
 }
 
+#[derive(Debug, PartialEq)]
 struct IdentificationError {
     kind: IdentificationErrorKind,
     span: Span,
@@ -230,7 +242,11 @@ impl error_manager::Error for IdentificationError {
         match &self.kind {
             IdentificationErrorKind::Redefinition { name, node_type, prev } => {
                 write!(out, "Redefinition of '{name}' (previous definition: {node_type} at {prev})")
-            }
+            },
+            IdentificationErrorKind::Undefined(name) => write!(out, "Undefined symbol '{name}'"),
         }
     }
 }
+
+#[cfg(test)]
+mod test;

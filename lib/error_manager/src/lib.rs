@@ -1,10 +1,62 @@
+use core::any::Any;
 use core::fmt;
 use std::{borrow::Cow, io};
 
 pub use span::{FilePosition, Span};
 
 /// An error sent to the [`ErrorManager`]
-pub trait Error {
+///
+/// # Rationale for `Error: Any`
+/// [ErrorManager] stores errors on a `Box<dyn Error>`. This is
+/// convenient, beacause we can pass arround the same `ErrorManager` to
+/// multiple compilation stages, each one defining custom error types.
+/// Since they all implement [Error], they can be emitted to the same ErrorManager.
+///
+/// The problem comes when we need to get back the original Error type.
+/// For example, if we're testing the identification stage, we know it'll send
+/// IdentificationError to the ErrorManager.
+///
+/// If Error extends Any we can upcast the `&dyn Error`, to `&dyn Any`,
+/// and use `downcast_ref` to get the concrete error type
+///
+/// ## Example
+/// ```
+/// use error_manager::{Error, ErrorManager, Span};
+/// use core::any::Any;
+/// use core::fmt;
+///
+/// struct MyError(Span);
+///
+/// impl Error for MyError {
+///     fn get_span(&self) -> Span { self.0 }
+///     fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+///         Ok(())
+///     }
+/// }
+///
+/// fn do_something(em: &mut ErrorManager) {
+///     // Something goes wrong...
+///     em.emit_error(MyError(Span { offset: 12, len: 6 }));
+/// }
+///
+/// let mut em = ErrorManager::new();
+/// do_something(&mut em);
+///
+/// // Now we test the collected errors
+/// let mut errors = em.errors().iter().map(|err| {
+///     let err: &dyn Any = &**err;
+///     err.downcast_ref::<MyError>().unwrap()
+/// });
+///
+/// let expected = errors.next().unwrap();
+/// assert_eq!(expected.0, Span { offset: 12, len: 6 });
+/// ```
+///
+/// This allows us to test errors more effectively.
+/// Another option would be to write the error we get from the ErrorManager
+/// into a String, and test that string.
+/// But that would require memory allocations, and more virtual calls.
+pub trait Error : Any {
     fn get_span(&self) -> Span;
     fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result;
 }
@@ -54,6 +106,22 @@ impl ErrorManager {
     pub fn n_errors(&self) -> usize { self.errors.len() }
 
     pub fn has_errors(&self) -> bool { !self.errors.is_empty() }
+
+    pub fn errors(&self) -> &[Box<dyn Error>] { &self.errors }
+
+    /// Gets an iterator over the errors inside `self`, casting them to the
+    /// concrete error type specified
+    ///
+    /// This is **super** unsafe, and should only be used on tests
+    ///
+    /// # Panics
+    /// If if fails to downcast an error into `E`
+    pub fn errors_iterator_cast<E: Error>(&self) -> impl Iterator<Item = &E> {
+        self.errors.iter().map(|err| {
+            let err: &dyn Any = &**err;
+            err.downcast_ref::<E>().unwrap()
+        })
+    }
 
     pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();

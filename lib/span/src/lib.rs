@@ -20,7 +20,7 @@ impl Debug for Span {
 
 /// Represents a [`Span`] in a file, bounded by
 /// it's start line and col, plus it's end line and col
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FilePosition {
     pub start_line: usize,
     pub start_col: usize,

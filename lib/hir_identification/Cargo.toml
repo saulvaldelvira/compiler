@@ -1,5 +1,5 @@
 [package]
-name = "hir_passes"
+name = "hir_identification"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,6 +7,9 @@ edition = "2024"
 hir = { path = "../hir" }
 session = { path = "../session" }
 error_manager = { path = "../error_manager" }
+
+[dev-dependencies]
+compiler_driver = { path = "../compiler_driver" }
 
 [lints]
 workspace = true

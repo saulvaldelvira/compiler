@@ -79,7 +79,7 @@ impl Compiler {
         })
     }
 
-    pub fn process(&self, emit: Emit) -> Option<String> {
+    pub fn generate_ast(&self) -> Option<ast::Module> {
         let mut lexer_errs = ErrorManager::new();
         let mut parse_errs = ErrorManager::new();
 
@@ -96,10 +96,25 @@ impl Compiler {
         ast_validate::validate_ast(&program, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
+        Some(program)
+    }
+
+    pub fn generate_hir<'hir>(&self, root: &ast::Module, hir_sess: &hir::Session<'hir>) -> &'hir hir::Module<'hir> {
+        ast_lowering::lower(hir_sess, root);
+        hir_sess.get_root()
+    }
+
+    pub fn process(&self, emit: Emit) -> Option<String> {
+        let program = self.generate_ast()?;
+
         let hir_sess = hir::Session::default();
+        self.generate_hir(&program, &hir_sess);
+
         ast_lowering::lower(&hir_sess, &program);
 
-        hir_passes::identify(&hir_sess, &self.source.text, &mut em);
+        let mut em = ErrorManager::new();
+
+        hir_identification::identify(&hir_sess, &self.source.text, &mut em);
         step_emit(&self.source.text, &mut em)?;
 
         let semantic = Semantic::default();
