@@ -7,14 +7,14 @@ pub use span::{FilePosition, Span};
 /// An error sent to the [`ErrorManager`]
 ///
 /// # Rationale for `Error: Any`
-/// [ErrorManager] stores errors on a `Box<dyn Error>`. This is
+/// [`ErrorManager`] stores errors on a `Box<dyn Error>`. This is
 /// convenient, beacause we can pass arround the same `ErrorManager` to
 /// multiple compilation stages, each one defining custom error types.
-/// Since they all implement [Error], they can be emitted to the same ErrorManager.
+/// Since they all implement [Error], they can be emitted to the same `ErrorManager`.
 ///
 /// The problem comes when we need to get back the original Error type.
 /// For example, if we're testing the identification stage, we know it'll send
-/// IdentificationError to the ErrorManager.
+/// `IdentificationError` to the `ErrorManager`.
 ///
 /// If Error extends Any we can upcast the `&dyn Error`, to `&dyn Any`,
 /// and use `downcast_ref` to get the concrete error type
@@ -53,7 +53,7 @@ pub use span::{FilePosition, Span};
 /// ```
 ///
 /// This allows us to test errors more effectively.
-/// Another option would be to write the error we get from the ErrorManager
+/// Another option would be to write the error we get from the `ErrorManager`
 /// into a String, and test that string.
 /// But that would require memory allocations, and more virtual calls.
 pub trait Error : Any {
