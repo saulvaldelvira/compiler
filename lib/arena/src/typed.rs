@@ -1,9 +1,7 @@
-use std::{
+use core::{
     cell::{Cell, RefCell},
-    cmp,
     marker::PhantomData,
-    ptr,
-    ptr::slice_from_raw_parts_mut,
+    cmp, ptr, slice,
 };
 
 use tiny_vec::TinyVec;
@@ -40,8 +38,35 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     pub fn alloc_iter<I>(&self, values: I) -> &'ctx mut [T]
     where
         I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
+        /* We can't pre-alloc the space like we do on the DroplessArena.
+         * This arena is reentrant, which means that the iterator may
+         * call alloc_iter again. If we pre-allocated the space we may
+         * have initialized elements after uninitialized ones.
+         *
+         * Example:
+         * An initial call to alloc_iter pre-allocates space for 4 elements.
+         * While filling the space, the iterator calls alloc_iter again,
+         * which causes it to re-alloc more space.
+         * On the third call to iterator.next(), a panic occurs.
+         *
+         * In that case, we would have the following structure in memory.
+         *
+         *     (alloc_iter_1) -- calls -- (alloc_iter2)
+         * [ INIT INIT UNINIT UNINIT ] [INIT INIT PANIC! ]
+         *                |------------------------^
+         *                We poll the iterator to get the third item,
+         *                but the iterator panics.
+         *
+         * Since we have mixed init and uninit data, we either drop uninitalized
+         * elements, or leak memory
+         *
+         * Collecting the elements beforehand takes care of panic safety and
+         * reentrancy. Also, this function is called less often that its dropless
+         * counterpart.
+         * The TinyVec can hold 8 elements on the stack, so small iterators won't
+         * even cause heap allocations
+         * */
         let mut values: TinyVec<_, 8> = values.into_iter().collect();
         let len = values.len();
 
@@ -62,7 +87,7 @@ impl<'ctx, T> TypedArena<'ctx, T> {
 
             self.start.set(ptr.add(len));
 
-            &mut *slice_from_raw_parts_mut(ptr, len)
+            slice::from_raw_parts_mut(ptr, len)
         }
     }
 

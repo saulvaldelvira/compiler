@@ -1,10 +1,8 @@
-use core::slice;
-use std::{
+use core::{
     alloc::Layout,
     cell::{Cell, RefCell},
-    cmp,
     marker::PhantomData,
-    mem, ptr,
+    cmp, mem, ptr, slice,
 };
 
 use crate::chunk::ArenaChunk;
