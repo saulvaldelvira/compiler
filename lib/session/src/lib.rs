@@ -11,7 +11,8 @@ use interner::StringInterner;
 pub struct Symbol(interner::Symbol<str>);
 
 impl Symbol {
-    pub fn try_borrow<R>(&self, f: impl FnOnce(&str) -> R) -> R {
+    #[inline]
+    pub fn borrow<R>(&self, f: impl FnOnce(&str) -> R) -> R {
         with_symbol(*self, f)
     }
 

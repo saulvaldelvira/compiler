@@ -39,7 +39,7 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
 fn def_var(global: &str, name: &Ident, ty: &semantic::Ty<'_>) -> MaplInstruction {
     let mut s = String::new();
     mapl_ty_metadata(ty, &mut s).unwrap();
-    name.sym.try_borrow(|name| {
+    name.sym.borrow(|name| {
         MaplInstruction::Literal(format!("{global} {name} : {s}"))
     })
 }
