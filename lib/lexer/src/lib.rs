@@ -250,6 +250,8 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
         }
         if !self.c.match_next('\'') {
             self.error(LexerErrorKind::ExpectedClosingTickOnCharLiteral);
+            self.c.advance_while(|c| *c != '\'');
+            self.c.advance();
         }
         self.add_token(TokenKind::CharLiteral)
     }

@@ -252,13 +252,13 @@ impl Parser<'_, '_> {
                 spanned_lit!(Float, f)
             } else if self.match_type(TokenKind::CharLiteral) {
                 let prev = self.previous()?;
-                let lit = prev
+                let Some(lit) = prev
                     .span
                     .slice(self.src)
                     .strip_prefix('\'')
                     .unwrap()
                     .strip_suffix('\'')
-                    .unwrap();
+                    else { return Ok(None) };
                 let lit = Unescaped::from(lit)
                     .next()
                     .ok_or_else(|| ParseErrorKind::InvalidEscape(lit.to_string()))?;

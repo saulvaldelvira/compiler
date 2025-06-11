@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use lexer::token::TokenKind;
 use span::Span;
 
+#[derive(Debug)]
 pub enum ParseErrorKind {
     ExpectedToken {
         tokens: Cow<'static, [TokenKind]>,
