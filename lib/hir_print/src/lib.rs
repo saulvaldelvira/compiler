@@ -48,12 +48,16 @@ macro_rules! keyval {
 impl HirPrinter<'_, '_> {
     fn serialize_module(&self, prog: &Module<'_>) -> Node {
         let mut defs = vec![];
-
         for def in prog.items {
             defs.push(self.serialize_mod_item(def));
         }
-
-        let nodes = vec![Node::Title("Module"), Node::Span(prog.span)];
+        let nodes = vec![
+            Node::Title("Module"),
+            prog.name.ident.sym.borrow(|name| {
+                Node::Text(format!(" ({name}) ").into())
+            }),
+            Node::Span(prog.span)
+        ];
 
         Node::Collapse(Node::List(nodes).into(), Node::Ul(defs).into())
     }
