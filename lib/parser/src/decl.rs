@@ -21,7 +21,7 @@ impl Parser<'_, '_> {
             .ok_or(ParseErrorKind::ExpectedNode("module"))?
     }
 
-    fn try_item(&mut self) -> Option<Result<Item>> {
+    pub(crate) fn try_item(&mut self) -> Option<Result<Item>> {
         if let Some(vdecl) = self.try_var_decl() {
             Some(vdecl)
         } else if let Some(func) = self.try_function() {
@@ -70,7 +70,7 @@ impl Parser<'_, '_> {
             None
         }
     }
-    fn try_struct(&mut self) -> Option<Result<Item>> {
+    pub(crate) fn try_struct(&mut self) -> Option<Result<Item>> {
         if self.match_type(TokenKind::Struct) {
             Some(self.struct_decl())
         } else {

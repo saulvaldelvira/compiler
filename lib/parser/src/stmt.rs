@@ -5,15 +5,20 @@ use super::{Parser, Result};
 
 impl Parser<'_, '_> {
     pub(super) fn statement(&mut self) -> Result<Statement> {
-        if let Some(vdecl) = self.try_var_decl() {
-            let vdecl = vdecl?;
-            let span = vdecl.span;
+        let mut item = self.try_var_decl();
+        if item.is_none() {
+            item = self.try_struct();
+        }
+        if let Some(item) = item {
+            let item = item?;
+            let span = item.span;
             let stmt = Statement {
-                kind: StatementKind::Item(Box::new(vdecl)),
+                kind: StatementKind::Item(Box::new(item)),
                 span,
             };
             Ok(stmt)
-        } else if let Some(block) = self.try_block() {
+        }
+        else if let Some(block) = self.try_block() {
             block.map(Statement::from)
         } else if self.match_type(TokenKind::If) {
             self.if_stmt()
