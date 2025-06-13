@@ -32,7 +32,7 @@ where
 
     let prog = hir.get_root();
 
-    ins.push(MaplInstruction::Call("ROOT_main".to_string()));
+    ins.push(MaplInstruction::Call("self_main".to_string()));
     ins.push(MaplInstruction::Halt);
 
     ins.push(prog.define(&mut cg));

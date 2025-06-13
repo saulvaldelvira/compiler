@@ -46,7 +46,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn parse(mut self) -> Option<Module> {
         let mut decls = Vec::new();
         while !self.is_finished() {
-            match self.mod_item() {
+            match self.item() {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e);
@@ -59,9 +59,12 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             return None;
         }
 
-        let span = Span::new();
-        let name = with_session_interner(|i| i.get_or_intern("ROOT"));
-        let name = Spanned { span, val: name };
+        let mut span = Span::new();
+        if let Some(l) = decls.last() {
+            span = span.join(&l.span);
+        }
+        let name = Symbol::new("self");
+        let name = Spanned { span: Span::new(), val: name };
 
         let m = Module {
             elems: decls.into_boxed_slice(),

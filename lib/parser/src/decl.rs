@@ -16,12 +16,12 @@ impl Parser<'_, '_> {
         }
     }
 
-    pub(super) fn mod_item(&mut self) -> Result<Item> {
-        self.try_mod_item()
+    pub(super) fn item(&mut self) -> Result<Item> {
+        self.try_item()
             .ok_or(ParseErrorKind::ExpectedNode("module"))?
     }
 
-    fn try_mod_item(&mut self) -> Option<Result<Item>> {
+    fn try_item(&mut self) -> Option<Result<Item>> {
         if let Some(vdecl) = self.try_var_decl() {
             Some(vdecl)
         } else if let Some(func) = self.try_function() {
@@ -35,7 +35,7 @@ impl Parser<'_, '_> {
         }
     }
 
-    fn module(&mut self) -> Result<Item> {
+    pub(super) fn module(&mut self) -> Result<Item> {
         let kw_mod = self.consume(TokenKind::Mod)?.span;
         let name = self.consume_ident_spanned()?;
 
@@ -43,7 +43,7 @@ impl Parser<'_, '_> {
 
         let mut decls = Vec::new();
 
-        while let Some(decl) = self.try_mod_item() {
+        while let Some(decl) = self.try_item() {
             decls.push(decl?);
         }
 
