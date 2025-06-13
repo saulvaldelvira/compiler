@@ -1,4 +1,5 @@
-use hir::{Statement, def::DefinitionKind, stmt::StatementKind};
+use hir::ItemKind;
+use hir::{Statement, stmt::StatementKind};
 use semantic::{PrimitiveType, Ty, TypeKind};
 use span::Span;
 
@@ -38,7 +39,7 @@ pub fn assign_memory_locals(
     stmt: &hir::Statement<'_>,
 ) -> i32 {
     match &stmt.kind {
-        StatementKind::Def(d) if matches!(d.kind, DefinitionKind::Variable { .. }) => {
+        StatementKind::Item(d) if matches!(d.kind, ItemKind::Variable { .. }) => {
             let acc = cg.sem.type_of(&d.id).unwrap().size_of() as i32 + acc;
             cg.set_address(d.id, MemoryAddress::Relative(-acc));
             acc
@@ -60,7 +61,7 @@ pub fn assign_memory_locals(
         StatementKind::While { body, .. } => assign_memory_locals(cg, acc, body),
         StatementKind::For { body, init, .. } => {
             if let Some(init) = init {
-                let def = Statement::new(StatementKind::Def(init), Span::new());
+                let def = Statement::new(StatementKind::Item(init), Span::new());
                 acc = assign_memory_locals(cg, acc, &def);
             }
             assign_memory_locals(cg, acc, body)

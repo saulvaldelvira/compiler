@@ -1,7 +1,8 @@
 mod node;
 
+use hir::{Item, ItemKind};
 use hir::{
-    Definition, Expression, ModItem, Module, Statement, def::DefinitionKind, expr::ExpressionKind,
+    Expression, Module, Statement, expr::ExpressionKind,
     stmt::StatementKind,
 };
 use node::Node;
@@ -49,7 +50,7 @@ impl HirPrinter<'_, '_> {
     fn serialize_module(&self, prog: &Module<'_>) -> Node {
         let mut defs = vec![];
         for def in prog.items {
-            defs.push(self.serialize_mod_item(def));
+            defs.push(self.serialize_item(def));
         }
         let nodes = vec![
             Node::Title("Module"),
@@ -62,33 +63,27 @@ impl HirPrinter<'_, '_> {
         Node::Collapse(Node::List(nodes).into(), Node::Ul(defs).into())
     }
 
-    fn serialize_mod_item(&self, mi: &ModItem) -> Node {
-        match &mi.kind {
-            hir::ModItemKind::Mod(module) => self.serialize_module(module),
-            hir::ModItemKind::Def(definition) => self.serialize_definition(definition),
-        }
-    }
-
-    fn serialize_definition(&self, def: &Definition<'_>) -> Node {
+    fn serialize_item(&self, def: &Item<'_>) -> Node {
         let mut nodes = vec![Node::DefId(def.id)];
         let mut ul = vec![];
 
         let h1 = match def.kind {
-            DefinitionKind::Variable { .. } => "VariableDefinition",
-            DefinitionKind::Function { .. } => "FunctionDefinition",
-            DefinitionKind::Struct { .. } => "StructDefinition",
+            ItemKind::Variable { .. } => "VariableDefinition",
+            ItemKind::Function { .. } => "FunctionDefinition",
+            ItemKind::Struct { .. } => "StructDefinition",
+            ItemKind::Mod { .. } => "Module",
         };
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
 
-        keyval!(ul, "name" => def.name.ident.sym.to_string());
+        keyval!(ul, "name" => def.get_name().to_string());
 
         if let Some(ty) = self.sem.type_of(&def.id) {
             keyval!(ul, "type" => ty.to_string());
         }
 
         match &def.kind {
-            DefinitionKind::Variable {
+            ItemKind::Variable {
                 constness, init, ..
             } => {
                 keyval!(ul, "const" => format!("{constness:?}"));
@@ -97,14 +92,14 @@ impl HirPrinter<'_, '_> {
                     ul.push(Node::KeyVal("init", init));
                 }
             }
-            DefinitionKind::Function { params, body, .. } => {
+            ItemKind::Function { params, body, .. } => {
                 if !params.is_empty() {
                     let mut p = vec![];
                     for param in *params {
                         let ty = self.sem.type_of(&param.id).unwrap();
                         p.push(Node::text(format!(
                             "{name} : {ty}",
-                            name = param.name.ident.sym,
+                            name = param.get_name(),
                         )));
                     }
 
@@ -116,7 +111,7 @@ impl HirPrinter<'_, '_> {
                 }
                 ul.push(Node::collapse("body", Node::Ul(b)));
             }
-            DefinitionKind::Struct { fields } => {
+            ItemKind::Struct { fields, .. } => {
                 let mut flist = vec![];
                 for field in *fields {
                     flist.push(Node::text(format!(
@@ -125,6 +120,9 @@ impl HirPrinter<'_, '_> {
                     )));
                 }
                 ul.push(Node::collapse("fields", Node::Ul(flist)));
+            },
+            ItemKind::Mod(module) => {
+                return self.serialize_module(module)
             }
         }
 
@@ -313,7 +311,7 @@ impl HirPrinter<'_, '_> {
                 }
 
                 attrs.push(match init {
-                    Some(e) => Node::KeyVal("init", self.serialize_definition(e).into()),
+                    Some(e) => Node::KeyVal("init", self.serialize_item(e).into()),
                     None => Node::KeyVal("init", Node::Text("None".into()).into()),
                 });
                 attrs.push(serialize_expr!("cond", cond));
@@ -342,7 +340,7 @@ impl HirPrinter<'_, '_> {
                 let expr = self.serialize_expr(expr).into();
                 Node::KeyVal("expr", expr)
             }
-            StatementKind::Def(def) => return self.serialize_definition(def),
+            StatementKind::Item(def) => return self.serialize_item(def),
         };
 
         if !matches!(attr, Node::Empty) {

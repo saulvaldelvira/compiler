@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use span::Span;
 
-use crate::{Definition, Expression, HirId, Module, PathDef, Statement, Type, def::Field};
+use crate::item::Item;
+use crate::{Expression, HirId, Module, PathDef, Statement, Type, item::Field};
 
 #[derive(Clone, Copy, Debug)]
 pub enum HirNodeKind<'hir> {
     Expr(&'hir Expression<'hir>),
-    Def(&'hir Definition<'hir>),
+    Item(&'hir Item<'hir>),
     PathDef(&'hir PathDef),
     Stmt(&'hir Statement<'hir>),
     Field(&'hir Field<'hir>),
@@ -16,23 +17,29 @@ pub enum HirNodeKind<'hir> {
 }
 
 impl<'hir> HirNodeKind<'hir> {
-    /// Expects this node to be a [Def] variant.
+    /// Expects this node to be a [Item] variant.
     ///
     /// # Panics
-    /// - If the node is NOT a [Def] variant
+    /// - If the node is NOT a [Item] variant
     ///
-    /// [Def]: HirNodeKind::Def
-    pub fn expect_definition(self) -> &'hir Definition<'hir> {
+    /// [Item]: HirNodeKind::Item
+    pub fn expect_item(self) -> &'hir Item<'hir> {
+        self.as_item().unwrap_or_else(|| {
+            unreachable!("Expected item")
+        })
+    }
+
+    pub fn as_item(self) -> Option<&'hir Item<'hir>> {
         match self {
-            Self::Def(def) => def,
-            _ => unreachable!("Expected definition"),
+            Self::Item(item) => Some(item),
+            _ => None
         }
     }
 
     pub fn get_span(&self) -> Option<Span> {
         Some(match self {
             HirNodeKind::Expr(expression) => expression.span,
-            HirNodeKind::Def(definition) => definition.span,
+            HirNodeKind::Item(item) => item.span,
             HirNodeKind::Stmt(statement) => statement.span,
             HirNodeKind::Field(field) => field.span,
             HirNodeKind::PathDef(_) |

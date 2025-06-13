@@ -1,12 +1,12 @@
 use error_manager::ErrorManager;
+use hir::{Item, PathDef};
 use hir::{
-    Definition, Expression, Type,
-    node_map::HirNodeKind,
+    Expression, Type,
     visitor::{
         Visitor, VisitorCtx, walk_arithmetic, walk_array_access, walk_assignment, walk_call,
         walk_cast, walk_comparison, walk_deref, walk_expression, walk_field, walk_for,
         walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access,
-        walk_struct_definition, walk_ternary, walk_variable_definition, walk_while,
+        walk_struct_definition, walk_ternary, walk_while,
     },
 };
 use semantic::{
@@ -29,7 +29,6 @@ pub fn type_checking(sess: &hir::Session<'_>, em: &mut ErrorManager, semantic: &
     let mut tc = TypeChecking {
         semantic,
         em,
-        hir: sess,
         lowerer: &mut tl,
         ctx: TypeCheckingCtx::default(),
     };
@@ -39,7 +38,6 @@ pub fn type_checking(sess: &hir::Session<'_>, em: &mut ErrorManager, semantic: &
 
 struct TypeChecking<'tc, 'hir, 'sem> {
     em: &'tc mut ErrorManager,
-    hir: &'tc hir::Session<'hir>,
     lowerer: &'tc mut TypeLowering<'tc, 'sem, 'hir>,
     semantic: &'tc Semantic<'sem>,
     ctx: TypeCheckingCtx<'hir>,
@@ -62,7 +60,7 @@ impl<'hir> TypeChecking<'_, 'hir, '_> {
 
 #[derive(Default)]
 struct TypeCheckingCtx<'hir> {
-    funcs: Vec<&'hir Definition<'hir>>,
+    funcs: Vec<&'hir Item<'hir>>,
 }
 
 impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
@@ -72,27 +70,16 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 
     fn visit_variable(&mut self, base: &'hir Expression<'hir>, path: &'hir hir::Path) {
-        use hir::def::DefinitionKind;
-
         let node = path
             .def()
             .get()
-            .map(|id| self.hir.get_node(&id));
-        let Some(HirNodeKind::Def(def)) = node else {
-            unreachable!()
-        };
+            .unwrap();
 
-        match def.kind {
-            DefinitionKind::Variable { .. }
-            | DefinitionKind::Function { .. }
-            | DefinitionKind::Struct { .. } => {
-                let ty = self
-                    .semantic
-                    .type_id_of(&def.id)
-                    .unwrap_or_else(|| todo!("Infer types"));
-                self.semantic.set_type_of(base.id, ty);
-            }
-        }
+        let ty = self
+            .semantic
+            .type_id_of(&node)
+            .unwrap_or_else(|| todo!("Infer types"));
+        self.semantic.set_type_of(base.id, ty);
     }
 
     fn visit_struct_access(
@@ -137,7 +124,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     fn visit_for(
         &mut self,
         _base: &'hir hir::Statement,
-        init: Option<&'hir Definition<'hir>>,
+        init: Option<&'hir Item<'hir>>,
         cond: Option<&'hir Expression<'hir>>,
         inc: Option<&'hir Expression<'hir>>,
         body: &'hir hir::Statement<'hir>,
@@ -166,6 +153,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     ) -> Self::Result {
         walk_deref(self, r);
 
+        dbg!(&r.kind);
         if let Some(ty) = self.semantic.type_of(&r.id) {
             match ty.kind {
                 TypeKind::Ref(ty) => {
@@ -336,35 +324,35 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_field(
         &mut self,
-        _def: &'hir Definition<'hir>,
-        field: &'hir hir::def::Field<'hir>,
+        _def: &'hir Item<'hir>,
+        field: &'hir hir::item::Field<'hir>,
     ) -> Self::Result {
         walk_field(self, field);
         let ty = self.lowerer.lower_hir_type(field.ty).id;
         self.semantic.set_type_of(field.id, ty);
     }
 
-    fn visit_variable_definition(
-        &mut self,
-        def: &'hir Definition<'hir>,
-        constness: &hir::Constness,
+    fn visit_variable_definition(&mut self,
+        base: &'hir Item<'hir>,
+        _name: &'hir PathDef,
         ty: Option<&'hir Type<'hir>>,
-        init: Option<&'hir Expression<'hir>>,
+        _init: Option<&'hir Expression<'hir>>,
+        _constness: hir::Constness,
     ) -> Self::Result {
-        walk_variable_definition(self, def, constness, ty, init);
         let ty = ty.expect("TODO: Infer types");
         let ty = self.lowerer.lower_hir_type(ty);
-        self.semantic.set_type_of(def.id, ty.id);
+        self.semantic.set_type_of(base.id, ty.id);
     }
 
     fn visit_struct_definition(
         &mut self,
-        base: &'hir Definition<'hir>,
-        fields: &'hir [hir::def::Field<'hir>],
+        base: &'hir Item<'hir>,
+        name: &'hir PathDef,
+        fields: &'hir [hir::item::Field<'hir>],
     ) -> Self::Result {
-        walk_struct_definition(self, base, fields);
+        walk_struct_definition(self, base, name, fields);
 
-        let name = base.name.ident.sym;
+        let name = name.ident.sym;
         let fields = self.lowerer.lower_fields(fields);
 
         let struct_type = semantic::types::TypeKind::Struct { name, fields };
@@ -393,17 +381,18 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_function_definition(
         &mut self,
-        def: &'hir hir::Definition<'hir>,
-        params: &'hir [hir::Definition<'hir>],
+        def: &'hir hir::Item<'hir>,
+        name: &'hir PathDef,
+        params: &'hir [hir::Item<'hir>],
         ret_ty: &'hir Type<'hir>,
         body: &'hir [hir::Statement<'hir>],
     ) -> Self::Result {
         {
             let params = params.iter().map(|p| {
-                let Some((_, Some(ty), _)) = p.as_variable_def() else {
-                    unreachable!()
-                };
-                ty
+                match p.kind {
+                    hir::ItemKind::Variable { ty, .. } => ty.unwrap(),
+                    _ => unreachable!()
+                }
             });
 
             let params = self.lowerer.lower_hir_types_iter(params);
@@ -414,7 +403,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
             self.semantic.set_type_of(def.id, ty);
         }
 
-        walk_function_definition(self, def, params, ret_ty, body);
+        walk_function_definition(self, def, name, params, ret_ty, body);
 
         CheckFunctionReturns {
             def,
@@ -460,7 +449,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 }
 
 impl<'hir> VisitorCtx<'hir> for TypeCheckingCtx<'hir> {
-    fn enter_function(&mut self, func: &'hir hir::Definition<'hir>) { self.funcs.push(func); }
+    fn enter_function(&mut self, func: &'hir hir::Item<'hir>) { self.funcs.push(func); }
 
     fn exit_function(&mut self) { self.funcs.pop(); }
 }

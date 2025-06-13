@@ -26,7 +26,7 @@ pub struct Param {
 }
 
 #[derive(Debug)]
-pub enum DeclarationKind {
+pub enum ItemKind {
     Variable {
         constness: VariableConstness,
         name: Spanned<Symbol>,
@@ -46,13 +46,21 @@ pub enum DeclarationKind {
         name: Spanned<Symbol>,
         fields: Block<Field>,
     },
+    Mod(Module),
 }
 
-pub struct Declaration {
-    pub kind: DeclarationKind,
+#[derive(Debug)]
+pub struct Module {
+    pub elems: Box<[Item]>,
+    pub name: Spanned<Symbol>,
     pub span: Span,
 }
 
-impl fmt::Debug for Declaration {
+pub struct Item {
+    pub kind: ItemKind,
+    pub span: Span,
+}
+
+impl fmt::Debug for Item {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:#?}", self.kind) }
 }

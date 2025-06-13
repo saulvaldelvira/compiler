@@ -23,13 +23,13 @@
 //! ```
 
 use error_manager::ErrorManager;
-use hir::visitor::Visitor;
+use hir::visitor::{walk_function_definition, Visitor};
+use hir::{ItemKind, Module};
 
 use std::collections::HashMap;
 
 use error_manager::{FilePosition, Span};
-use hir::def::DefinitionKind;
-use hir::visitor::{walk_struct_definition, VisitorCtx};
+use hir::visitor::VisitorCtx;
 use hir::{
     HirId,
     node_map::HirNodeKind,
@@ -79,7 +79,7 @@ pub struct Ctx {
 }
 
 impl<'ast> VisitorCtx<'ast> for Ctx {
-    fn enter_function(&mut self, _func: &'ast hir::Definition<'ast>) {
+    fn enter_function(&mut self, _func: &'ast hir::Item<'ast>) {
         self.st.enter_scope();
     }
 
@@ -93,6 +93,14 @@ impl<'ast> VisitorCtx<'ast> for Ctx {
 
     fn exit_module(&mut self) {
         self.st.exit_scope();
+    }
+
+    fn enter_struct(&mut self, _mod: &'ast hir::Item<'ast>) {
+        self.st.enter_scope();
+    }
+
+    fn exit_struct(&mut self) {
+        self.st.enter_scope();
     }
 }
 
@@ -134,58 +142,43 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         let Some(def) = left.def.get() else { return };
         let node = self.hir_sess.get_node(&def);
 
-        match node {
-            HirNodeKind::Module(module) => {
+        let mut from_module = |module: &'hir Module<'hir>| {
                 match module.find_item(right.ident.sym) {
-                    Some(def) => right.def.resolve(def.inner_id()),
+                    Some(def) => right.def.resolve(def.id),
                     None => {
                         self.em.emit_error(error_manager::StringError {
                             msg: format!(
-                                "Undefined symbol '{:#?}::{:#?}'",
-                                module.name, right.ident.sym
-                            )
-                            .into(),
-                            span: right.ident.span,
+                                     "Undefined symbol '{:#?}::{:#?}'",
+                                     module.name.ident.sym, right.ident.sym
+                                 )
+                                .into(),
+                                span: right.ident.span,
                         });
                     }
                 }
-            }
-            HirNodeKind::Def(definition) => {
-                self.em.emit_error(error_manager::StringError {
-                    msg: format!(
-                        "Can't access item '{:#?}' of '{:#?}'",
-                        right.ident.sym, definition.name.ident.sym
-                    )
-                    .into(),
-                    span: right.ident.span,
-                });
-            }
-            _ => unreachable!(),
+        };
+
+        match node {
+            HirNodeKind::Item(item) => {
+                if let Some(module) = item.as_module() {
+                    from_module(module);
+                } else {
+                    self.em.emit_error(error_manager::StringError {
+                        msg: format!(
+                                 "Can't access item '{:#?}' of '{:#?}'",
+                                 right.ident.sym, item.get_name(),
+                             )
+                            .into(),
+                            span: right.ident.span,
+                    });
+                }
+            },
+            HirNodeKind::Module(module) => from_module(module),
+            n => unreachable!("Found node {n:?}"),
         }
     }
-}
 
-fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
-    match node {
-        HirNodeKind::Def(definition) => {
-            match definition.kind {
-                DefinitionKind::Variable { .. } => Ok(()),
-                DefinitionKind::Function { .. } => Err("function"),
-                DefinitionKind::Struct { .. } => Err("struct")
-            }
-        }
-        HirNodeKind::Field(_) => Err("field"),
-        HirNodeKind::Module(_) => Err("module"),
-        _ => unreachable!(),
-    }
-}
-
-impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
-    type Result = ();
-    type Ctx = Ctx;
-
-    fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) {
-        let name = pdef.ident.sym;
+    fn define(&mut self, name: Symbol, owner: HirId) {
         if let Some(prev) = self.ctx.st.get_top(name) {
             let prev = self.hir_sess.get_node(&prev);
             if let Err(shadowed_ty) = try_shadow(prev) {
@@ -207,14 +200,42 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
         self.ctx.st.define(name, owner);
     }
+}
 
-    fn visit_struct_definition(
-        &mut self,
-        base: &'hir hir::Definition<'hir>,
-        fields: &'hir [hir::def::Field<'hir>],
+fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
+    match node {
+        HirNodeKind::Item(item) => {
+            match item.kind {
+                ItemKind::Variable { .. } => Ok(()),
+                ItemKind::Function { .. } => Err("function"),
+                ItemKind::Struct { .. } => Err("struct"),
+                ItemKind::Mod(_) => Err("module"),
+            }
+        }
+        HirNodeKind::Field(_) => Err("field"),
+        _ => unreachable!(),
+    }
+}
+
+impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
+    type Result = ();
+    type Ctx = Ctx;
+
+    fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) -> Self::Result {
+        self.define(pdef.ident.sym, owner);
+    }
+
+    fn visit_function_definition(
+            &mut self,
+            base: &'hir hir::Item<'hir>,
+            name: &'hir hir::PathDef,
+            params: &'hir [hir::Item<'hir>],
+            ret_ty: &'hir hir::Type<'hir>,
+            body: &'hir [hir::Statement<'hir>],
     ) -> Self::Result {
+        self.define(name.ident.sym, base.id);
         self.ctx.st.enter_scope();
-        walk_struct_definition(self, base, fields);
+        walk_function_definition(self, base, name, params, ret_ty, body);
         self.ctx.st.exit_scope();
     }
 
@@ -223,7 +244,11 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
         if let Some(id) = path.def().get() {
             let node = self.hir_sess.get_node(&id);
-            if !matches!(node, HirNodeKind::Def(_)) {
+            let valid = match node {
+                HirNodeKind::Item(item) => item.is_definition(),
+                _ => false,
+            };
+            if !valid {
                 self.em.emit_error(error_manager::StringError {
                     msg: "Variable path must resolve to a definition".into(),
                     span: base.span,

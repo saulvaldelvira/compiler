@@ -1,7 +1,7 @@
 use core::fmt;
 
-use hir::Ident;
-use hir::{Definition, ModItem, Statement, def::DefinitionKind};
+use hir::{Ident, Item, ItemKind};
+use hir::Statement;
 use span::FilePosition;
 
 use super::Metadata;
@@ -44,18 +44,18 @@ fn def_var(global: &str, name: &Ident, ty: &semantic::Ty<'_>) -> MaplInstruction
     })
 }
 
-impl Metadata for Definition<'_> {
+impl Metadata for Item<'_> {
     fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         match self.kind {
-            DefinitionKind::Variable { .. } => {
+            ItemKind::Variable { name, .. } => {
                 let ty = cg.sem.type_of(&self.id).unwrap();
-                def_var("#global", &self.name.ident, ty)
+                def_var("#global", &name.ident, ty)
             }
-            DefinitionKind::Struct { fields } => {
+            ItemKind::Struct { fields, name } => {
                 let mut v = Vec::new();
                 v.push(MaplInstruction::Literal(format!(
                     "#type {} : {{",
-                    self.name.ident.sym
+                    name.ident.sym
                 )));
                 for field in fields {
                     let ty = cg.sem.type_of(&field.id).unwrap();
@@ -64,16 +64,8 @@ impl Metadata for Definition<'_> {
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())
             }
-            DefinitionKind::Function { .. } => MaplInstruction::Empty,
-        }
-    }
-}
-
-impl Metadata for ModItem<'_> {
-    fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-        match self.kind {
-            hir::ModItemKind::Mod(_) => MaplInstruction::Empty,
-            hir::ModItemKind::Def(definition) => definition.metadata(cg),
+            ItemKind::Mod(_) |
+            ItemKind::Function { .. } => MaplInstruction::Empty,
         }
     }
 }

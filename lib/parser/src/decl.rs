@@ -1,13 +1,14 @@
+use ast::{Item, ItemKind};
 use ast::{
-    declaration::{DeclarationKind, Field, Param, VariableConstness},
-    Block, Declaration, ModItem, Module,
+    item::{Field, Param, VariableConstness},
+    Block, Module,
 };
 use lexer::token::TokenKind;
 
 use crate::{error::ParseErrorKind, Parser, Result};
 
 impl Parser<'_, '_> {
-    pub(super) fn try_module(&mut self) -> Option<Result<Module>> {
+    pub(super) fn try_module(&mut self) -> Option<Result<Item>> {
         if self.check(TokenKind::Mod) {
             Some(self.module())
         } else {
@@ -15,20 +16,26 @@ impl Parser<'_, '_> {
         }
     }
 
-    pub(super) fn mod_item(&mut self) -> Result<ModItem> {
+    pub(super) fn mod_item(&mut self) -> Result<Item> {
         self.try_mod_item()
             .ok_or(ParseErrorKind::ExpectedNode("module"))?
     }
 
-    fn try_mod_item(&mut self) -> Option<Result<ModItem>> {
-        if let Some(decl) = self.try_declaration() {
-            Some(decl.map(|d| ModItem::Decl(Box::new(d))))
-        } else {
-            self.try_module().map(|m| m.map(ModItem::Mod))
+    fn try_mod_item(&mut self) -> Option<Result<Item>> {
+        if let Some(vdecl) = self.try_var_decl() {
+            Some(vdecl)
+        } else if let Some(func) = self.try_function() {
+            Some(func)
+        }
+        else if let Some(module) = self.try_module() {
+            Some(module)
+        }
+        else {
+            self.try_struct()
         }
     }
 
-    fn module(&mut self) -> Result<Module> {
+    fn module(&mut self) -> Result<Item> {
         let kw_mod = self.consume(TokenKind::Mod)?.span;
         let name = self.consume_ident_spanned()?;
 
@@ -50,31 +57,20 @@ impl Parser<'_, '_> {
             close_brace,
         };
 
-        Ok(Module {
-            elems: decls.val,
-            name,
+        Ok(Item {
+            kind: ItemKind::Mod(Module { elems: decls.val, name, span }),
             span,
         })
     }
 
-    pub(super) fn try_declaration(&mut self) -> Option<Result<Declaration>> {
-        if let Some(vdecl) = self.try_var_decl() {
-            Some(vdecl)
-        } else if let Some(func) = self.try_function() {
-            Some(func)
-        } else {
-            self.try_struct()
-        }
-    }
-
-    fn try_function(&mut self) -> Option<Result<Declaration>> {
+    fn try_function(&mut self) -> Option<Result<Item>> {
         if self.match_type(TokenKind::Fn) {
             Some(self.function())
         } else {
             None
         }
     }
-    fn try_struct(&mut self) -> Option<Result<Declaration>> {
+    fn try_struct(&mut self) -> Option<Result<Item>> {
         if self.match_type(TokenKind::Struct) {
             Some(self.struct_decl())
         } else {
@@ -88,7 +84,7 @@ impl Parser<'_, '_> {
         let span = name.span.join(&ty.span);
         Ok(Field { ty, name, span })
     }
-    fn struct_decl(&mut self) -> Result<Declaration> {
+    fn struct_decl(&mut self) -> Result<Item> {
         let kw_struct = self.previous_span()?;
         let name = self.consume_ident_spanned()?;
         let lb = self.consume(TokenKind::LeftBrace)?.span;
@@ -118,8 +114,8 @@ impl Parser<'_, '_> {
 
         let span = kw_struct.join(&fields.close_brace);
 
-        Ok(Declaration {
-            kind: DeclarationKind::Struct {
+        Ok(Item {
+            kind: ItemKind::Struct {
                 kw_struct,
                 name,
                 fields,
@@ -134,7 +130,7 @@ impl Parser<'_, '_> {
         let span = name.span.join(&ty.span);
         Ok(Param { span, ty, name })
     }
-    fn function(&mut self) -> Result<Declaration> {
+    fn function(&mut self) -> Result<Item> {
         let kw_fn = self.previous_span()?;
 
         let name = self.consume_ident_spanned()?;
@@ -164,8 +160,8 @@ impl Parser<'_, '_> {
 
         let span = kw_fn.join(&body.close_brace);
 
-        Ok(Declaration {
-            kind: DeclarationKind::Function {
+        Ok(Item {
+            kind: ItemKind::Function {
                 kw_fn,
                 name,
                 params: params.into_boxed_slice(),
@@ -175,14 +171,14 @@ impl Parser<'_, '_> {
             span,
         })
     }
-    pub(super) fn try_var_decl(&mut self) -> Option<Result<Declaration>> {
+    pub(super) fn try_var_decl(&mut self) -> Option<Result<Item>> {
         if self.check_types(&[TokenKind::Let, TokenKind::Const]) {
             Some(self.var_decl())
         } else {
             None
         }
     }
-    pub(super) fn var_decl(&mut self) -> Result<Declaration> {
+    pub(super) fn var_decl(&mut self) -> Result<Item> {
         let constness = if self.match_type(TokenKind::Let) {
             VariableConstness::Let(self.previous_span()?)
         } else if self.match_type(TokenKind::Const) {
@@ -211,8 +207,8 @@ impl Parser<'_, '_> {
         let semicolon = self.consume(TokenKind::Semicolon)?.span;
         let span = span.join(&semicolon);
 
-        let decl = Declaration {
-            kind: DeclarationKind::Variable {
+        let decl = Item {
+            kind: ItemKind::Variable {
                 constness,
                 name,
                 ty,

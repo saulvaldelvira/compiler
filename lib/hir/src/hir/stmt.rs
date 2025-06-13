@@ -1,6 +1,7 @@
 use span::Span;
 
-use super::{Definition, Expression};
+use super::Expression;
+use crate::item::Item;
 use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind};
 
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +18,7 @@ pub enum StatementKind<'hir> {
         body: &'hir Statement<'hir>,
     },
     For {
-        init: Option<&'hir Definition<'hir>>,
+        init: Option<&'hir Item<'hir>>,
         cond: Option<&'hir Expression<'hir>>,
         inc: Option<&'hir Expression<'hir>>,
         body: &'hir Statement<'hir>,
@@ -28,7 +29,7 @@ pub enum StatementKind<'hir> {
     Return(Option<&'hir Expression<'hir>>),
     Print(&'hir Expression<'hir>),
     Read(&'hir Expression<'hir>),
-    Def(&'hir Definition<'hir>),
+    Item(&'hir Item<'hir>),
 }
 
 #[derive(Debug, Clone, Copy)]

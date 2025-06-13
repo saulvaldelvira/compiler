@@ -1,4 +1,4 @@
-use hir::{Definition, Expression, Statement};
+use hir::{Expression, Item, Statement};
 use span::Span;
 
 use super::SemanticRule;
@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub struct CheckFunctionReturns<'hir> {
-    pub def: &'hir Definition<'hir>,
+    pub def: &'hir Item<'hir>,
     pub body: &'hir [Statement<'hir>],
     pub span: Span,
 }
@@ -30,7 +30,7 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
 
         if !ret_type.is_empty_type() && !self.body.iter().any(HasReturn::has_return) {
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::FunctionNeedsReturn(self.def.name.ident.sym),
+                kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name()),
                 span: self.span,
             });
         }
@@ -38,7 +38,7 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
 }
 
 pub struct CheckReturnStmt<'sem> {
-    pub definition: &'sem Definition<'sem>,
+    pub definition: &'sem Item<'sem>,
     pub found: Option<&'sem Expression<'sem>>,
     pub span: Span,
 }
@@ -93,7 +93,7 @@ impl HasReturn for hir::Statement<'_> {
             | StatementKind::Continue
             | StatementKind::Print(_)
             | StatementKind::Read(_)
-            | StatementKind::Def(_) => false,
+            | StatementKind::Item(_) => false,
         }
     }
 }

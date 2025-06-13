@@ -4,7 +4,7 @@ use core::fmt;
 
 use span::Span;
 
-use super::declaration::Declaration;
+use crate::item::Item;
 use crate::{Block, Expression, Parenthesized};
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub enum StatementKind {
     Expression(Expression, Span),
     Print(Span, Box<[Expression]>, Span),
     Read(Span, Box<[Expression]>, Span),
-    Decl(Box<Declaration>),
+    Item(Box<Item>),
     Block(Block<Statement>),
     If {
         kw_if: Span,
@@ -28,7 +28,7 @@ pub enum StatementKind {
     },
     For {
         kw_for: Span,
-        init: Option<Box<Declaration>>,
+        init: Option<Box<Item>>,
         cond: Option<Expression>,
         inc: Option<Expression>,
         body: Box<Statement>,

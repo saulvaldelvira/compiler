@@ -38,9 +38,9 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     HSK::Read(self.lower_expression(&expressions[0]))
                 }
             }
-            SK::Decl(declaration) => {
-                let def = self.lower_definition(declaration);
-                HSK::Def(def)
+            SK::Item(item) => {
+                let item = self.lower_item(item);
+                HSK::Item(item)
             }
             SK::Block(block) => {
                 let block = self.lower_statements(&block.val);
@@ -73,7 +73,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 body,
                 ..
             } => {
-                let init = init.as_ref().map(|i| self.lower_definition(i));
+                let init = init.as_ref().map(|i| self.lower_item(i));
                 let cond = cond.as_ref().map(|c| self.lower_expression(c));
                 let inc = inc.as_ref().map(|i| self.lower_expression(i));
                 let body = self.lower_statement(body);
@@ -92,4 +92,5 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
         hir::Statement::new(kind, stmt.span)
     }
+
 }

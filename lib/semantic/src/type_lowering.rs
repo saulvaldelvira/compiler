@@ -75,14 +75,14 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
 
     pub fn lower_fields(
         &mut self,
-        fields: &'hir [hir::def::Field<'hir>],
+        fields: &'hir [hir::item::Field<'hir>],
     ) -> &'ty [crate::Field<'ty>] {
         self.sem
             .arena
             .alloc_iter(fields.iter().map(|f| self.lower_field_owned(f)))
     }
 
-    fn lower_field_owned(&mut self, field: &'hir hir::def::Field<'hir>) -> crate::Field<'ty> {
+    fn lower_field_owned(&mut self, field: &'hir hir::item::Field<'hir>) -> crate::Field<'ty> {
         crate::Field {
             name: field.name.ident.sym,
             ty: self.lower_hir_type(field.ty),

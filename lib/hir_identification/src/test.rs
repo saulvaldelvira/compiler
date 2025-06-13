@@ -1,9 +1,8 @@
 use compiler_driver::Compiler;
 use error_manager::{ErrorManager, FilePosition};
-use hir::def::DefinitionKind;
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
-use hir::{Definition, Expression, ModItemKind};
+use hir::{Expression, Item, ItemKind};
 use session::Symbol;
 
 use crate::{IdentificationError, IdentificationErrorKind};
@@ -86,18 +85,18 @@ fn simple_ok() {
     let root = hir.get_root();
 
     let main = root.find_item(Symbol::new("main")).unwrap();
-    let ModItemKind::Def(Definition { kind: DefinitionKind::Function { body, .. }, .. }) = main.kind else {
+    let ItemKind::Function { body, .. } = main.kind else {
         panic!();
     };
 
-    let StatementKind::Def(Definition { id: def1_id, .. }) = &body[0].kind else { panic!() };
+    let StatementKind::Item(Item { id: def1_id, .. }) = &body[0].kind else { panic!() };
     let assignment = body[1];
     let StatementKind::Expr(Expression { kind: ExpressionKind::Assignment { left, .. }, ..}) = assignment.kind else { panic!() };
     let ExpressionKind::Variable(path) = &left.kind else { panic!() };
     let def = path.def();
     assert_eq!(*def1_id, def.get().unwrap());
 
-    let StatementKind::Def(Definition { id: def2_id, .. }) = &body[2].kind else { panic!() };
+    let StatementKind::Item(Item { id: def2_id, .. }) = &body[2].kind else { panic!() };
     let StatementKind::Print(Expression { kind: ExpressionKind::Variable(path), .. }) = &body[3].kind else { panic!() };
     let def = path.def();
     assert_eq!(*def2_id, def.get().unwrap());

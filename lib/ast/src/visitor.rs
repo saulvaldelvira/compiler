@@ -1,11 +1,11 @@
 use std::ops::ControlFlow;
 
+use crate::item::{Item, ItemKind, Module};
 use crate::{
-    declaration::DeclarationKind,
     expr::ExpressionKind,
     stmt::{Statement, StatementKind},
     types::{Type, TypeKind},
-    Declaration, Expression, Module,
+    Expression,
 };
 
 pub trait Visitor<'ast> {
@@ -21,10 +21,11 @@ pub trait Visitor<'ast> {
 
     fn visit_type(&mut self, ty: &'ast Type) -> Self::Result { walk_type(self, ty) }
 
-    fn visit_declaration(&mut self, decl: &'ast Declaration) -> Self::Result {
-        walk_declaration(self, decl)
-    }
     fn visit_module(&mut self, prog: &'ast Module) -> Self::Result { walk_module(self, prog) }
+
+    fn visit_item(&mut self, item: &'ast Item) -> Self::Result {
+        walk_item(self, item)
+    }
 }
 
 pub fn walk_type<'ast, V>(v: &mut V, ty: &'ast Type) -> V::Result
@@ -43,21 +44,21 @@ where
     }
 }
 
-pub fn walk_declaration<'ast, V>(v: &mut V, decl: &'ast Declaration) -> V::Result
+pub fn walk_item<'ast, V>(v: &mut V, item: &'ast Item) -> V::Result
 where
     V: Visitor<'ast> + ?Sized,
 {
-    match &decl.kind {
-        DeclarationKind::Variable { ty, init, .. } => {
-            if let Some(ty) = &ty {
+    match &item.kind {
+        ItemKind::Variable { ty, init, .. } => {
+            if let Some(ty) = ty {
                 v.visit_type(ty);
             }
-            if let Some(init) = &init {
+            if let Some(init) = init {
                 v.visit_expression(init);
             }
             V::Result::output()
         }
-        DeclarationKind::Function {
+        ItemKind::Function {
             params: args,
             return_type,
             body,
@@ -74,12 +75,13 @@ where
             }
             V::Result::output()
         }
-        DeclarationKind::Struct { fields, .. } => {
+        ItemKind::Struct { fields, .. } => {
             for f in &fields.val {
                 v.visit_type(&f.ty);
             }
             V::Result::output()
-        }
+        },
+        ItemKind::Mod(m) => v.visit_module(m),
     }
 }
 
@@ -97,7 +99,7 @@ where
             }
             V::Result::output()
         }
-        StatementKind::Decl(declaration) => v.visit_declaration(declaration),
+        StatementKind::Item(item) => v.visit_item(item),
         StatementKind::Block(block) => {
             for stmt in &block.val {
                 v.visit_statement(stmt);
@@ -130,7 +132,7 @@ where
             ..
         } => {
             if let Some(init) = init {
-                v.visit_declaration(init);
+                v.visit_item(init);
             }
             if let Some(cond) = cond {
                 v.visit_expression(cond);
@@ -203,10 +205,7 @@ where
     V: Visitor<'ast> + ?Sized,
 {
     for item in &program.elems {
-        match item {
-            crate::ModItem::Decl(declaration) => v.visit_declaration(declaration),
-            crate::ModItem::Mod(module) => v.visit_module(module),
-        };
+        v.visit_item(item);
     }
     V::Result::output()
 }

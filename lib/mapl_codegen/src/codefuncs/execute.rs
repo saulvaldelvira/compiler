@@ -1,4 +1,4 @@
-use hir::{Definition, HirId, Statement};
+use hir::{HirId, Item, ItemKind, Statement};
 use semantic::Semantic;
 use span::Span;
 
@@ -14,11 +14,10 @@ fn get_mapl_type(id: HirId, sem: &Semantic<'_>) -> MaplType {
     MaplType::from(ty)
 }
 
-impl Execute for Definition<'_> {
+impl Execute for Item<'_> {
     fn execute(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-        use hir::def::DefinitionKind;
         match self.kind {
-            DefinitionKind::Variable { init, .. } => {
+            ItemKind::Variable { init, .. } => {
                 if let Some(init) = init {
                     let ty = get_mapl_type(self.id, cg.sem);
                     MaplInstruction::Compose(Box::new([
@@ -30,7 +29,7 @@ impl Execute for Definition<'_> {
                     MaplInstruction::Empty
                 }
             }
-            DefinitionKind::Function { .. } | DefinitionKind::Struct { .. } => {
+            _ => {
                 unreachable!("We can only execute variable definitions")
             }
         }
@@ -149,7 +148,7 @@ impl Execute for Statement<'_> {
                     MaplInstruction::Store(ty),
                 ]))
             }
-            StatementKind::Def(definition) => definition.define(cg),
+            StatementKind::Item(item) => item.define(cg),
         };
 
         MaplInstruction::Compose(Box::new([md, ins]))

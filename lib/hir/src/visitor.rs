@@ -1,9 +1,11 @@
 use std::ops::ControlFlow;
 
+use crate::item::Item;
+use crate::Constness;
 use crate::{
-    Constness, Definition, Expression, HirId, Ident, ModItem, ModItemKind, Module, Path, PathDef,
+    Expression, HirId, Ident, Module, Path, PathDef,
     Statement, Type,
-    def::Field,
+    item::Field,
     expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp},
     hir, stmt,
 };
@@ -16,22 +18,18 @@ pub trait Visitor<'hir> {
 
     fn visit_module(&mut self, m: &'hir Module<'hir>) -> Self::Result { walk_module(self, m) }
 
-    fn visit_module_item(&mut self, item: &'hir ModItem<'hir>) -> Self::Result {
-        walk_module_item(self, item)
+    fn visit_item(&mut self, item: &'hir Item<'hir>) -> Self::Result {
+        walk_item(self, item)
     }
 
-    fn visit_definition(&mut self, def: &'hir Definition<'hir>) -> Self::Result {
-        walk_definition(self, def)
-    }
-
-    fn visit_variable_definition(
-        &mut self,
-        def: &'hir Definition<'hir>,
-        constness: &Constness,
+    fn visit_variable_definition(&mut self,
+        base: &'hir Item<'hir>,
+        name: &'hir PathDef,
         ty: Option<&'hir Type<'hir>>,
         init: Option<&'hir Expression<'hir>>,
+        constness: Constness,
     ) -> Self::Result {
-        walk_variable_definition(self, def, constness, ty, init)
+        walk_variable_definition(self, base, name, ty, init, constness)
     }
 
     fn visit_expression(&mut self, expr: &'hir Expression<'hir>) -> Self::Result {
@@ -134,25 +132,27 @@ pub trait Visitor<'hir> {
 
     fn visit_function_definition(
         &mut self,
-        base: &'hir Definition<'hir>,
-        params: &'hir [Definition<'hir>],
+        base: &'hir Item<'hir>,
+        name: &'hir PathDef,
+        params: &'hir [Item<'hir>],
         ret_ty: &'hir Type<'hir>,
         body: &'hir [Statement<'hir>],
     ) -> Self::Result {
-        walk_function_definition(self, base, params, ret_ty, body)
+        walk_function_definition(self, base, name, params, ret_ty, body)
     }
 
     fn visit_struct_definition(
         &mut self,
-        base: &'hir Definition<'hir>,
+        base: &'hir Item<'hir>,
+        name: &'hir PathDef,
         fields: &'hir [Field<'hir>],
     ) -> Self::Result {
-        walk_struct_definition(self, base, fields)
+        walk_struct_definition(self, base, name, fields)
     }
 
     fn visit_field(
         &mut self,
-        _def: &'hir Definition<'hir>,
+        _def: &'hir Item<'hir>,
         param: &'hir Field<'hir>,
     ) -> Self::Result {
         walk_field(self, param)
@@ -219,7 +219,7 @@ pub trait Visitor<'hir> {
     fn visit_for(
         &mut self,
         _base: &'hir Statement,
-        init: Option<&'hir Definition<'hir>>,
+        init: Option<&'hir Item<'hir>>,
         cond: Option<&'hir Expression<'hir>>,
         inc: Option<&'hir Expression<'hir>>,
         body: &'hir Statement<'hir>,
@@ -299,20 +299,10 @@ where
     v.visit_pathdef(prog.id, prog.name);
     v.get_ctx().enter_module(prog);
     for item in prog.items {
-        v.visit_module_item(item);
+        v.visit_item(item);
     }
     v.get_ctx().exit_module();
     V::Result::output()
-}
-
-pub fn walk_module_item<'hir, V>(v: &mut V, item: &'hir ModItem<'hir>) -> V::Result
-where
-    V: Visitor<'hir> + ?Sized,
-{
-    match &item.kind {
-        ModItemKind::Mod(module) => v.visit_module(module),
-        ModItemKind::Def(definition) => v.visit_definition(definition),
-    }
 }
 
 pub fn walk_type<'hir, V>(v: &mut V, ty: &'hir Type<'hir>) -> V::Result
@@ -339,39 +329,37 @@ where
     V::Result::output()
 }
 
-pub fn walk_definition<'hir, V>(v: &mut V, def: &'hir Definition<'hir>) -> V::Result
+pub fn walk_item<'hir, V>(v: &mut V, item: &'hir Item<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    use crate::def::DefinitionKind;
+    use crate::item::ItemKind;
 
-    v.visit_pathdef(def.id, def.name);
-
-    match &def.kind {
-        DefinitionKind::Variable {
-            constness,
-            ty,
-            init,
-        } => v.visit_variable_definition(def, constness, ty.as_deref(), *init),
-        DefinitionKind::Function {
+    match &item.kind {
+        ItemKind::Variable { name, ty, init, constness } => v.visit_variable_definition(item, name, *ty, *init, *constness),
+        ItemKind::Function {
+            name,
             params,
             body,
             ret_ty,
-        } => v.visit_function_definition(def, params, ret_ty, body),
-        DefinitionKind::Struct { fields } => v.visit_struct_definition(def, fields),
+        } => v.visit_function_definition(item, name, params, ret_ty, body),
+        ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
+        ItemKind::Mod(m) => v.visit_module(m),
     }
 }
 
 pub fn walk_variable_definition<'hir, V>(
     v: &mut V,
-    _def: &'hir Definition<'hir>,
-    _constness: &Constness,
+    base: &'hir Item<'hir>,
+    name: &'hir PathDef,
     ty: Option<&'hir Type<'hir>>,
     init: Option<&'hir Expression<'hir>>,
+    _constness: Constness,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
+    v.visit_pathdef(base.id, name);
     walk_opt!(v, init, visit_expression);
     walk_opt!(v, ty, visit_type);
     V::Result::output()
@@ -379,17 +367,19 @@ where
 
 pub fn walk_function_definition<'hir, V>(
     v: &mut V,
-    base: &'hir Definition<'hir>,
-    params: &'hir [Definition<'hir>],
+    base: &'hir Item<'hir>,
+    name: &'hir PathDef,
+    params: &'hir [Item<'hir>],
     ret_ty: &'hir Type<'hir>,
     body: &'hir [Statement<'hir>],
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
+    v.visit_pathdef(base.id, name);
     v.get_ctx().enter_function(base);
     for p in params {
-        v.visit_definition(p);
+        v.visit_item(p);
     }
     for stmt in body {
         v.visit_statement(stmt);
@@ -401,15 +391,19 @@ where
 
 pub fn walk_struct_definition<'hir, V>(
     v: &mut V,
-    def: &'hir Definition<'hir>,
+    def: &'hir Item<'hir>,
+    name: &'hir PathDef,
     fields: &'hir [Field<'hir>],
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
+    v.visit_pathdef(def.id, name);
+    v.get_ctx().enter_struct(def);
     for f in fields {
         v.visit_field(def, f);
     }
+    v.get_ctx().exit_struct();
     V::Result::output()
 }
 
@@ -539,7 +533,7 @@ where
 
 pub fn walk_for<'hir, V>(
     v: &mut V,
-    init: Option<&'hir Definition<'hir>>,
+    init: Option<&'hir Item<'hir>>,
     cond: Option<&'hir Expression<'hir>>,
     inc: Option<&'hir Expression<'hir>>,
     body: &'hir Statement<'hir>,
@@ -547,7 +541,7 @@ pub fn walk_for<'hir, V>(
 where
     V: Visitor<'hir> + ?Sized,
 {
-    walk_opt!(v, init, visit_definition);
+    walk_opt!(v, init, visit_item);
     walk_opt!(v, cond, visit_expression);
     walk_opt!(v, inc, visit_expression);
     v.visit_statement(body);
@@ -716,7 +710,7 @@ where
     use stmt::StatementKind;
     match &stmt.kind {
         StatementKind::Expr(expression) => v.visit_expression_as_stmt(stmt, expression),
-        StatementKind::Def(definition) => v.visit_definition(definition),
+        StatementKind::Item(item) => v.visit_item(item),
         StatementKind::Block(statements) => v.visit_block(stmt, statements),
         StatementKind::If {
             cond,
@@ -831,25 +825,28 @@ impl<T> VisitorResult for Option<T> {
 }
 
 pub trait VisitorCtx<'ast> {
-    fn enter_function(&mut self, _func: &'ast hir::Definition<'ast>) {}
+    fn enter_function(&mut self, _func: &'ast Item<'ast>) {}
     fn exit_function(&mut self) {}
 
-    fn enter_module(&mut self, _mod: &'ast hir::Module<'ast>) {}
+    fn enter_module(&mut self, _mod: &'ast Module<'ast>) {}
     fn exit_module(&mut self) {}
+
+    fn enter_struct(&mut self, _mod: &'ast Item<'ast>) {}
+    fn exit_struct(&mut self) {}
 }
 
 impl VisitorCtx<'_> for () {}
 
 pub struct BaseVisitorCtx<'hir> {
-    funcs: Vec<&'hir Definition<'hir>>,
+    funcs: Vec<&'hir Item<'hir>>,
 }
 
 impl<'hir> BaseVisitorCtx<'hir> {
-    pub fn current_function(&self) -> Option<&'hir Definition<'hir>> { self.funcs.last().copied() }
+    pub fn current_function(&self) -> Option<&'hir Item<'hir>> { self.funcs.last().copied() }
 }
 
 impl<'hir> VisitorCtx<'hir> for BaseVisitorCtx<'hir> {
-    fn enter_function(&mut self, func: &'hir hir::Definition<'hir>) { self.funcs.push(func); }
+    fn enter_function(&mut self, func: &'hir Item<'hir>) { self.funcs.push(func); }
 
     fn exit_function(&mut self) { self.funcs.pop().unwrap(); }
 }

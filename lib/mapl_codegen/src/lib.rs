@@ -2,8 +2,7 @@
 #![allow(clippy::cast_sign_loss)]
 
 use code_generator::CodeGenerator;
-use codefuncs::{Define, Metadata};
-use hir::{ModItemKind, def::DefinitionKind};
+use codefuncs::Define;
 use mir::MaplInstruction;
 use semantic::Semantic;
 
@@ -33,40 +32,10 @@ where
 
     let prog = hir.get_root();
 
-    prog.items
-        .iter()
-        .filter(|def| {
-            match def.kind {
-                ModItemKind::Mod(_) => false,
-                ModItemKind::Def(definition) => {
-                    !matches!(definition.kind, DefinitionKind::Function { .. })
-                }
-            }
-        })
-        .for_each(|def| {
-            let m = def.metadata(&mut cg);
-            ins.push(m);
-            let def = def.define(&mut cg);
-            ins.push(def);
-        });
-
-    ins.push(MaplInstruction::Call("main".to_string()));
+    ins.push(MaplInstruction::Call("ROOT_main".to_string()));
     ins.push(MaplInstruction::Halt);
 
-    prog.items
-        .iter()
-        .filter(|def| {
-            match def.kind {
-                ModItemKind::Mod(_) => true,
-                ModItemKind::Def(definition) => {
-                    matches!(definition.kind, DefinitionKind::Function { .. })
-                }
-            }
-        })
-        .for_each(|vdef| {
-            let def = vdef.define(&mut cg);
-            ins.push(def);
-        });
+    ins.push(prog.define(&mut cg));
 
     MaplInstruction::Compose(ins.into_boxed_slice()).to_string()
 }

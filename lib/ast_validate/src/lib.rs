@@ -1,5 +1,6 @@
+use ast::item::{Item, ItemKind, Module};
 use ast::{
-    Expression, Module, Visitor, declaration::DeclarationKind, expr::ExpressionKind,
+    Expression, Visitor, expr::ExpressionKind,
     stmt::StatementKind, visitor,
 };
 use error::{Warning, WarningKind};
@@ -78,11 +79,11 @@ impl Visitor<'_> for AstValidator<'_> {
         }
     }
 
-    fn visit_declaration(&mut self, decl: &'_ ast::Declaration) {
-        visitor::walk_declaration(self, decl);
-        if let DeclarationKind::Variable {
+    fn visit_item(&mut self, item: &'_ Item) {
+        visitor::walk_item(self, item);
+        if let ItemKind::Variable {
             init: Some(init), ..
-        } = &decl.kind
+        } = &item.kind
         {
             self.warn_unnecesary_paren(init, 1);
         }

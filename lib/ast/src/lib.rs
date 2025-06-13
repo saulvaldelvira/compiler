@@ -8,11 +8,11 @@ pub mod stmt;
 use std::fmt::Debug;
 
 pub use expr::Expression;
-use span::{Span, Spanned};
+use span::Span;
 pub use stmt::Statement;
-pub mod declaration;
+pub mod item;
+pub use item::*;
 pub mod types;
-pub use declaration::Declaration;
 pub mod visitor;
 pub use session::Symbol;
 pub use visitor::Visitor;
@@ -33,17 +33,4 @@ pub struct Parenthesized<T> {
 
 impl<T> Parenthesized<T> {
     pub fn span(&self) -> Span { self.open_paren.join(&self.close_paren) }
-}
-
-#[derive(Debug)]
-pub enum ModItem {
-    Decl(Box<Declaration>),
-    Mod(Module),
-}
-
-#[derive(Debug)]
-pub struct Module {
-    pub elems: Box<[ModItem]>,
-    pub name: Spanned<Symbol>,
-    pub span: Span,
 }

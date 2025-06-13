@@ -1,5 +1,5 @@
-use ast::declaration::VariableConstness;
-use hir::{Constness, Ident, def::DefinitionKind};
+use ast::item::{Item, VariableConstness};
+use hir::{Constness, Ident};
 
 use super::AstLowering;
 use crate::ident;
@@ -7,25 +7,17 @@ use crate::ident;
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
     fn lower_params(
         &mut self,
-        params: &[ast::declaration::Param],
-    ) -> &'hir [hir::Definition<'hir>] {
+        params: &[ast::item::Param],
+    ) -> &'hir [hir::Item<'hir>] {
         self.sess
             .alloc_iter(params.iter().map(|p| self.lower_param_owned(p)))
     }
 
-    fn lower_param_owned(&mut self, param: &ast::declaration::Param) -> hir::Definition<'hir> {
+    fn lower_param_owned(&mut self, param: &ast::item::Param) -> hir::Item<'hir> {
         let ty = self.lower_type(&param.ty);
         let name = self.lower_pathdef(ident(&param.name));
 
-        hir::def::Definition::new(
-            DefinitionKind::Variable {
-                constness: Constness::Default,
-                ty: Some(ty),
-                init: None,
-            },
-            name,
-            param.span,
-        )
+        hir::item::Item::new_param(name, ty, param.span)
     }
 
     pub(super) fn lower_pathdef(&mut self, ident: Ident) -> &'hir hir::PathDef {
@@ -35,41 +27,47 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
     fn lower_fields(
         &mut self,
-        fields: &[ast::declaration::Field],
-    ) -> &'hir [hir::def::Field<'hir>] {
+        fields: &[ast::item::Field],
+    ) -> &'hir [hir::item::Field<'hir>] {
         self.sess
             .alloc_iter(fields.iter().map(|f| self.lower_field(f)))
     }
 
-    fn lower_field(&mut self, field: &ast::declaration::Field) -> hir::def::Field<'hir> {
+    fn lower_field(&mut self, field: &ast::item::Field) -> hir::item::Field<'hir> {
         let pdef = self.lower_pathdef(ident(&field.name));
-        hir::def::Field::new(pdef, self.lower_type(&field.ty), field.span)
+        hir::item::Field::new(pdef, self.lower_type(&field.ty), field.span)
     }
 
-    pub(super) fn lower_definition(
+    pub(super) fn lower_item(
         &mut self,
-        def: &ast::Declaration,
-    ) -> &'hir hir::Definition<'hir> {
-        self.sess.alloc(self.lower_definition_owned(def))
+        def: &Item,
+    ) -> &'hir hir::Item<'hir> {
+        self.sess.alloc(self.lower_item_owned(def))
     }
 
-    pub(super) fn lower_definition_owned(
+    pub(super) fn lower_items(&mut self, mi: &[ast::Item]) -> &'hir [hir::Item<'hir>] {
+        self.sess
+            .alloc_iter(mi.iter().map(|mi| self.lower_item_owned(mi)))
+    }
+
+    pub(super) fn lower_item_owned(
         &mut self,
-        def: &ast::Declaration,
-    ) -> hir::Definition<'hir> {
-        use ast::declaration::DeclarationKind as DK;
-        use hir::def::DefinitionKind as HDK;
+        def: &ast::Item,
+    ) -> hir::Item<'hir> {
+        use ast::item::ItemKind as IK;
+        use hir::item::ItemKind as HIK;
 
         let name = match &def.kind {
-            DK::Variable { name, .. } |
-            DK::Function { name, .. } |
-            DK::Struct { name, .. } => ident(name),
+            IK::Variable { name, .. } |
+            IK::Function { name, .. } |
+            IK::Struct { name, .. } => ident(name),
+            IK::Mod(m) => ident(&m.name),
         };
 
         let name = self.lower_pathdef(name);
 
         let kind = match &def.kind {
-            DK::Variable {
+            IK::Variable {
                 constness,
                 init,
                 ty,
@@ -81,13 +79,9 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 };
                 let init = init.as_ref().map(|i| self.lower_expression(i));
                 let ty = ty.as_ref().map(|ty| self.lower_type(ty));
-                HDK::Variable {
-                    constness,
-                    ty,
-                    init,
-                }
+                HIK::Variable { ty, constness, init, name }
             }
-            DK::Function {
+            IK::Function {
                 body,
                 params,
                 return_type,
@@ -100,17 +94,23 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     .map_or_else(
                         hir::Type::empty,
                         |rt| self.lower_type(rt));
-                HDK::Function {
+                HIK::Function {
+                    name,
                     params,
                     body,
                     ret_ty,
                 }
             }
-            DK::Struct { fields, .. } => {
+            IK::Struct { fields, .. } => {
                 let fields = self.lower_fields(&fields.val);
-                HDK::Struct { fields }
+                HIK::Struct { fields, name }
+            },
+            IK::Mod(m) => {
+                let m = self.lower_module(m);
+                HIK::Mod(m)
             }
         };
-        hir::Definition::new(kind, name, def.span)
+        hir::Item::new(kind, def.span)
     }
+
 }

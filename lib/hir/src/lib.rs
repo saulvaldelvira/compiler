@@ -12,16 +12,13 @@ use hir_id::HirNode;
 use node_map::{HirNodeKind, NodeMap};
 
 mod _arena {
-    use crate::ModItem;
-
-    use super::{Expression, Type, Module};
+    use super::{Expression, Type, item::Module};
 
     ::arena::define_arenas!(
         [visibility = pub]
         expr : Expression<'ctx>,
         types: Type<'ctx>,
         modules: Module<'ctx>,
-        mod_item: ModItem<'ctx>,
     );
 }
 

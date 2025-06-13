@@ -9,7 +9,7 @@ impl Parser<'_, '_> {
             let vdecl = vdecl?;
             let span = vdecl.span;
             let stmt = Statement {
-                kind: StatementKind::Decl(Box::new(vdecl)),
+                kind: StatementKind::Item(Box::new(vdecl)),
                 span,
             };
             Ok(stmt)

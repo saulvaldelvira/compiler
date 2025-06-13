@@ -1,4 +1,5 @@
-use hir::{Definition, Expression, def::DefinitionKind, node_map::HirNodeKind};
+use hir::{Item, ItemKind};
+use hir::{Expression, node_map::HirNodeKind};
 use semantic::types::TypeKind;
 
 use super::Address;
@@ -16,10 +17,10 @@ impl Address for Expression<'_> {
             ExpressionKind::Variable(path) => {
                 let def_id = path.def().expect_resolved();
                 let node = cg.hir.get_node(&def_id);
-                let HirNodeKind::Def(def) = node else {
-                    unreachable!()
-                };
-                def.address(cg)
+                match node {
+                    HirNodeKind::Item(item) => item.address(cg),
+                    _ => unreachable!()
+                }
             }
             ExpressionKind::ArrayAccess { arr, index } => {
                 let addr = arr.address(cg);
@@ -80,18 +81,19 @@ impl Address for Expression<'_> {
     }
 }
 
-impl Address for Definition<'_> {
+impl Address for Item<'_> {
     fn address(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction {
         match &self.kind {
-            DefinitionKind::Variable { .. } => {
+            ItemKind::Variable { .. } => {
                 let addr = cg.address_of(self.id).unwrap();
                 MaplInstruction::Pushaddr(addr)
             }
-            DefinitionKind::Function { .. } => {
+            ItemKind::Function { .. } => {
                 let name = cg.get_mangled_symbol(self.id).unwrap();
                 MaplInstruction::Call(name)
             }
-            DefinitionKind::Struct { .. } => unreachable!(),
+            ItemKind::Mod(_) |
+            ItemKind::Struct { .. } => unreachable!(),
         }
     }
 }
