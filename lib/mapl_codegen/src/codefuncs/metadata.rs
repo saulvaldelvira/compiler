@@ -51,19 +51,20 @@ impl Metadata for Item<'_> {
                 let ty = cg.sem.type_of(&self.id).unwrap();
                 def_var("#global", &name.ident, ty)
             }
-            ItemKind::Struct { fields, name } => {
-                let mut v = Vec::new();
-                v.push(MaplInstruction::Literal(format!(
-                    "#type {} : {{",
-                    name.ident.sym
-                )));
-                for field in fields {
-                    let ty = cg.sem.type_of(&field.id).unwrap();
-                    v.push(def_var("", &field.name.ident, ty));
-                }
-                v.push(MaplInstruction::Literal("}".to_string()));
-                MaplInstruction::Compose(v.into_boxed_slice())
-            }
+            /* ItemKind::Struct { fields, name } => { */
+            /*     let mut v = Vec::new(); */
+            /*     v.push(MaplInstruction::Literal(format!( */
+            /*         "#type {} : {{", */
+            /*         name.ident.sym */
+            /*     ))); */
+            /*     for field in fields { */
+            /*         let ty = cg.sem.type_of(&field.id).unwrap(); */
+            /*         v.push(def_var("", &field.name.ident, ty)); */
+            /*     } */
+            /*     v.push(MaplInstruction::Literal("}".to_string())); */
+            /*     MaplInstruction::Compose(v.into_boxed_slice()) */
+            /* } */
+            ItemKind::Struct { .. } |
             ItemKind::Use(_) |
             ItemKind::Mod(_) |
             ItemKind::Function { .. } => MaplInstruction::Empty,
