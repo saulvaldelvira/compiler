@@ -72,6 +72,7 @@ impl HirPrinter<'_, '_> {
             ItemKind::Function { .. } => "FunctionDefinition",
             ItemKind::Struct { .. } => "StructDefinition",
             ItemKind::Mod { .. } => "Module",
+            ItemKind::Use(_) => "Use",
         };
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
@@ -91,6 +92,19 @@ impl HirPrinter<'_, '_> {
                     let init = self.serialize_expr(init).into();
                     ul.push(Node::KeyVal("init", init));
                 }
+            }
+            ItemKind::Use(u) => {
+                let mut path = String::new();
+                for (i, seg) in u.path.segments().iter().enumerate() {
+                    if i > 0 {
+                        path.push_str("::");
+                    }
+                    seg.ident.sym.borrow(|name| {
+                        path.push_str(name);
+                    });
+                }
+                ul.push(Node::KeyVal("path", Node::Text(path.into()).into()));
+                ul.push(Node::KeyVal("as", Node::Text(u.new_name.ident.sym.to_string().into()).into()));
             }
             ItemKind::Function { params, body, .. } => {
                 if !params.is_empty() {
@@ -201,7 +215,7 @@ impl HirPrinter<'_, '_> {
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
-                let name = Node::text(path.segments.first().unwrap().ident.sym.to_string());
+                let name = Node::text(path.segments().first().unwrap().ident.sym.to_string());
                 let def = Node::Id(path.def().expect_resolved());
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));

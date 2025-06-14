@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use span::Span;
 
-use crate::expr::Path;
+use crate::Path;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {

@@ -1,4 +1,5 @@
 use error_manager::ErrorManager;
+use hir::visitor::walk_use;
 use hir::{Item, PathDef};
 use hir::{
     Expression, Type,
@@ -146,6 +147,14 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         self.check_boolean_condition(cond, "if");
     }
 
+    fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir hir::UseItem<'hir>) -> Self::Result {
+       walk_use(self, item, u);
+
+       let def = u.path.def().expect_resolved();
+       let ty = self.semantic.type_of(&def).unwrap().id;
+       self.semantic.set_type_of(item.id, ty);
+    }
+
     fn visit_deref(
         &mut self,
         base: &'hir Expression<'hir>,
@@ -153,7 +162,6 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     ) -> Self::Result {
         walk_deref(self, r);
 
-        dbg!(&r.kind);
         if let Some(ty) = self.semantic.type_of(&r.id) {
             match ty.kind {
                 TypeKind::Ref(ty) => {

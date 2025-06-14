@@ -12,6 +12,8 @@ use hir_id::HirNode;
 use node_map::{HirNodeKind, NodeMap};
 
 mod _arena {
+    use crate::UseItem;
+
     use super::{Expression, Type, item::Module};
 
     ::arena::define_arenas!(
@@ -19,6 +21,7 @@ mod _arena {
         expr : Expression<'ctx>,
         types: Type<'ctx>,
         modules: Module<'ctx>,
+        uses: UseItem<'ctx>,
     );
 }
 

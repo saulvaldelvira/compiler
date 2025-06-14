@@ -5,6 +5,7 @@ use lexer::token::TokenKind;
 use session::Symbol;
 use span::{Span, Spanned};
 
+use crate::Path;
 use crate::{types::Type, Parenthesized};
 type Expr = Box<Expression>;
 
@@ -88,8 +89,6 @@ impl StructAccess {
         }
     }
 }
-
-pub type Path = Box<[Spanned<Symbol>]>;
 
 #[derive(Debug)]
 pub enum ExpressionKind {

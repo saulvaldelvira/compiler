@@ -5,7 +5,28 @@ use session::Symbol;
 use span::Span;
 
 use super::{Constness, Expression, Statement, types::Type};
+use crate::Path;
 use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind, path::PathDef};
+
+#[derive(Debug, Clone)]
+pub struct UseItem<'hir> {
+    pub id: HirId,
+    pub span: Span,
+    pub path: Path,
+    pub new_name: &'hir PathDef,
+}
+
+impl<'hir> UseItem<'hir> {
+    pub fn new(path: Path, new_name: &'hir PathDef, span: Span) -> Self {
+        Self { id: HirId::DUMMY, path, span, new_name: new_name.into() }
+    }
+
+    pub fn get_name(&self) -> Symbol {
+        self.new_name.ident.sym
+    }
+}
+
+impl_hir_node!(UseItem<'hir>, Use);
 
 #[derive(Debug, Clone, Copy)]
 pub enum ItemKind<'hir> {
@@ -26,6 +47,7 @@ pub enum ItemKind<'hir> {
         name: &'hir PathDef,
         fields: &'hir [Field<'hir>],
     },
+    Use(&'hir UseItem<'hir>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -84,9 +106,17 @@ impl<'hir> Item<'hir> {
         }
     }
 
+    pub fn as_use(&self) -> Option<&'hir UseItem<'hir>> {
+        match &self.kind {
+            ItemKind::Use(u) => Some(u),
+            _ => None,
+        }
+    }
+
     pub fn get_name(&self) -> Symbol {
         match &self.kind {
             ItemKind::Mod(module) => module.name.ident.sym,
+            ItemKind::Use(u) => u.get_name(),
             ItemKind::Variable{ name, .. } |
             ItemKind::Function { name, .. } |
             ItemKind::Struct { name, .. } => name.ident.sym

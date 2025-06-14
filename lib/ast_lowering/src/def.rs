@@ -1,5 +1,5 @@
 use ast::item::{Item, VariableConstness};
-use hir::{Constness, Ident};
+use hir::{Constness, Ident, UseItem};
 
 use super::AstLowering;
 use crate::ident;
@@ -62,6 +62,13 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             IK::Function { name, .. } |
             IK::Struct { name, .. } => ident(name),
             IK::Mod(m) => ident(&m.name),
+            IK::Use { path, as_name, .. } => {
+                if let Some(as_name) = as_name {
+                    ident(as_name)
+                } else {
+                    ident(path.segments.last().unwrap())
+                }
+            }
         };
 
         let name = self.lower_pathdef(name);
@@ -108,6 +115,16 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             IK::Mod(m) => {
                 let m = self.lower_module(m);
                 HIK::Mod(m)
+            },
+            IK::Use { path, as_name, .. } => {
+                let as_name = match as_name {
+                    Some(as_name) => ident(as_name),
+                    None => ident(path.segments.last().unwrap()),
+                };
+                let as_name = self.lower_pathdef(as_name);
+                let u = UseItem::new(Self::lower_path(path), as_name, def.span);
+                let u = self.sess.alloc(u);
+                HIK::Use(u)
             }
         };
         hir::Item::new(kind, def.span)

@@ -9,7 +9,7 @@ pub struct PathSegment {
 
 #[derive(Debug, Clone)]
 pub struct Path {
-    pub segments: Box<[PathSegment]>,
+    segments: Box<[PathSegment]>,
 }
 
 impl Path {
@@ -26,6 +26,14 @@ impl Path {
         Self {
             segments: Box::new([segment]),
         }
+    }
+
+    pub fn segments(&self) -> &[PathSegment] { &self.segments }
+
+    pub fn last_segment(&self) -> &PathSegment {
+        self.segments.last().unwrap_or_else(|| {
+            unreachable!("We assert that segments is NOT empty when building it")
+        })
     }
 
     pub fn def(&self) -> &NodeRef<HirId> { &self.segments.last().unwrap().def }

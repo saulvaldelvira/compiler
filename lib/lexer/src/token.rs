@@ -160,6 +160,9 @@ pub enum TokenKind {
     /// "continue"
     Continue,
 
+    /// "use"
+    Use,
+
     /// "as"
     As,
 

@@ -64,6 +64,7 @@ impl Metadata for Item<'_> {
                 v.push(MaplInstruction::Literal("}".to_string()));
                 MaplInstruction::Compose(v.into_boxed_slice())
             }
+            ItemKind::Use(_) |
             ItemKind::Mod(_) |
             ItemKind::Function { .. } => MaplInstruction::Empty,
         }

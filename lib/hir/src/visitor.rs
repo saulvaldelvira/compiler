@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::item::Item;
-use crate::Constness;
+use crate::{Constness, UseItem};
 use crate::{
     Expression, HirId, Ident, Module, Path, PathDef,
     Statement, Type,
@@ -20,6 +20,10 @@ pub trait Visitor<'hir> {
 
     fn visit_item(&mut self, item: &'hir Item<'hir>) -> Self::Result {
         walk_item(self, item)
+    }
+
+    fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir UseItem<'hir>) -> Self::Result {
+        walk_use(self, item, u)
     }
 
     fn visit_variable_definition(&mut self,
@@ -329,6 +333,15 @@ where
     V::Result::output()
 }
 
+pub fn walk_use<'hir, V>(v: &mut V, item: &'hir Item<'hir>, s: &'hir UseItem<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized,
+{
+    v.visit_path(&s.path);
+    v.visit_pathdef(item.id, s.new_name);
+    V::Result::output()
+}
+
 pub fn walk_item<'hir, V>(v: &mut V, item: &'hir Item<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -337,6 +350,7 @@ where
 
     match &item.kind {
         ItemKind::Variable { name, ty, init, constness } => v.visit_variable_definition(item, name, *ty, *init, *constness),
+        ItemKind::Use(u) => v.visit_use(item, u),
         ItemKind::Function {
             name,
             params,

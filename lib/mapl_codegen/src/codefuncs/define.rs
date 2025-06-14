@@ -35,6 +35,7 @@ impl Define for Item<'_> {
                 }
             },
             ItemKind::Mod(m) => return m.define(cg),
+            ItemKind::Use(_) => {}
         }
         MaplInstruction::Empty
     }

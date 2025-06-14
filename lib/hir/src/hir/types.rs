@@ -45,7 +45,7 @@ impl fmt::Debug for TypeKind<'_> {
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
             Self::Path(arg0) => {
                 let mut first = true;
-                for seg in &arg0.segments {
+                for seg in arg0.segments() {
                     if !first {
                         write!(f, "::")?;
                     }
@@ -73,7 +73,7 @@ impl fmt::Debug for TypeKind<'_> {
 impl Hash for TypeKind<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            TypeKind::Path(s) => s.segments.last().unwrap().ident.sym.hash(state),
+            TypeKind::Path(s) => s.last_segment().ident.sym.hash(state),
             _ => core::mem::discriminant(self).hash(state),
         }
     }
@@ -86,7 +86,7 @@ impl PartialEq for TypeKind<'_> {
             (Self::Ref(l0), Self::Ref(r0)) => l0 == r0,
             (Self::Array(l0, l1), Self::Array(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::Path(l0), Self::Path(r0)) => {
-                l0.segments.last().unwrap().ident.sym == r0.segments.last().unwrap().ident.sym
+                l0.last_segment().ident.sym == r0.last_segment().ident.sym
             }
             (
                 Self::Function {

@@ -92,6 +92,11 @@ impl Address for Item<'_> {
                 let name = cg.get_mangled_symbol(self.id).unwrap();
                 MaplInstruction::Call(name)
             }
+            ItemKind::Use(u) => {
+                let def = u.path.def().expect_resolved();
+                let node = cg.hir.get_node(&def).expect_item();
+                node.address(cg)
+            }
             ItemKind::Mod(_) |
             ItemKind::Struct { .. } => unreachable!(),
         }

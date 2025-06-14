@@ -1,6 +1,6 @@
 pub mod error;
 
-mod decl;
+mod item;
 mod expr;
 mod stmt;
 mod ty;
@@ -8,7 +8,7 @@ mod ty;
 use core::str;
 use std::{borrow::Cow, str::FromStr};
 
-use ast::{expr::ExpressionKind, Block, Expression, Module, Parenthesized, Statement};
+use ast::{Block, Module, Parenthesized, Path, Statement};
 use error::ParseErrorKind;
 use error_manager::ErrorManager;
 use lexer::{
@@ -129,18 +129,20 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             val: stmts.into_boxed_slice(),
         })
     }
-    fn path(&mut self) -> Result<Expression> {
+    fn path(&mut self) -> Result<Path> {
         let mut path = vec![self.consume_ident_spanned()?];
 
         while self.match_type(TokenKind::DoubleColon) {
             path.push(self.consume_ident_spanned()?);
         }
 
-        let span = path.first().unwrap().span.join(&path.last().unwrap().span);
-        Ok(Expression {
-            kind: ExpressionKind::Path(path.into_boxed_slice()),
-            span,
-        })
+        let segments = path.into_boxed_slice();
+        let mut span = segments.first().unwrap().span;
+        if let Some(l) = segments.last() {
+            span = span.join(&l.span);
+        }
+
+        Ok(Path { span, segments})
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
         let slice = span.slice(self.src);

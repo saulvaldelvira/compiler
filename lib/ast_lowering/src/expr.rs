@@ -9,9 +9,9 @@ use span::Spanned;
 use crate::{AstLowering, ident};
 
 impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
-    pub(super) fn lower_path(spanned: &[Spanned<Symbol>]) -> hir::Path {
+    pub(super) fn lower_path(path: &ast::Path) -> hir::Path {
         let mut segments = vec![];
-        for sp in spanned {
+        for sp in &path.segments {
             segments.push(Self::lower_path_segment(sp));
         }
         hir::Path::new(segments.into_boxed_slice())

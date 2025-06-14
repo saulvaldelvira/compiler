@@ -269,6 +269,15 @@ impl Parser<'_, '_> {
         ))
     }
 
+    fn path_expr(&mut self) -> Result<Expression> {
+        let path = self.path()?;
+        let span = path.span;
+        Ok(Expression {
+            kind: ExpressionKind::Path(path),
+            span,
+        })
+    }
+
     fn args(&mut self) -> Result<Parenthesized<Box<[Expression]>>> {
         let op = self.previous_span()?;
 
@@ -363,7 +372,7 @@ impl Parser<'_, '_> {
             });
         }
         if self.check(TokenKind::Identifier) {
-            return self.path();
+            return self.path_expr();
         }
         Err(ParseErrorKind::ExpectedConstruct {
             expected: "expression",

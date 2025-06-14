@@ -8,7 +8,7 @@ pub mod stmt;
 use std::fmt::Debug;
 
 pub use expr::Expression;
-use span::Span;
+use span::{Span, Spanned};
 pub use stmt::Statement;
 pub mod item;
 pub use item::*;
@@ -29,6 +29,12 @@ pub struct Parenthesized<T> {
     pub open_paren: Span,
     pub val: T,
     pub close_paren: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Path {
+    pub segments: Box<[Spanned<Symbol>]>,
+    pub span: Span,
 }
 
 impl<T> Parenthesized<T> {

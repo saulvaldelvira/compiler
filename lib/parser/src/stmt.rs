@@ -9,6 +9,9 @@ impl Parser<'_, '_> {
         if item.is_none() {
             item = self.try_struct();
         }
+        if item.is_none() {
+            item = self.try_as();
+        }
         if let Some(item) = item {
             let item = item?;
             let span = item.span;

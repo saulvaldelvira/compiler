@@ -58,6 +58,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("this", TokenKind::This);
             map.insert("true", TokenKind::True);
             map.insert("let", TokenKind::Let);
+            map.insert("use", TokenKind::Use);
             map.insert("as", TokenKind::As);
             map.insert("mod", TokenKind::Mod);
             map.insert("const", TokenKind::Const);

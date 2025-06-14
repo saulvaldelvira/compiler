@@ -3,6 +3,7 @@ use core::fmt;
 use session::Symbol;
 use span::{Span, Spanned};
 
+use crate::Path;
 use crate::{types::Type, Block, Expression, Statement};
 
 #[derive(Debug)]
@@ -45,6 +46,13 @@ pub enum ItemKind {
         kw_struct: Span,
         name: Spanned<Symbol>,
         fields: Block<Field>,
+    },
+    Use {
+        kw_use: Span,
+        path: Path,
+        kw_as: Option<Span>,
+        as_name: Option<Spanned<Symbol>>,
+        semicolon: Span,
     },
     Mod(Module),
 }

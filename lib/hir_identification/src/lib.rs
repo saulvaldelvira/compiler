@@ -24,7 +24,7 @@
 
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
-use hir::{ItemKind, Module};
+use hir::{Item, ItemKind, Module, Path};
 
 use std::collections::HashMap;
 
@@ -76,6 +76,20 @@ impl SymbolTable {
 
 pub struct Ctx {
     st: SymbolTable,
+}
+
+fn path_can_be_variable_ty(sess: &hir::Session<'_>, path: &Path) -> Option<bool> {
+    let id = path.def().get()?;
+    let node = sess.get_node(&id);
+    let val = match node {
+        HirNodeKind::Item(item) if item.is_definition() => true,
+        HirNodeKind::Item(Item { kind: ItemKind::Use(u), .. }) => {
+            path_can_be_variable_ty(sess, &u.path)?
+        }
+        HirNodeKind::Use(u) => path_can_be_variable_ty(sess, &u.path)?,
+        _ => false,
+    };
+    Some(val)
 }
 
 impl<'ast> VisitorCtx<'ast> for Ctx {
@@ -138,42 +152,57 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         }
     }
 
+    fn resolve_from_module(&mut self, module: &'hir Module<'hir>, right: &'hir PathSegment) {
+        match module.find_item(right.ident.sym) {
+            Some(def) => {
+                right.def.resolve(def.id);
+            },
+            None => {
+                self.em.emit_error(IdentificationError {
+                    kind: IdentificationErrorKind::UndefinedAccess(
+                              module.name.ident.sym.to_string(),
+                              right.ident.sym.to_string(),
+                          ),
+                    span: right.ident.span,
+                });
+            }
+        }
+    }
+
+    fn item_resolve(&mut self, item: &'hir Item<'hir>, right: &'hir PathSegment) {
+        if let Some(module) = item.as_module() {
+            self.resolve_from_module(module, right);
+        }
+        else if let Some(useitem) = item.as_use() {
+            let Some(def) = useitem.path.def().get() else { return };
+            let node = self.hir_sess.get_node(&def);
+            match node {
+                HirNodeKind::Item(item) => self.item_resolve(item, right),
+                HirNodeKind::Module(module) => self.resolve_from_module(module, right),
+                n => unreachable!("Found node {n:?}"),
+            }
+        }
+        else {
+            self.em.emit_error(error_manager::StringError {
+                msg: format!(
+                         "Can't access item '{:#?}' of '{:#?}'",
+                         right.ident.sym, item.get_name(),
+                     )
+                    .into(),
+                    span: right.ident.span,
+            });
+        }
+    }
+
+
     fn resolve_relative_segment(&mut self, left: &'hir PathSegment, right: &'hir PathSegment) {
         let Some(def) = left.def.get() else { return };
         let node = self.hir_sess.get_node(&def);
 
-        let mut from_module = |module: &'hir Module<'hir>| {
-                match module.find_item(right.ident.sym) {
-                    Some(def) => right.def.resolve(def.id),
-                    None => {
-                        self.em.emit_error(error_manager::StringError {
-                            msg: format!(
-                                     "Undefined symbol '{:#?}::{:#?}'",
-                                     module.name.ident.sym, right.ident.sym
-                                 )
-                                .into(),
-                                span: right.ident.span,
-                        });
-                    }
-                }
-        };
 
         match node {
-            HirNodeKind::Item(item) => {
-                if let Some(module) = item.as_module() {
-                    from_module(module);
-                } else {
-                    self.em.emit_error(error_manager::StringError {
-                        msg: format!(
-                                 "Can't access item '{:#?}' of '{:#?}'",
-                                 right.ident.sym, item.get_name(),
-                             )
-                            .into(),
-                            span: right.ident.span,
-                    });
-                }
-            },
-            HirNodeKind::Module(module) => from_module(module),
+            HirNodeKind::Item(item) => self.item_resolve(item, right),
+            HirNodeKind::Module(module) => self.resolve_from_module(module, right),
             n => unreachable!("Found node {n:?}"),
         }
     }
@@ -206,7 +235,8 @@ fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
     match node {
         HirNodeKind::Item(item) => {
             match item.kind {
-                ItemKind::Variable { .. } => Ok(()),
+                ItemKind::Variable { .. } |
+                ItemKind::Use(_) => Ok(()),
                 ItemKind::Function { .. } => Err("function"),
                 ItemKind::Struct { .. } => Err("struct"),
                 ItemKind::Mod(_) => Err("module"),
@@ -242,25 +272,18 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) {
         walk_variable(self, path);
 
-        if let Some(id) = path.def().get() {
-            let node = self.hir_sess.get_node(&id);
-            let valid = match node {
-                HirNodeKind::Item(item) => item.is_definition(),
-                _ => false,
-            };
-            if !valid {
-                self.em.emit_error(error_manager::StringError {
-                    msg: "Variable path must resolve to a definition".into(),
-                    span: base.span,
-                });
-            }
+        if path_can_be_variable_ty(self.hir_sess, path).is_some_and(|c| !c) {
+            self.em.emit_error(error_manager::StringError {
+                msg: "Variable path must resolve to a definition".into(),
+                span: base.span,
+            });
         }
     }
 
     fn visit_path(&mut self, path: &'hir hir::Path) {
-        self.visit_path_segment(&path.segments[0]);
-        let it = path.segments.iter().skip(1);
-        let it = path.segments.iter().zip(it);
+        self.visit_path_segment(&path.segments()[0]);
+        let it = path.segments().iter().skip(1);
+        let it = path.segments().iter().zip(it);
         for (l, r) in it {
             self.resolve_relative_segment(l, r);
         }
@@ -277,6 +300,7 @@ enum IdentificationErrorKind {
         prev: FilePosition,
     },
     Undefined(String),
+    UndefinedAccess(String, String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -294,6 +318,7 @@ impl error_manager::Error for IdentificationError {
                 write!(out, "Redefinition of '{name}' (previous definition: {node_type} at {prev})")
             },
             IdentificationErrorKind::Undefined(name) => write!(out, "Undefined symbol '{name}'"),
+            IdentificationErrorKind::UndefinedAccess(base, name) => write!(out, "Undefined symbol '{base}::{name}'"),
         }
     }
 }

@@ -1,5 +1,4 @@
 use ast::{
-    expr::ExpressionKind,
     types::{Type, TypeKind},
 };
 use lexer::token::TokenKind;
@@ -47,11 +46,8 @@ impl Parser<'_, '_> {
         } else if self.check(TokenKind::Identifier) {
             let p = self.path()?;
             let span = p.span;
-            let ExpressionKind::Path(path) = p.kind else {
-                unreachable!()
-            };
             Ok(Type {
-                kind: TypeKind::Path(path),
+                kind: TypeKind::Path(p),
                 span,
             })
         } else if self.match_type(TokenKind::LeftBracket) {

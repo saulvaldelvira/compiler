@@ -18,7 +18,7 @@ impl Parser<'_, '_> {
 
     pub(super) fn item(&mut self) -> Result<Item> {
         self.try_item()
-            .ok_or(ParseErrorKind::ExpectedNode("module"))?
+            .ok_or(ParseErrorKind::ExpectedNode("item"))?
     }
 
     pub(crate) fn try_item(&mut self) -> Option<Result<Item>> {
@@ -30,9 +30,39 @@ impl Parser<'_, '_> {
         else if let Some(module) = self.try_module() {
             Some(module)
         }
+        else if let Some(as_item) = self.try_as() {
+            Some(as_item)
+        }
         else {
             self.try_struct()
         }
+    }
+
+    pub(crate) fn try_as(&mut self) -> Option<Result<Item>> {
+        if self.match_type(TokenKind::Use) {
+            Some(self.parse_as())
+        } else { None }
+    }
+
+    fn parse_as(&mut self) -> Result<Item> {
+        let kw_use = self.previous_span()?;
+        let path = self.path()?;
+
+        let mut kw_as = None;
+        let mut as_name = None;
+        let mut span = kw_use;
+
+        if self.match_type(TokenKind::As) {
+            kw_as = Some(self.previous_span()?);
+            as_name = Some(self.consume_ident_spanned()?);
+        }
+        let semicolon = self.consume(TokenKind::Semicolon)?.span;
+        span = span.join(&semicolon);
+
+        Ok(Item {
+            kind: ItemKind::Use { kw_use, path, kw_as, as_name, semicolon },
+            span
+        })
     }
 
     pub(super) fn module(&mut self) -> Result<Item> {
