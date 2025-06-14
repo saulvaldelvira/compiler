@@ -183,13 +183,13 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             }
         }
         else {
-            self.em.emit_error(error_manager::StringError {
-                msg: format!(
-                         "Can't access item '{:#?}' of '{:#?}'",
-                         right.ident.sym, item.get_name(),
-                     )
-                    .into(),
-                    span: right.ident.span,
+            self.em.emit_error(IdentificationError {
+                kind: IdentificationErrorKind::CantAccess(
+                          item.get_name().to_string(),
+                          right.ident.sym.to_string(),
+                          item.kind.get_repr(),
+                      ),
+                 span: right.ident.span,
             });
         }
     }
@@ -273,8 +273,8 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         walk_variable(self, path);
 
         if path_can_be_variable_ty(self.hir_sess, path).is_some_and(|c| !c) {
-            self.em.emit_error(error_manager::StringError {
-                msg: "Variable path must resolve to a definition".into(),
+            self.em.emit_error(IdentificationError {
+                kind: IdentificationErrorKind::VariablePathInvalidTy,
                 span: base.span,
             });
         }
@@ -301,6 +301,8 @@ enum IdentificationErrorKind {
     },
     Undefined(String),
     UndefinedAccess(String, String),
+    CantAccess(String, String, &'static str),
+    VariablePathInvalidTy,
 }
 
 #[derive(Debug, PartialEq)]
@@ -319,6 +321,8 @@ impl error_manager::Error for IdentificationError {
             },
             IdentificationErrorKind::Undefined(name) => write!(out, "Undefined symbol '{name}'"),
             IdentificationErrorKind::UndefinedAccess(base, name) => write!(out, "Undefined symbol '{base}::{name}'"),
+            IdentificationErrorKind::CantAccess(base, name, ty) => write!(out, "Can't access item '{name}' on '{base}' ({ty})"),
+            IdentificationErrorKind::VariablePathInvalidTy => write!(out, "Variable path must resolve to a definition"),
         }
     }
 }

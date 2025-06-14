@@ -18,7 +18,7 @@ pub struct UseItem<'hir> {
 
 impl<'hir> UseItem<'hir> {
     pub fn new(path: Path, new_name: &'hir PathDef, span: Span) -> Self {
-        Self { id: HirId::DUMMY, path, span, new_name: new_name.into() }
+        Self { id: HirId::DUMMY, path, span, new_name }
     }
 
     pub fn get_name(&self) -> Symbol {
@@ -48,6 +48,18 @@ pub enum ItemKind<'hir> {
         fields: &'hir [Field<'hir>],
     },
     Use(&'hir UseItem<'hir>),
+}
+
+impl ItemKind<'_> {
+    pub fn get_repr(&self) -> &'static str {
+        match self {
+            ItemKind::Mod(_) => "module",
+            ItemKind::Variable { .. } => "variable",
+            ItemKind::Function { .. } => "function",
+            ItemKind::Struct { .. } => "struct",
+            ItemKind::Use(_) => "use",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
