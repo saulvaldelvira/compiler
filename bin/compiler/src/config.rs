@@ -6,6 +6,7 @@ pub struct Config {
     pub files: Vec<String>,
     pub out_file: Option<String>,
     pub emit: Emit,
+    pub check: bool,
 }
 
 impl Config {
@@ -16,6 +17,7 @@ impl Config {
             files: Vec::new(),
             out_file: None,
             emit: Emit::Mapl,
+            check: false,
         };
         let mut args = args.skip(1);
         while let Some(arg) = args.next() {
@@ -27,6 +29,7 @@ impl Config {
                         process::exit(1);
                     }));
                 }
+                "--check" => conf.check = true,
                 "--emit" => {
                     let em = args.next().unwrap_or_else(|| {
                         eprintln!("Missing argument for '--emit'");

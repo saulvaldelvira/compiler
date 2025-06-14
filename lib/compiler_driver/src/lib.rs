@@ -105,7 +105,7 @@ impl Compiler {
         hir_sess
     }
 
-    pub fn process(&self, emit: Emit) -> Option<String> {
+    fn compile(&self) -> Option<(hir::Session<'_>, semantic::Semantic<'_>)> {
         let program = self.generate_ast()?;
 
         let hir_sess = self.generate_hir(&program);
@@ -130,6 +130,15 @@ impl Compiler {
             hir_sess.get_root()
         );
 
+        Some((hir_sess, semantic))
+    }
+
+    pub fn check(&self) -> Option<()> {
+        self.compile().map(|_| ())
+    }
+
+    pub fn process(&self, emit: Emit) -> Option<String> {
+        let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
             Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source.text),
             Emit::Mapl => {

@@ -11,6 +11,13 @@ fn main() {
             eprintln!("Error reading \"{file}\": {err}");
             process::exit(1);
         });
+        if conf.check {
+            comp.check().unwrap_or_else(|| {
+                eprintln!("Check failed");
+                process::exit(1);
+            });
+            process::exit(0);
+        }
         let Some(prog) = comp.process(conf.emit) else {
             continue;
         };
@@ -31,6 +38,13 @@ fn main() {
             eprintln!("Error reading stdin: {err}");
             process::exit(1);
         });
+        if conf.check {
+            comp.check().unwrap_or_else(|| {
+                eprintln!("Check failed");
+                process::exit(1);
+            });
+            process::exit(0);
+        }
         let Some(out) = comp.process(conf.emit) else {
             return;
         };

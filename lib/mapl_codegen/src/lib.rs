@@ -12,8 +12,8 @@ mod mir;
 mod size;
 
 pub fn gen_code_mapl<'sem, 'hir, 'src>(
-    hir: &'sem hir::Session<'hir>,
-    sem: &'sem Semantic<'sem>,
+    hir: &hir::Session<'hir>,
+    sem: &Semantic<'sem>,
     source: &'src str,
     fname: &str,
 ) -> String
