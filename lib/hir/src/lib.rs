@@ -25,8 +25,7 @@ mod _arena {
     );
 }
 
-pub use _arena::ArenaAllocable;
-pub use ::arena::markers;
+use _arena::ArenaAllocable;
 
 /// Hir session
 ///
@@ -82,8 +81,10 @@ impl<'hir> Session<'hir> {
     pub fn alloc_iter<T, I, C>(&self, val: I) -> &'hir [T]
     where
         T: ArenaAllocable<'hir, C> + HirNode<'hir>,
-        I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator,
+        I: IntoIterator<
+            Item = T,
+            IntoIter: ExactSizeIterator
+           >,
     {
         let items = T::alloc_iter(val, &self.arena);
         let mut node_map = self.node_map.borrow_mut();

@@ -111,7 +111,7 @@ impl<'hir> Item<'hir> {
         }
     }
 
-    pub fn as_module(&self) -> Option<&'hir Module> {
+    pub fn as_module(&self) -> Option<&'hir Module<'_>> {
         match &self.kind {
             ItemKind::Mod(module) => Some(module),
             _ => None,

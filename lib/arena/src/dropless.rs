@@ -102,8 +102,10 @@ fn fill_array<T, I>(mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
     /// The iterator must be an [`ExactSizeIterator`]
     pub fn alloc_iter<T, I>(&self, iter: I) -> &'ctx mut [T]
     where
-        I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator,
+        I: IntoIterator<
+            Item = T,
+            IntoIter: ExactSizeIterator,
+            >,
     {
         assert!(!mem::needs_drop::<T>());
         assert!(mem::size_of::<T>() != 0);
