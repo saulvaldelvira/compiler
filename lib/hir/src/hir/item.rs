@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use session::Symbol;
+use interner::Symbol;
 use span::Span;
 
 use super::{Constness, Expression, Statement, types::Type};

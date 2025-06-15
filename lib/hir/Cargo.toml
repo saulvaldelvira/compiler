@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 arena = { path = "../arena" }
-session = { path = "../session" }
+interner = { path = "../interner" }
 span = { path = "../span" }
 
 [lints]

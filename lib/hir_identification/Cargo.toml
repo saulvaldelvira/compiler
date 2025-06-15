@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 hir = { path = "../hir" }
-session = { path = "../session" }
+interner = { path = "../interner" }
 error_manager = { path = "../error_manager" }
 
 [dev-dependencies]

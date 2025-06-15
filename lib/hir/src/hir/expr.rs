@@ -1,4 +1,4 @@
-use session::Symbol;
+use interner::Symbol;
 use span::Span;
 
 use super::{Ident, Path, Type};

@@ -36,7 +36,7 @@ use hir::{
     path::PathSegment,
     visitor::walk_variable,
 };
-use session::Symbol;
+use interner::Symbol;
 
 /// Performs identification for the given hir tree
 pub fn identify(sess: &hir::Session<'_>, source: &str, em: &mut ErrorManager) {

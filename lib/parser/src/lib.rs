@@ -15,7 +15,7 @@ use lexer::{
     token::{Token, TokenKind},
     TokenStream,
 };
-use session::{with_session, with_session_interner, Symbol};
+use interner::Symbol;
 use span::{Span, Spanned};
 
 use self::error::ParseError;
@@ -76,10 +76,8 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
     fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
         let span = self.consume(TokenKind::Identifier)?.span;
-        Ok(with_session_interner(|i| {
-            let sym = i.get_or_intern(span.slice(self.src));
-            Spanned { val: sym, span }
-        }))
+        let sym = Symbol::new(span.slice(self.src));
+        Ok(Spanned { val: sym, span })
     }
 
     fn expected_err<T>(&self, tokens: &'static [TokenKind]) -> Result<T> {
@@ -146,7 +144,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
         let slice = span.slice(self.src);
-        with_session(|sess| sess.string_interner.get_or_intern(slice))
+        Symbol::new(slice)
     }
     fn consume(&mut self, t: TokenKind) -> Result<&Token> {
         if self.check(t) {

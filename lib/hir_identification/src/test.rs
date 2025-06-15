@@ -3,7 +3,7 @@ use error_manager::{ErrorManager, FilePosition};
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
 use hir::{Expression, Item, ItemKind};
-use session::Symbol;
+use interner::Symbol;
 
 use crate::{IdentificationError, IdentificationErrorKind};
 

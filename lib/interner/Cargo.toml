@@ -1,12 +1,11 @@
 [package]
-name = "session"
+name = "interner"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
-[dependencies.interner]
-package = "interns"
+[dependencies.interns]
 git = "https://github.com/saulvaldelvira/interner"
-version = ">=0.4.0"
+version = ">=0.5.0"
 
 [lints]
 workspace = true

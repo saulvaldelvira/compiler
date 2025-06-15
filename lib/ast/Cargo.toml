@@ -8,7 +8,7 @@ readme = "README"
 [dependencies]
 span = { path = "../span" }
 lexer = { path = "../lexer" }
-session = { path = "../session" }
+interner = { path = "../interner" }
 
 [lints]
 workspace = true

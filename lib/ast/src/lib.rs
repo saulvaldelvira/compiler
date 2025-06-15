@@ -14,7 +14,7 @@ pub mod item;
 pub use item::*;
 pub mod types;
 pub mod visitor;
-pub use session::Symbol;
+pub use interner::Symbol;
 pub use visitor::Visitor;
 
 #[derive(Debug)]

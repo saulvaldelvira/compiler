@@ -26,7 +26,7 @@ pub use stmt::Statement;
 
 pub mod expr;
 pub use expr::Expression;
-use session::Symbol;
+use interner::Symbol;
 use span::Span;
 
 pub mod item;

@@ -2,7 +2,7 @@
 //!
 
 use lexer::token::TokenKind;
-use session::Symbol;
+use interner::Symbol;
 use span::{Span, Spanned};
 
 use crate::Path;

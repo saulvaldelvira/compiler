@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 lexer = { path = "../lexer" }
 ast = { path = "../ast" }
-session = { path = "../session" }
+interner = { path = "../interner" }
 span = { path = "../span" }
 error_manager = { path = "../error_manager" }
 

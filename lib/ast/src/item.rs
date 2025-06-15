@@ -1,6 +1,6 @@
 use core::fmt;
 
-use session::Symbol;
+use interner::Symbol;
 use span::{Span, Spanned};
 
 use crate::Path;

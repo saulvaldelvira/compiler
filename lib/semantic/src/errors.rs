@@ -1,5 +1,5 @@
 use hir::Ident;
-use session::Symbol;
+use interner::Symbol;
 use span::Span;
 
 pub enum SemanticErrorKind {

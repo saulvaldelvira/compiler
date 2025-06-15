@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use session::Symbol;
+use interner::Symbol;
 
 use crate::errors::SemanticErrorKind;
 
