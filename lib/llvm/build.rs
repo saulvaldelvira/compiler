@@ -1,6 +1,12 @@
 use std::process::Command;
 
 fn main() {
+    if std::env::var("SKIP_BUILD_SCRIPT").as_deref().is_ok_and(|skip| {
+       skip == "1" || skip == "true"
+    }) {
+        return
+    }
+
     let out = Command::new("llvm-config")
                         .arg("--ldflags")
                         .output()
