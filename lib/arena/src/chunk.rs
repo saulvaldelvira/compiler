@@ -16,13 +16,14 @@ impl<T> ArenaChunk<T> {
         Self { elements, len: 0 }
     }
 
-    pub fn capacity(&self) -> usize { self.elements.len() }
+    #[inline]
+    pub const fn capacity(&self) -> usize { self.elements.len() }
 
     #[inline]
-    pub fn start(&mut self) -> *mut T { self.elements.as_ptr() as *mut T }
+    pub const fn start(&mut self) -> *mut T { self.elements.as_ptr() as *mut T }
 
     #[inline]
-    pub fn end(&mut self) -> *mut T {
+    pub const fn end(&mut self) -> *mut T {
         unsafe {
             if size_of::<T>() == 0 {
                 core::ptr::without_provenance_mut(!0)
@@ -32,6 +33,7 @@ impl<T> ArenaChunk<T> {
         }
     }
 
+    #[inline]
     pub fn add_len(&mut self, len: usize) { self.len += len; }
 
     pub fn can_alloc(&self, ammount: usize) -> bool { self.len + ammount <= self.capacity() }

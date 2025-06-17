@@ -6,29 +6,27 @@ use core::{
 };
 
 use crate::chunk::ArenaChunk;
+use crate::{HUGE_PAGE, PAGE_SIZE};
 
 pub struct DroplessArena<'ctx> {
     elems: RefCell<Vec<ArenaChunk<u8>>>,
-    _marker: PhantomData<&'ctx u8>,
-
     start: Cell<*mut u8>,
     end: Cell<*mut u8>,
+    _marker: PhantomData<&'ctx u8>,
 }
 
 const ALIGNMENT: usize = mem::size_of::<usize>();
-const PAGE: usize = 4096;
-const HUGE_PAGE: usize = 2 * 1024 * 1024;
 
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn align_down(val: usize, align: usize) -> usize {
+const fn align_down(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
     val & !(align - 1)
 }
 
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn align_up(val: usize, align: usize) -> usize {
+const fn align_up(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
     (val + align - 1) & !(align - 1)
 }
@@ -56,7 +54,9 @@ impl<'ctx> DroplessArena<'ctx> {
 
     /// Allocs a chunk of bytes for the given [Layout]
     pub fn alloc_raw(&self, layout: Layout) -> *mut u8 {
-        debug_assert!(layout.size() != 0);
+        if layout.size() == 0 {
+            return ptr::without_provenance_mut(!0);
+        }
         loop {
             if let Some(ptr) = self.__alloc_raw(layout) {
                 debug_assert!(!ptr.is_null());
@@ -70,7 +70,6 @@ impl<'ctx> DroplessArena<'ctx> {
     #[allow(clippy::missing_panics_doc)]
     pub fn alloc<T>(&self, value: T) -> &'ctx mut T {
         assert!(!mem::needs_drop::<T>());
-        assert!(mem::size_of::<T>() != 0);
 
         let buf = self.alloc_raw(Layout::new::<T>()) as *mut T;
 
@@ -131,12 +130,12 @@ fn fill_array<T, I>(mut iter: I, ptr: *mut T, len: usize) -> &'ctx mut [T]
             new_cap = last.capacity().min(HUGE_PAGE / 2);
             new_cap *= 2;
         } else {
-            new_cap = PAGE;
+            new_cap = PAGE_SIZE;
         }
 
         new_cap = cmp::max(additional, new_cap);
 
-        let mut chunk = ArenaChunk::new(align_up(new_cap, PAGE));
+        let mut chunk = ArenaChunk::new(align_up(new_cap, PAGE_SIZE));
 
         self.start.set(chunk.start());
 

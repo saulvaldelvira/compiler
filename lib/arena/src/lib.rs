@@ -23,6 +23,9 @@ pub mod markers {
     pub struct NoCopy;
 }
 
+const PAGE_SIZE: usize = 4096;
+const HUGE_PAGE: usize = 2 * 1024 * 1024;
+
 #[macro_export]
 macro_rules! define_arenas {
     ( $([visibility = $vis:vis ])? $(
@@ -91,7 +94,7 @@ macro_rules! define_arenas {
         $(
             impl<'ctx> ArenaAllocable<'ctx, $crate::markers::NoCopy> for $ty {
                 fn alloc_into(self, arena: &Arena<'ctx>) -> &'ctx mut Self {
-                    if !::std::mem::needs_drop::<Self>() {
+                    if !::core::mem::needs_drop::<Self>() {
                         arena.dropless.alloc(self)
                     } else {
                         arena . $name .alloc(self)
@@ -103,7 +106,7 @@ macro_rules! define_arenas {
                     I: IntoIterator<Item = Self>,
                     <I as IntoIterator>::IntoIter: ExactSizeIterator
                 {
-                    if !::std::mem::needs_drop::<Self>() {
+                    if !::core::mem::needs_drop::<Self>() {
                         arena.dropless.alloc_iter(it)
                     } else {
                         arena . $name .alloc_iter(it)
@@ -113,3 +116,6 @@ macro_rules! define_arenas {
         )*
     };
 }
+
+#[cfg(test)]
+mod test;

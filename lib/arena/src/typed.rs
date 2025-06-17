@@ -1,34 +1,49 @@
+use core::mem;
 use core::{
     cell::{Cell, RefCell},
     marker::PhantomData,
-    cmp, ptr, slice,
+    ptr, slice,
 };
 
 use tiny_vec::TinyVec;
 
 use crate::chunk::ArenaChunk;
+use crate::{PAGE_SIZE, HUGE_PAGE};
 
 pub struct TypedArena<'ctx, T> {
     elems: RefCell<Vec<ArenaChunk<T>>>,
-    _marker: PhantomData<&'ctx T>,
-
     start: Cell<*mut T>,
     end: Cell<*mut T>,
+    _marker: PhantomData<&'ctx T>,
 }
 
 impl<'ctx, T> TypedArena<'ctx, T> {
-    fn must_grow(&'ctx self, amount: usize) -> bool {
-        self.elems
-            .borrow()
-            .last()
-            .is_none_or(|l| !l.can_alloc(amount))
-    }
 
-    fn grow(&'ctx self, amount: usize) {
-        let mut chunk = ArenaChunk::new(amount);
+    fn reserve(&self, amount: usize) {
+        let mut chunks = self.elems.borrow_mut();
+        let last_chunk = chunks.last();
+
+        if last_chunk.is_some_and(|c| c.can_alloc(amount)) {
+            return
+        }
+
+        let elem_size = mem::size_of::<T>().max(1);
+
+        let mut new_cap =
+        if let Some(last) = last_chunk {
+            let len = last.capacity();
+            let max_size = HUGE_PAGE / elem_size;
+            usize::min(len, max_size / 2) * 2
+        } else {
+            PAGE_SIZE / elem_size
+        };
+
+        new_cap = usize::max(amount, new_cap);
+
+        let mut chunk = ArenaChunk::new(new_cap);
         self.start.set(chunk.start());
         self.end.set(chunk.end());
-        self.elems.borrow_mut().push(chunk);
+        chunks.push(chunk);
     }
 
     /// Allocs an slice of elements from the given [Iterator]
@@ -70,14 +85,13 @@ impl<'ctx, T> TypedArena<'ctx, T> {
         let mut values: TinyVec<_, 8> = values.into_iter().collect();
         let len = values.len();
 
-        if self.must_grow(len) {
-            self.grow(cmp::max(32, len));
-        }
+        self.reserve(len);
 
         self.elems
             .borrow_mut()
             .last_mut()
-            .expect("We've grown the vector, so it's imposible it doesn't have, at least, one element")
+            .expect("We've grown the vector, so it's imposible\
+                it doesn't have, at least, one element")
             .add_len(len);
 
         let ptr = self.start.get();
@@ -94,14 +108,13 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     /// Allocs an element, and returns a reference to it
     #[allow(clippy::mut_from_ref)]
     pub fn alloc(&self, value: T) -> &'ctx mut T {
-        if self.must_grow(1) {
-            self.grow(32);
-        }
+        self.reserve(1);
 
         self.elems
             .borrow_mut()
             .last_mut()
-            .expect("We've grown the vector, so it's imposible it doesn't have, at least, one element")
+            .expect("We've grown the vector, so it's imposible\
+                     it doesn't have, at least, one element")
             .add_len(1);
 
         let ptr = self.start.get();
