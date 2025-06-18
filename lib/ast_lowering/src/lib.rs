@@ -2,7 +2,7 @@ struct AstLowering<'low, 'hir: 'low> {
     sess: &'low hir::Session<'hir>,
 }
 
-mod def;
+mod item;
 mod expr;
 mod stmt;
 mod ty;
