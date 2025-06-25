@@ -2,6 +2,7 @@ use core::any::Any;
 use core::fmt;
 use std::{borrow::Cow, io};
 
+use span::Source;
 pub use span::{FilePosition, Span};
 
 /// An error sent to the [`ErrorManager`]
@@ -36,7 +37,7 @@ pub use span::{FilePosition, Span};
 ///
 /// fn do_something(em: &mut ErrorManager) {
 ///     // Something goes wrong...
-///     em.emit_error(MyError(Span { offset: 12, len: 6 }));
+///     em.emit_error(MyError(Span { offset: 12, len: 6, fileid: 0 }));
 /// }
 ///
 /// let mut em = ErrorManager::new();
@@ -49,7 +50,7 @@ pub use span::{FilePosition, Span};
 /// });
 ///
 /// let expected = errors.next().unwrap();
-/// assert_eq!(expected.0, Span { offset: 12, len: 6 });
+/// assert_eq!(expected.0, Span { offset: 12, len: 6, fileid: 0 });
 /// ```
 ///
 /// This allows us to test errors more effectively.
@@ -80,13 +81,18 @@ pub struct ErrorManager {
     warnings: Vec<Box<dyn Error>>,
 }
 
-fn print_error(err: &dyn Error, src: &str, out: &mut dyn fmt::Write) -> fmt::Result {
+fn print_error(err: &dyn Error, src: &Source, out: &mut dyn fmt::Write) -> fmt::Result {
+    let span = err.get_span();
+    let file = src.get(span.fileid).unwrap();
     let FilePosition {
         start_line,
         start_col,
         ..
-    } = err.get_span().file_position(src);
-    write!(out, "[{start_line}:{start_col}]: ")?;
+    } = err.get_span().file_position(&file.contents);
+    if let Some(fname) = file.filename() {
+        write!(out, "{fname}:")?;
+    }
+    write!(out, "{start_line}:{start_col}: ")?;
     err.write_msg(out)?;
     writeln!(out)
 }
@@ -123,7 +129,7 @@ impl ErrorManager {
         })
     }
 
-    pub fn print_errors(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
+    pub fn print_errors(&self, src: &Source, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.errors {
             out.write_all("ERROR ".as_bytes()).unwrap();
@@ -138,7 +144,7 @@ impl ErrorManager {
 
     pub fn clear_warnings(&mut self) { self.warnings.clear(); }
 
-    pub fn print_warnings(&self, src: &str, out: &mut dyn io::Write) -> fmt::Result {
+    pub fn print_warnings(&self, src: &Source, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.warnings {
             out.write_all("WARNING ".as_bytes()).unwrap();

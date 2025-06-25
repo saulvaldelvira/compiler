@@ -3,6 +3,7 @@ extern crate test;
 use error_manager::ErrorManager;
 use lexer::Lexer;
 use parser::parse;
+use span::Source;
 use test::Bencher;
 
 #[bench]
@@ -36,7 +37,11 @@ fn main() {
 
     b.iter(move || {
         let mut em = ErrorManager::new();
-        let stream = Lexer::new(INPUT, &mut em).into_token_stream();
-        parse(stream, INPUT, &mut ErrorManager::new());
+
+        let mut source = Source::default();
+        let file = source.add_file_anon(INPUT.into());
+
+        let stream = Lexer::new(file, &mut em).into_token_stream();
+        parse(stream, file, &mut ErrorManager::new());
     });
 }

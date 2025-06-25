@@ -1,5 +1,6 @@
 #![feature(test)]
 use std::fs;
+use std::rc::Rc;
 
 use compiler_driver::{Compiler, Emit};
 use test::Bencher;
@@ -62,16 +63,16 @@ fn bench_compilation(b: &mut Bencher) {
 
 #[bench]
 fn bench_huge(b: &mut Bencher) {
-    let mut src = String::from(INPUT);
+    let mut src = Rc::<str>::from(INPUT);
 
     for i in 0..100 {
-        src = format!("\n mod _nested_module_A{i}_ {{ \n {src} \n }}  {INPUT} ");
+        src = format!("\n mod _nested_module_A{i}_ {{ \n {src} \n }}  {INPUT} ").into();
     }
 
-    fs::write("/tmp/s", &src).unwrap();
+    fs::write("/tmp/s", &*src).unwrap();
 
     b.iter(|| {
-        let comp = Compiler::from_string(&src);
+        let comp = Compiler::from_string(Rc::clone(&src));
         comp.process(Emit::Mapl);
     });
 }

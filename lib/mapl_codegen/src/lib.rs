@@ -5,6 +5,7 @@ use code_generator::CodeGenerator;
 use codefuncs::Define;
 use mir::MaplInstruction;
 use semantic::Semantic;
+use span::Source;
 
 mod code_generator;
 mod codefuncs;
@@ -14,8 +15,7 @@ mod size;
 pub fn gen_code_mapl<'sem, 'hir, 'src>(
     hir: &hir::Session<'hir>,
     sem: &Semantic<'sem>,
-    source: &'src str,
-    fname: &str,
+    source: &'src Source,
 ) -> String
 where
     'hir: 'sem,
@@ -24,13 +24,19 @@ where
     let mut cg = CodeGenerator::new(source, sem, hir);
     let mut ins = Vec::new();
 
-    let fname = std::path::absolute(fname)
-        .map_or_else(
-            |_| fname.to_owned(),
-            |pb| pb.to_str().unwrap().to_owned());
+    let prog = hir.get_root();
+    let file = source.get(prog.span.fileid).unwrap();
+
+    let fname = file.filename().map(|fname| {
+        std::path::absolute(fname)
+            .map_or_else(
+                |_| fname.to_owned(),
+                |pb| pb.to_str().unwrap().to_owned()
+            )
+    }).unwrap_or_default();
+
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
-    let prog = hir.get_root();
 
     ins.push(MaplInstruction::Call("self_main".to_string()));
     ins.push(MaplInstruction::Halt);

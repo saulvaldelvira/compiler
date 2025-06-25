@@ -116,7 +116,8 @@ impl Tester<'_> {
         let hir = compiler.generate_hir(&ast);
 
         let mut em = ErrorManager::new();
-        crate::identify(&hir, self.input, &mut em);
+
+        crate::identify(&hir, compiler.source(), &mut em);
 
         let errors = em.errors_iterator_cast::<IdentificationError>();
 

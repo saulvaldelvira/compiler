@@ -25,6 +25,7 @@
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
 use hir::{Item, ItemKind, Module, Path};
+use span::Source;
 
 use std::collections::HashMap;
 
@@ -39,7 +40,7 @@ use hir::{
 use interner::Symbol;
 
 /// Performs identification for the given hir tree
-pub fn identify(sess: &hir::Session<'_>, source: &str, em: &mut ErrorManager) {
+pub fn identify(sess: &hir::Session<'_>, source: &Source, em: &mut ErrorManager) {
     let prog = sess.get_root();
     let mut ident = Identification::new(sess, source, em);
     ident.visit_module(prog);
@@ -121,12 +122,12 @@ impl<'ast> VisitorCtx<'ast> for Ctx {
 pub struct Identification<'ident, 'hir> {
     hir_sess: &'ident hir::Session<'hir>,
     em: &'ident mut ErrorManager,
-    source: &'ident str,
+    source: &'ident Source,
     ctx: Ctx,
 }
 
 impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
-    pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident str, em: &'ident mut ErrorManager) -> Self {
+    pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident Source, em: &'ident mut ErrorManager) -> Self {
         let mut ident = Self {
             ctx: Ctx {
                 st: SymbolTable::default(),
@@ -213,7 +214,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             if let Err(shadowed_ty) = try_shadow(prev) {
                 let owner = self.hir_sess.get_node(&owner);
                 let prev_span = prev.get_span().unwrap();
-                let pos = prev_span.file_position(self.source);
+                let pos = self.source.file_position(prev_span);
                 self.em.emit_error(IdentificationError {
                     kind: IdentificationErrorKind::Redefinition {
                         node_type: shadowed_ty,

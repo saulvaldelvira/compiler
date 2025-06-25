@@ -8,6 +8,7 @@ pub use cursor::Cursor;
 pub mod token;
 use error::{LexerError, LexerErrorKind};
 use error_manager::ErrorManager;
+use span::source::SourceFile;
 use token::{Token, TokenKind};
 
 /// A stream of [tokens](Token)
@@ -104,7 +105,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     /// # Arguments
     /// - text: Source code to tokenize
     /// - em: An [`ErrorManager`], where all the errors will be sent
-    pub fn new(text: &'src str, em: &'lex mut ErrorManager) -> Self {
+    pub fn new(text: &'src SourceFile, em: &'lex mut ErrorManager) -> Self {
         Self {
             c: Cursor::new(text),
             em,

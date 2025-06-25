@@ -2,7 +2,7 @@ use core::fmt;
 use std::borrow::Cow;
 
 use hir::HirId;
-use span::{FilePosition, Span};
+use span::{FilePosition, Source, Span};
 
 pub enum Node {
     List(Vec<Node>),
@@ -28,7 +28,7 @@ impl Node {
         Self::Collapse(Node::Text(txt.into()).into(), node.into())
     }
 
-    fn __write_to(&self, f: &mut dyn fmt::Write, src: &str, span_count: &mut usize) -> fmt::Result {
+    fn __write_to(&self, f: &mut dyn fmt::Write, src: &Source, span_count: &mut usize) -> fmt::Result {
         match self {
             Node::List(list) => {
                 for node in list {
@@ -63,22 +63,25 @@ impl Node {
             Node::Empty => Ok(()),
             Node::Span(span) => {
                 *span_count += 1;
+
+                let file = src.get(span.fileid).unwrap();
+
                 let FilePosition {
                     start_line,
                     start_col,
                     ..
-                } = span.file_position(src);
+                } = span.file_position(&file.contents);
                 write!(
                     f,
                     "<a id=\"back_{s}\" href=\"#span_{s}\">[{start_line}:{start_col}]</a> : \"",
                     s = *span_count
                 )?;
 
-                let n = span.len.min(50);
-                for c in span.slice(src).chars().filter(|&c| c != '\n').take(n) {
+                let n = span.len.min(50) as usize;
+                for c in span.slice(&file.contents).chars().filter(|&c| c != '\n').take(n) {
                     write!(f, "{c}")?;
                 }
-                if n < span.len {
+                if n < span.len as usize {
                     write!(f, "... ")?;
                 }
                 write!(f, "\"")
@@ -86,12 +89,12 @@ impl Node {
         }
     }
 
-    pub fn write_to(&self, f: &mut dyn fmt::Write, src: &str) -> fmt::Result {
+    pub fn write_to(&self, f: &mut dyn fmt::Write, src: &Source) -> fmt::Result {
         let mut span_count = 0;
         self.__write_to(f, src, &mut span_count)
     }
 
-    pub fn write_spans_full(&self, f: &mut dyn fmt::Write, src: &str) -> fmt::Result {
+    pub fn write_spans_full(&self, f: &mut dyn fmt::Write, src: &Source) -> fmt::Result {
         let mut span_count = 0;
         write!(
             f,
@@ -105,7 +108,7 @@ impl Node {
     fn __write_spans_full(
         &self,
         f: &mut dyn fmt::Write,
-        src: &str,
+        src: &Source,
         span_count: &mut usize,
     ) -> fmt::Result {
         match self {
@@ -129,19 +132,20 @@ impl Node {
             Node::DefId(_) | Node::Id(_) | Node::Title(_) | Node::Text(_) | Node::Empty => Ok(()),
             Node::Span(span) => {
                 *span_count += 1;
+                let file = src.get(span.fileid).unwrap();
                 let FilePosition {
                     start_line,
                     start_col,
                     end_line,
                     end_col,
-                } = span.file_position(src);
+                } = span.file_position(&file.contents);
                 write!(f, "<li id=\"span_{}\">", *span_count)?;
                 write!(
                     f,
                     "<p> [{start_line}:{start_col}] .. [{end_line}:{end_col}] "
                 )?;
                 write!(f, "<a href=\"#back_{}\"> ^ </a> </p>", *span_count)?;
-                let slice = span.slice(src);
+                let slice = span.slice(&file.contents);
                 write!(f, "<pre>{slice}</pre>")?;
                 write!(f, "</li>")
             }

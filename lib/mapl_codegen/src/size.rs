@@ -61,7 +61,7 @@ pub fn assign_memory_locals(
         StatementKind::While { body, .. } => assign_memory_locals(cg, acc, body),
         StatementKind::For { body, init, .. } => {
             if let Some(init) = init {
-                let def = Statement::new(StatementKind::Item(init), Span::new());
+                let def = Statement::new(StatementKind::Item(init), Span::dummy());
                 acc = assign_memory_locals(cg, acc, &def);
             }
             assign_memory_locals(cg, acc, body)

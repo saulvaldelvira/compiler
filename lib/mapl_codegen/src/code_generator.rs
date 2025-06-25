@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use hir::HirId;
 use semantic::Semantic;
+use span::Source;
 
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryAddress {
@@ -22,17 +23,17 @@ pub struct CodeGenerator<'cg, 'sem, 'hir> {
     functions: Vec<FunctionCtx>,
     global_offset: u64,
     labels: usize,
-    source: &'cg str,
     mangle_prefix: Vec<String>,
     mangles: HashMap<HirId, String>,
 
+    pub source: &'cg Source,
     pub sem: &'cg Semantic<'sem>,
     pub hir: &'cg hir::Session<'hir>,
 }
 
 impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
     pub fn new(
-        source: &'cg str,
+        source: &'cg Source,
         semantic: &'cg Semantic<'sem>,
         hir: &'cg hir::Session<'hir>,
     ) -> Self {
@@ -93,6 +94,4 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
         self.labels += 1;
         format!("label_{}", self.labels)
     }
-
-    pub fn source(&self) -> &str { self.source }
 }

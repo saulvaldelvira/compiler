@@ -7,6 +7,7 @@ edition = "2024"
 hir = { path = "../hir" }
 interner = { path = "../interner" }
 error_manager = { path = "../error_manager" }
+span = { path = "../span" }
 
 [dev-dependencies]
 compiler_driver = { path = "../compiler_driver" }

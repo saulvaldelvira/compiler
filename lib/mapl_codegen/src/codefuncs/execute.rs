@@ -110,7 +110,7 @@ impl Execute for Statement<'_> {
 
                 ins.push(body.execute(cg));
                 if let Some(inc) = inc {
-                    let inc = Statement::new(StatementKind::Expr(inc), Span::new());
+                    let inc = Statement::new(StatementKind::Expr(inc), Span::dummy());
                     ins.push(inc.execute(cg));
                 }
                 ins.push(MaplInstruction::Jmp(cond_label));

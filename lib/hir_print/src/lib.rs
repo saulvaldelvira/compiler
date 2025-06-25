@@ -7,8 +7,9 @@ use hir::{
 };
 use node::Node;
 use semantic::Semantic;
+use span::Source;
 
-pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &str) -> String {
+pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &Source) -> String {
     let prog = hir.get_root();
     let serializer = HirPrinter { sem };
     let node = serializer.serialize_module(prog);

@@ -5,7 +5,6 @@ mod expr;
 mod stmt;
 mod ty;
 
-use core::str;
 use std::{borrow::Cow, str::FromStr};
 
 use ast::{Block, Module, Parenthesized, Path, Statement};
@@ -16,6 +15,7 @@ use lexer::{
     TokenStream,
 };
 use interner::Symbol;
+use span::source::SourceFile;
 use span::{Span, Spanned};
 
 use self::error::ParseError;
@@ -30,7 +30,7 @@ type Result<T> = std::result::Result<T, ParseErrorKind>;
 /// - em: An [`ErrorManager`], where all the errors will be sent
 pub fn parse<'src>(
     stream: TokenStream<'_, 'src>,
-    src: &'src str,
+    src: &'src SourceFile,
     em: &mut ErrorManager,
 ) -> Option<Module> {
     Parser { stream, src, em }.parse()
@@ -38,7 +38,7 @@ pub fn parse<'src>(
 
 struct Parser<'sess, 'src> {
     stream: TokenStream<'sess, 'src>,
-    src: &'src str,
+    src: &'src SourceFile,
     em: &'sess mut ErrorManager,
 }
 
@@ -59,12 +59,12 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             return None;
         }
 
-        let mut span = Span::new();
+        let mut span = decls.first().map(|s| s.span).unwrap_or_default();
         if let Some(l) = decls.last() {
             span = span.join(&l.span);
         }
         let name = Symbol::new("self");
-        let name = Spanned { span: Span::new(), val: name };
+        let name = Spanned { span: Span::dummy(), val: name };
 
         let m = Module {
             elems: decls.into_boxed_slice(),
@@ -76,7 +76,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
     fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
         let span = self.consume(TokenKind::Identifier)?.span;
-        let sym = Symbol::new(span.slice(self.src));
+        let sym = Symbol::new(span.slice(&self.src.contents));
         Ok(Spanned { val: sym, span })
     }
 
@@ -143,7 +143,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         Ok(Path { span, segments})
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
-        let slice = span.slice(self.src);
+        let slice = span.slice(&self.src.contents);
         Symbol::new(slice)
     }
     fn consume(&mut self, t: TokenKind) -> Result<&Token> {
@@ -190,7 +190,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn previous_parse<T: FromStr>(&self) -> Result<T> {
         self.previous()?
             .span
-            .slice(self.src)
+            .slice(&self.src.contents)
             .parse::<T>()
             .map_err(|_| ParseErrorKind::LexemParseError)
     }

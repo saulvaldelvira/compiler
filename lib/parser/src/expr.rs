@@ -248,13 +248,13 @@ impl Parser<'_, '_> {
             } else if self.match_type(TokenKind::IntLiteral) {
                 spanned_lit!(Int, self.previous_parse::<i32>()?)
             } else if self.match_type(TokenKind::FloatLiteral) {
-                let f: f64 = self.previous()?.span.slice(self.src).parse().unwrap();
+                let f: f64 = self.previous()?.span.slice(&self.src.contents).parse().unwrap();
                 spanned_lit!(Float, f)
             } else if self.match_type(TokenKind::CharLiteral) {
                 let prev = self.previous()?;
                 let Some(lit) = prev
                     .span
-                    .slice(self.src)
+                    .slice(&self.src.contents)
                     .strip_prefix('\'')
                     .unwrap()
                     .strip_suffix('\'')
@@ -376,7 +376,7 @@ impl Parser<'_, '_> {
         }
         Err(ParseErrorKind::ExpectedConstruct {
             expected: "expression",
-            found: self.peek()?.span.slice(self.src).to_string(),
+            found: self.peek()?.span.slice(&self.src.contents).to_string(),
         })
     }
 }
