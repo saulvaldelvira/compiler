@@ -10,7 +10,7 @@
 //!    Instead of comparing string slices, which takes a lot of time, comparing
 //!    symbols (which are represented as an usize) is much more faster.
 //!    Since all calls to [`Symbol::new`] with the same string will resolve to the
-//!    same [Symbol], we cant just compare the symbols.
+//!    same [Symbol], we can just compare the symbols.
 //!
 //! # Example
 //! ```
