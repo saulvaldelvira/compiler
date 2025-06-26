@@ -13,6 +13,6 @@ fn string() {
         .into_token_stream()
         .collect::<Vec<_>>();
     assert_eq!(tokens.len(), 1);
-    let slice = tokens[0].span.slice(INPUT);
+    let slice = tokens[0].span.slice(0, INPUT);
     assert_eq!(slice, r#"" And I said, \"Hello world!\" ""#);
 }

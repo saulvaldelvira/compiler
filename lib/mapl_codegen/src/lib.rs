@@ -25,7 +25,7 @@ where
     let mut ins = Vec::new();
 
     let prog = hir.get_root();
-    let file = source.get(prog.span.fileid).unwrap();
+    let file = source.get_file_of_span(prog.span).unwrap();
 
     let fname = file.filename().map(|fname| {
         std::path::absolute(fname)

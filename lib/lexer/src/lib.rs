@@ -104,9 +104,9 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     /// # Arguments
     /// - text: Source code to tokenize
     /// - em: An [`ErrorManager`], where all the errors will be sent
-    pub fn new(text: &'src str, fileid: u32, em: &'lex mut ErrorManager) -> Self {
+    pub fn new(text: &'src str, base_offset: usize, em: &'lex mut ErrorManager) -> Self {
         Self {
-            c: Cursor::new(text, fileid),
+            c: Cursor::new(text, base_offset),
             em,
         }
     }

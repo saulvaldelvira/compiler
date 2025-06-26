@@ -9,17 +9,15 @@ pub use source::{FileName, SourceMap};
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Span {
     /// Offset of the span inside the buffer
-    pub offset: u32,
+    pub offset: usize,
     /// Length of the span
-    pub len: u32,
-    /// File id
-    pub fileid: u32,
+    pub len: usize
 }
 
 impl Debug for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Span { offset, len, fileid } = self;
-        write!(f, "Span {{ {offset}, {len}, {fileid} }}")
+        let Span { offset, len } = self;
+        write!(f, "Span {{ {offset}, {len} }}")
     }
 }
 
@@ -46,23 +44,11 @@ impl fmt::Display for FilePosition {
 
 impl Span {
 
-    pub const fn new(offset: usize, len: usize, fileid: u32) -> Self {
-        assert!(offset + len < u32::MAX as usize);
-
-        #[allow(clippy::cast_possible_truncation)]
-        Self {
-            offset: offset as u32,
-            len: len as u32,
-            fileid,
-        }
-    }
-
-    pub const fn dummy() -> Span { Span { offset: 0, len: 0, fileid: u32::MAX } }
+    pub const fn dummy() -> Span { Span { offset: 0, len: 0 } }
     /// Joins two spans together.
     /// Returns the smallest Span that covers both.
     #[must_use]
     pub const fn join(&self, other: &Span) -> Span {
-        assert!(self.fileid == other.fileid);
         let (left, right) = if self.offset < other.offset {
             (self, other)
         } else {
@@ -71,22 +57,21 @@ impl Span {
         Span {
             offset: left.offset,
             len: right.end_offset() - left.offset,
-            fileid: self.fileid,
         }
     }
     /// Slices the given string with this span
     #[must_use]
     #[inline]
-    pub fn slice<'a>(&self, src: &'a str) -> &'a str {
-        let start = self.offset as usize;
-        let end = start + self.len as usize;
+    pub fn slice<'a>(&self, base_offset: usize, src: &'a str) -> &'a str {
+        let start = self.offset - base_offset;
+        let end = start + self.len;
         &src[start..end]
     }
     /// Gets the [file position] of this span in the given string slice
     ///
     /// [file position]: FilePosition
     #[must_use]
-    pub fn file_position(&self, src: &str) -> FilePosition {
+    pub fn file_position(&self, base_offset: usize, src: &str) -> FilePosition {
         let mut fpos = FilePosition {
             start_line: 1,
             start_col: 0,
@@ -94,7 +79,9 @@ impl Span {
             end_col: 0,
         };
 
-        for c in src[..self.offset as usize].chars() {
+        let start = self.offset - base_offset;
+
+        for c in src[..start].chars() {
             if c == '\n' {
                 fpos.start_col = 0;
                 fpos.start_line += 1;
@@ -105,8 +92,7 @@ impl Span {
         fpos.end_line = fpos.start_line;
         fpos.end_col = fpos.start_col;
 
-        let start = self.offset as usize;
-        let end = start + self.len as usize;
+        let end = start + self.len;
         for c in src[start..end].chars() {
             if c == '\n' {
                 fpos.end_col = 0;
@@ -121,7 +107,7 @@ impl Span {
     /// offset of the span plus it's length
     #[must_use]
     #[inline]
-    pub const fn end_offset(&self) -> u32 { self.offset + self.len }
+    pub const fn end_offset(&self) -> usize { self.offset + self.len }
 }
 
 impl fmt::Display for Span {

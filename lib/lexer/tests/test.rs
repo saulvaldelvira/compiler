@@ -34,7 +34,7 @@ fn tokenize_test() {
                 | TokenKind::CharLiteral
                 | TokenKind::String
         ) {
-            let span = act.span.slice(INPUT);
+            let span = act.span.slice(0, INPUT);
             let exp_ident = ident_iter.next().unwrap();
             assert_eq!(span, *exp_ident);
         }

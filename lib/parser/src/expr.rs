@@ -249,12 +249,12 @@ impl Parser<'_, '_> {
                 spanned_lit!(Int, self.previous_parse::<i32>()?)
             } else if self.match_type(TokenKind::FloatLiteral) {
                 let span = self.previous()?.span;
-                let f: f64 = span.slice(self.src).parse().unwrap();
+                let f: f64 = span.slice(self.base_offset, self.src).parse().unwrap();
                 spanned_lit!(Float, f)
             } else if self.match_type(TokenKind::CharLiteral) {
                 let prev = self.previous()?;
                 let Some(lit) = prev.span
-                    .slice(self.src)
+                    .slice(self.base_offset, self.src)
                     .strip_prefix('\'')
                     .unwrap()
                     .strip_suffix('\'')
@@ -377,7 +377,7 @@ impl Parser<'_, '_> {
         let span = self.peek()?.span;
         Err(ParseErrorKind::ExpectedConstruct {
             expected: "expression",
-            found: span.slice(self.src).to_string(),
+            found: span.slice(self.base_offset, self.src).to_string(),
         })
     }
 }

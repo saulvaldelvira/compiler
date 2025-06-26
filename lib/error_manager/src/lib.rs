@@ -37,7 +37,7 @@ pub use span::{FilePosition, Span};
 ///
 /// fn do_something(em: &mut ErrorManager) {
 ///     // Something goes wrong...
-///     em.emit_error(MyError(Span { offset: 12, len: 6, fileid: 0 }));
+///     em.emit_error(MyError(Span { offset: 12, len: 6 }));
 /// }
 ///
 /// let mut em = ErrorManager::new();
@@ -50,7 +50,7 @@ pub use span::{FilePosition, Span};
 /// });
 ///
 /// let expected = errors.next().unwrap();
-/// assert_eq!(expected.0, Span { offset: 12, len: 6, fileid: 0 });
+/// assert_eq!(expected.0, Span { offset: 12, len: 6 });
 /// ```
 ///
 /// This allows us to test errors more effectively.
@@ -83,12 +83,12 @@ pub struct ErrorManager {
 
 fn print_error(err: &dyn Error, src: &SourceMap, out: &mut dyn fmt::Write) -> fmt::Result {
     let span = err.get_span();
-    let file = src.get(span.fileid).unwrap();
+    let file = src.get_file_of_span(span).unwrap();
     let FilePosition {
         start_line,
         start_col,
         ..
-    } = err.get_span().file_position(&file.contents);
+    } = file.file_position(span);
     if let Some(fname) = file.filename() {
         write!(out, "{fname}:")?;
     }

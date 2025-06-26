@@ -31,13 +31,13 @@ type Result<T> = std::result::Result<T, ParseErrorKind>;
 /// - em: An [`ErrorManager`], where all the errors will be sent
 pub fn parse(
     src: &str,
-    fileid: u32,
+    base_offset: usize,
     src_map: &RefCell<SourceMap>,
     em: &mut ErrorManager,
 ) -> Option<Module> {
     let mut lex_em = ErrorManager::new();
-    let stream = Lexer::new(src, fileid, &mut lex_em).into_token_stream();
-    let ast = Parser { stream, fileid, src, em, src_map }.parse();
+    let stream = Lexer::new(src, base_offset, &mut lex_em).into_token_stream();
+    let ast = Parser { stream, src, base_offset, em, src_map }.parse();
     em.merge(&mut lex_em);
     ast
 }
@@ -45,7 +45,7 @@ pub fn parse(
 struct Parser<'sess, 'src> {
     stream: TokenStream<'sess, 'src>,
     src: &'src str,
-    fileid: u32,
+    base_offset: usize,
     em: &'sess mut ErrorManager,
     src_map: &'sess RefCell<SourceMap>,
 }
@@ -84,7 +84,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
 
     fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {
         let span = self.consume(TokenKind::Identifier)?.span;
-        let sym = Symbol::new(span.slice(self.src));
+        let sym = Symbol::new(span.slice(self.base_offset, self.src));
         Ok(Spanned { val: sym, span })
     }
 
@@ -160,7 +160,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         Ok(Path { span, segments})
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
-        let slice = span.slice(self.src);
+        let slice = span.slice(self.base_offset, self.src);
         Symbol::new(slice)
     }
     fn consume(&mut self, t: TokenKind) -> Result<&Token> {
@@ -206,7 +206,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn previous_span(&self) -> Result<Span> { self.previous().map(|s| s.span) }
     fn previous_parse<T: FromStr>(&self) -> Result<T> {
         let span = self.previous()?.span;
-        span.slice(self.src)
+        span.slice(self.base_offset, self.src)
             .parse::<T>()
             .map_err(|_| ParseErrorKind::LexemParseError)
     }

@@ -3,7 +3,7 @@ use std::str::CharIndices;
 use span::Span;
 
 pub struct Cursor<'lex> {
-    fileid: u32,
+    base_offset: usize,
     chars: CharIndices<'lex>,
     start_chars: CharIndices<'lex>,
 
@@ -12,9 +12,9 @@ pub struct Cursor<'lex> {
 }
 
 impl<'lex> Cursor<'lex> {
-    pub fn new(source: &'lex str, fileid: u32) -> Self {
+    pub fn new(source: &'lex str, base_offset: usize) -> Self {
         Self {
-            fileid,
+            base_offset,
             chars: source.char_indices(),
             start_chars: source.char_indices(),
             line: 0,
@@ -30,11 +30,10 @@ impl<'lex> Cursor<'lex> {
         &self.start_chars.as_str()[..n]
     }
     pub fn current_span(&self) -> Span {
-        Span::new(
-            self.start_chars.offset(),
-            self.chars.offset() - self.start_chars.offset(),
-            self.fileid,
-        )
+        Span {
+            offset: self.start_chars.offset() + self.base_offset,
+            len: self.chars.offset() - self.start_chars.offset(),
+        }
     }
     pub fn line(&self) -> usize { self.line }
     pub fn col(&self) -> usize { self.col }

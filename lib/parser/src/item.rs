@@ -73,7 +73,7 @@ impl Parser<'_, '_> {
     fn parse_extern_mod(&mut self, name: Symbol) -> Box<[Item]> {
         let mut new_path = {
             let src_map = self.src_map.borrow();
-            let fname = src_map.get(self.fileid).unwrap().filename().unwrap();
+            let fname = src_map.get_file_for_offset(self.base_offset).unwrap().filename().unwrap();
 
             let path: &std::path::Path = fname.as_ref();
             let parent = path.parent().unwrap();

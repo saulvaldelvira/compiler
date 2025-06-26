@@ -64,24 +64,24 @@ impl Node {
             Node::Span(span) => {
                 *span_count += 1;
 
-                let file = src.get(span.fileid).unwrap();
+                let file = src.get_file_of_span(*span).unwrap();
 
                 let FilePosition {
                     start_line,
                     start_col,
                     ..
-                } = span.file_position(&file.contents);
+                } = file.file_position(*span);
                 write!(
                     f,
                     "<a id=\"back_{s}\" href=\"#span_{s}\">[{start_line}:{start_col}]</a> : \"",
                     s = *span_count
                 )?;
 
-                let n = span.len.min(50) as usize;
-                for c in span.slice(&file.contents).chars().filter(|&c| c != '\n').take(n) {
+                let n = span.len.min(50);
+                for c in file.slice(*span).chars().filter(|&c| c != '\n').take(n) {
                     write!(f, "{c}")?;
                 }
-                if n < span.len as usize {
+                if n < span.len {
                     write!(f, "... ")?;
                 }
                 write!(f, "\"")
@@ -132,20 +132,20 @@ impl Node {
             Node::DefId(_) | Node::Id(_) | Node::Title(_) | Node::Text(_) | Node::Empty => Ok(()),
             Node::Span(span) => {
                 *span_count += 1;
-                let file = src.get(span.fileid).unwrap();
+                let file = src.get_file_of_span(*span).unwrap();
                 let FilePosition {
                     start_line,
                     start_col,
                     end_line,
                     end_col,
-                } = span.file_position(&file.contents);
+                } = file.file_position(*span);
                 write!(f, "<li id=\"span_{}\">", *span_count)?;
                 write!(
                     f,
                     "<p> [{start_line}:{start_col}] .. [{end_line}:{end_col}] "
                 )?;
                 write!(f, "<a href=\"#back_{}\"> ^ </a> </p>", *span_count)?;
-                let slice = span.slice(&file.contents);
+                let slice = file.slice(*span);
                 write!(f, "<pre>{slice}</pre>")?;
                 write!(f, "</li>")
             }
