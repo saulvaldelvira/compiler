@@ -5,7 +5,7 @@ use code_generator::CodeGenerator;
 use codefuncs::Define;
 use mir::MaplInstruction;
 use semantic::Semantic;
-use span::SourceMap;
+use span::source::SourceMap;
 
 mod code_generator;
 mod codefuncs;

@@ -1,6 +1,6 @@
 use error_manager::ErrorManager;
 use lexer::Lexer;
-use span::SourceMap;
+use span::source::SourceMap;
 
 #[test]
 fn string() {
@@ -8,7 +8,7 @@ fn string() {
     " And I said, \"Hello world!\" "
 "#;
     let mut source = SourceMap::default();
-    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
+    let (file, id) = source.add_file_annon(INPUT.into()).into_parts();
     let tokens = Lexer::new(&file, id, &mut ErrorManager::new())
         .into_token_stream()
         .collect::<Vec<_>>();

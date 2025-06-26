@@ -7,7 +7,7 @@ use std::{
 
 use error_manager::ErrorManager;
 use semantic::Semantic;
-use span::{FileName, SourceMap};
+use span::source::{FileName, SourceMap};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Emit {
@@ -54,7 +54,7 @@ impl Compiler {
 
     pub fn from_string(src: impl Into<Rc<str>>) -> Self {
         let mut source = SourceMap::default();
-        source.add_file_anon(src.into());
+        source.add_file_annon(src.into());
         Self::new(source)
     }
 
@@ -74,7 +74,7 @@ impl Compiler {
         let mut em = ErrorManager::new();
 
         // FIXME: This is BAD
-        let (src, id) = self.source.borrow().get(0).unwrap().into_parts();
+        let (src, id) = self.source.borrow().get_file_for_offset(0).unwrap().into_parts();
         let program = parser::parse(&src, id, &self.source, &mut em);
 
         step_emit(&self.source.borrow(), &mut em)?;

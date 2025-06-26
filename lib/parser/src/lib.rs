@@ -17,7 +17,7 @@ use lexer::{
     TokenStream,
 };
 use interner::Symbol;
-use span::{SourceMap, Span, Spanned};
+use span::{Span, Spanned, source::SourceMap};
 
 use self::error::ParseError;
 
@@ -35,10 +35,10 @@ pub fn parse(
     src_map: &RefCell<SourceMap>,
     em: &mut ErrorManager,
 ) -> Option<Module> {
-    let mut lex_em = ErrorManager::new();
-    let stream = Lexer::new(src, base_offset, &mut lex_em).into_token_stream();
-    let ast = Parser { stream, src, base_offset, em, src_map }.parse();
-    em.merge(&mut lex_em);
+    let stream = Lexer::new(src, base_offset, em).into_token_stream();
+    let mut parse_em = ErrorManager::new();
+    let ast = Parser { stream, src, base_offset, em: &mut parse_em, src_map }.parse();
+    em.merge(&mut parse_em);
     ast
 }
 

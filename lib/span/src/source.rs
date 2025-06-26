@@ -1,13 +1,20 @@
+//! Source file representation
+
 use core::marker::PhantomData;
+use std::{fs, io};
 use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::{FilePosition, Span};
 
+/// The filename of a [`SourceFile`]
+///
+/// It can either be a filesystem path, or an anonymous source (used on testing)
+#[derive(Clone)]
 pub enum FileName {
     Path(PathBuf),
     Stdin,
-    Anon,
+    Annon,
 }
 
 impl<T: Into<PathBuf>> From<T> for FileName {
@@ -16,47 +23,145 @@ impl<T: Into<PathBuf>> From<T> for FileName {
     }
 }
 
+/// A source file for the compiler
+#[derive(Clone)]
 pub struct SourceFile {
     pub fname: FileName,
     pub contents: Rc<str>,
     pub offset: usize,
+    /* Private field to forbid external modules to
+     * build their own SourceFiles */
     _marker: PhantomData<()>,
 }
 
 impl SourceFile {
+
+    /// Gets a string slice with the filename of this `SourceFile`
+    ///
+    /// This method returns an `Option` because the [`FileName::Path`] variant
+    /// stores a [`PathBuf`], which can contain non-utf8 filenames.
+    ///
+    /// It the conversion [to string](std::path::Path::to_str) fails, returns None
     pub fn filename(&self) -> Option<&str> {
         match &self.fname {
             FileName::Path(path) => path.to_str(),
             FileName::Stdin => Some("/dev/stdin"),
-            FileName::Anon => Some("<anon>"),
+            FileName::Annon => Some("<annon>"),
         }
     }
 
+    /// Returns the length of this `SourceFile`
+    ///
+    /// This is the same as `self.contents.len()`
     pub fn len(&self) -> usize { self.contents.len() }
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
 
+    /// Returns true if this `SourceFile` is empty
+    ///
+    /// This is the same as `self.contents.is_empty()`
+    pub fn is_empty(&self) -> bool { self.contents.is_empty() }
+
+    /// Returns a tuple with the contents and offset of this file
+    ///
+    /// # Example
+    /// ```
+    /// use span::source::{SourceMap, SourceFile};
+    ///
+    /// let mut sm = SourceMap::new();
+    ///
+    /// let input1 = "Hello world!";
+    /// let (contents, offset) = sm.add_file_annon(input1.into()).into_parts();
+    /// assert_eq!(&*contents, input1);
+    /// assert_eq!(offset, 0);
+    ///
+    /// let input2 = "Second file";
+    /// let (contents, offset) = sm.add_file_annon(input2.into()).into_parts();
+    /// assert_eq!(&*contents, input2);
+    /// assert_eq!(offset, input1.len());
+    /// ```
     pub fn into_parts(&self) -> (Rc<str>, usize) {
         (Rc::clone(&self.contents), self.offset)
     }
 
+    /// Returns the absolute offset of this file inside it's [`SourceMap`]
+    ///
+    /// # Example
+    /// ```
+    /// use span::source::{SourceMap, SourceFile};
+    ///
+    /// let mut sm = SourceMap::new();
+    ///
+    /// let input1 = "Hello world!";
+    /// let offset1 = sm.add_file_annon(input1.into()).offset();
+    /// assert_eq!(offset1, 0);
+    ///
+    /// let input2 = "Second file";
+    /// let offset2 = sm.add_file_annon(input2.into()).offset();
+    /// assert_eq!(offset2, input1.len());
+    /// ```
+    pub const fn offset(&self) -> usize { self.offset }
+
+    /// Slices the given span
+    ///
+    /// **NOTE**: `span` must be contained in this `SourceFile`
     #[must_use]
     #[inline]
     pub fn slice(&self, span: Span) -> &str {
+        debug_assert!(span.offset >= self.offset);
+        debug_assert!(span.offset + span.len <= self.offset + self.len());
         span.slice(self.offset, &self.contents)
     }
 
+    /// Returns the file position of this span inside `self`
+    ///
+    /// **NOTE**: `span` must be contained in this `SourceFile`
     #[must_use]
+    #[inline]
     pub fn file_position(&self, span: Span) -> FilePosition {
         span.file_position(self.offset, &self.contents)
     }
 }
 
+/// A storage for source files.
+///
+/// # Example
+/// ```
+/// use span::{Span, source::{FileName, SourceMap, SourceFile}};
+///
+/// fn process_file(f: &SourceFile) -> Span {
+///     Span {
+///         offset: 2 + f.offset(),
+///         len: 3,
+///     }
+/// }
+///
+/// let mut source = SourceMap::default();
+///
+/// let f = source.add_file(FileName::Annon, "ABCDEFG".into());
+/// let span1 = process_file(f);
+///
+/// let f = source.add_file(FileName::Annon, "DEFGHIJK".into());
+/// let span2 = process_file(f);
+///
+/// let slice1 = source.slice(span1);
+/// let slice2 = source.slice(span2);
+///
+/// assert_eq!(slice1, "CDE");
+/// assert_eq!(slice2, "FGH");
+/// ```
 #[derive(Default)]
 pub struct SourceMap {
     files: Vec<SourceFile>,
 }
 
 impl SourceMap {
+    /// Creates a new empty `SourceMap`
+    pub const fn new() -> Self {
+        Self { files: Vec::new() }
+    }
+
+    /// Adds a new [`SourceFile`] to the `SourceMap`
+    ///
+    /// Returns a reference to the newly created file
     pub fn add_file(&mut self, fname: FileName, contents: Rc<str>) -> &SourceFile {
         #[allow(clippy::cast_possible_truncation)]
         let offset = match self.files.last() {
@@ -68,16 +173,54 @@ impl SourceMap {
         self.files.last().unwrap()
     }
 
-    #[inline]
-    pub fn add_file_anon(&mut self, contents: Rc<str>) -> &SourceFile {
-        self.add_file(FileName::Anon, contents)
+    /// Reads the given `path` and creates a [`SourceFile`] with it's contents
+    pub fn add_file_fs(&mut self, path: PathBuf) -> io::Result<&SourceFile> {
+        let text = fs::read_to_string(&path)?;
+        Ok(self.add_file(FileName::Path(path), text.into()))
     }
 
+    /// Adds a new annonymous [`SourceFile`] (without a filename) to this `SourceMap`
     #[inline]
-    pub fn get(&self, id: u32) -> Option<&SourceFile> {
-        self.files.get(id as usize)
+    pub fn add_file_annon(&mut self, contents: Rc<str>) -> &SourceFile {
+        self.add_file(FileName::Annon, contents)
     }
 
+    /// Gets the corresponding [`SourceFile`] for the given `span`
+    ///
+    /// # Example
+    /// ```
+    /// use span::{Span, source::{SourceMap, FileName}};
+    ///
+    /// let mut sm = SourceMap::new();
+    /// let (input1, offset1) =
+    ///     sm.add_file(
+    ///         FileName::from("file1.txt"),
+    ///         "Hello world!".into()
+    ///     )
+    ///     .into_parts();
+    /// let (input2, offset2) =
+    ///     sm.add_file(
+    ///         FileName::from("file2.txt"),
+    ///         "Another file :)".into()
+    ///     )
+    ///     .into_parts();
+    ///
+    /// let span1 = Span {
+    ///     offset: 3 + offset1,
+    ///     len: 3,
+    /// };
+    ///
+    /// let span2 = Span {
+    ///     offset: 1 + offset2,
+    ///     len: 4,
+    /// };
+    ///
+    /// let file1 = sm.get_file_of_span(span1).unwrap();
+    /// assert_eq!(file1.filename().unwrap(), "file1.txt");
+    ///
+    /// let file2 = sm.get_file_of_span(span2).unwrap();
+    /// assert_eq!(file2.filename().unwrap(), "file2.txt");
+    /// ```
     pub fn get_file_of_span(&self, span: Span) -> Option<&SourceFile> {
         self.files.iter().find(|file| {
             span.offset >= file.offset
@@ -85,16 +228,33 @@ impl SourceMap {
         })
     }
 
+    /// Returns the first file whose offset if >= than the given value
     pub fn get_file_for_offset(&self, offset: usize) -> Option<&SourceFile> {
         self.files.iter().find(|file| file.offset == offset)
     }
 
+    /// Returns base offset for a [`Span`]. This is: the offset of the
+    /// file it belongs to.
+    ///
+    /// If no file is found, returns 0
+    pub fn get_base_offset_of_span(&self, span: Span) -> usize {
+        self.get_file_of_span(span).map(|f| f.offset).unwrap_or(0)
+    }
+
+    /// Slices the given [`Span`]
+    ///
+    /// This function will compute the [`SourceFile`] for the span
+    /// and slice it
     pub fn slice(&self, span: Span) -> &str {
         self.get_file_of_span(span)
             .unwrap()
             .slice(span)
     }
 
+    /// Returns the [`FilePosition`] for this [`Span`]
+    ///
+    /// This function will compute the [`SourceFile`] for the span
+    /// and slice it
     pub fn file_position(&self, span: Span) -> FilePosition {
         self.get_file_of_span(span)
             .unwrap()

@@ -6,7 +6,7 @@ use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
 use hir::{Expression, Item, ItemKind};
 use interner::Symbol;
-use span::SourceMap;
+use span::source::SourceMap;
 
 use crate::{IdentificationError, IdentificationErrorKind};
 
@@ -116,7 +116,7 @@ impl Tester<'_> {
     fn test<'hir>(&self) -> hir::Session<'hir> {
         let mut source = SourceMap::default();
         let contents = Rc::from(self.input);
-        source.add_file_anon(contents);
+        source.add_file_annon(contents);
         let compiler = Compiler::new(source);
 
         let ast = compiler.generate_ast().expect("AST should generate correctly");

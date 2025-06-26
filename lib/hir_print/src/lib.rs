@@ -7,7 +7,7 @@ use hir::{
 };
 use node::Node;
 use semantic::Semantic;
-use span::SourceMap;
+use span::source::SourceMap;
 
 pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &SourceMap) -> String {
     let prog = hir.get_root();

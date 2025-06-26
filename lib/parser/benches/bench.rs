@@ -4,7 +4,7 @@ use core::cell::RefCell;
 
 use error_manager::ErrorManager;
 use parser::parse;
-use span::SourceMap;
+use span::source::SourceMap;
 use test::Bencher;
 
 #[bench]
@@ -38,7 +38,7 @@ fn main() {
 
     b.iter(move || {
         let mut source = SourceMap::default();
-        let (text, id) = source.add_file_anon(INPUT.into()).into_parts();
+        let (text, id) = source.add_file_annon(INPUT.into()).into_parts();
 
         parse(&text, id, &RefCell::new(source), &mut ErrorManager::new());
     });

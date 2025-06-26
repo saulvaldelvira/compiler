@@ -2,7 +2,7 @@ use core::fmt;
 use std::borrow::Cow;
 
 use hir::HirId;
-use span::{FilePosition, SourceMap, Span};
+use span::{FilePosition, source::SourceMap, Span};
 
 pub enum Node {
     List(Vec<Node>),

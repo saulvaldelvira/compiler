@@ -2,11 +2,11 @@ use core::cell::RefCell;
 
 use error_manager::ErrorManager;
 use parser::parse;
-use span::SourceMap;
+use span::source::SourceMap;
 
 fn find_errors(src: &str) -> usize {
     let mut source = SourceMap::default();
-    let (src, id) = source.add_file_anon(src.into()).into_parts();
+    let (src, id) = source.add_file_annon(src.into()).into_parts();
     let source = RefCell::new(source);
 
     let mut em = ErrorManager::new();

@@ -1,6 +1,6 @@
 use error_manager::ErrorManager;
 use lexer::{token::TokenKind, Lexer};
-use span::SourceMap;
+use span::source::SourceMap;
 
 #[test]
 fn tokenize_test() {
@@ -8,7 +8,7 @@ fn tokenize_test() {
 
     let mut em = ErrorManager::new();
     let mut source = SourceMap::default();
-    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
+    let (file, id) = source.add_file_annon(INPUT.into()).into_parts();
     let stream = Lexer::new(&file, id, &mut em).into_token_stream();
 
     let expected = [

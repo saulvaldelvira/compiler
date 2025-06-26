@@ -25,7 +25,7 @@
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
 use hir::{Item, ItemKind, Module, Path};
-use span::SourceMap;
+use span::source::SourceMap;
 
 use std::collections::HashMap;
 

@@ -2,7 +2,7 @@ use core::any::Any;
 use core::fmt;
 use std::{borrow::Cow, io};
 
-use span::SourceMap;
+use span::source::SourceMap;
 pub use span::{FilePosition, Span};
 
 /// An error sent to the [`ErrorManager`]

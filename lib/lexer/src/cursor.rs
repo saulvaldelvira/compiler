@@ -75,14 +75,14 @@ impl<'lex> Cursor<'lex> {
 
 #[cfg(test)]
 mod tests {
-    use span::SourceMap;
+    use span::source::SourceMap;
     use super::Cursor;
 
     #[test]
     fn test() {
         let text = "Hello world!";
         let mut source = SourceMap::default();
-        let (src, id) = source.add_file_anon(text.into()).into_parts();
+        let (src, id) = source.add_file_annon(text.into()).into_parts();
         let mut cursor = Cursor::new(&src, id);
         for c in text.chars() {
             assert!(!cursor.is_finished());

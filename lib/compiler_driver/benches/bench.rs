@@ -3,7 +3,7 @@ use std::fs;
 use std::rc::Rc;
 
 use compiler_driver::{Compiler, Emit};
-use span::{FileName, SourceMap};
+use span::source::{FileName, SourceMap};
 use test::Bencher;
 extern crate test;
 
@@ -58,7 +58,7 @@ const INPUT: &str = "
 fn bench_compilation(b: &mut Bencher) {
     b.iter(|| {
         let mut source = SourceMap::default();
-        source.add_file(FileName::Anon, Rc::from(INPUT));
+        source.add_file(FileName::Annon, Rc::from(INPUT));
         let comp = Compiler::new(source);
         comp.process(Emit::Mapl);
     });
@@ -76,7 +76,7 @@ fn bench_huge(b: &mut Bencher) {
 
     b.iter(|| {
         let mut source = SourceMap::default();
-        source.add_file(FileName::Anon, Rc::clone(&src));
+        source.add_file(FileName::Annon, Rc::clone(&src));
         let comp = Compiler::new(source);
         comp.process(Emit::Mapl);
     });

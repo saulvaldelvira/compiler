@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hir::HirId;
 use semantic::Semantic;
-use span::SourceMap;
+use span::source::SourceMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryAddress {

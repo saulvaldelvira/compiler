@@ -4,7 +4,7 @@ use std::hint;
 
 use error_manager::ErrorManager;
 use lexer::Lexer;
-use span::SourceMap;
+use span::source::SourceMap;
 use test::Bencher;
 
 #[bench]
@@ -24,7 +24,7 @@ int main(){
 ";
 
     let mut source = SourceMap::default();
-    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
+    let (file, id) = source.add_file_annon(INPUT.into()).into_parts();
     b.iter(|| {
         Lexer::new(&file, id, &mut ErrorManager::new())
             .into_token_stream()

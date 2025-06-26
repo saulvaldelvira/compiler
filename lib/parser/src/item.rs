@@ -8,7 +8,7 @@ use ast::{
 };
 use error_manager::ErrorManager;
 use lexer::token::TokenKind;
-use span::FileName;
+use span::source::FileName;
 
 use crate::{error::ParseErrorKind, Parser, Result};
 
