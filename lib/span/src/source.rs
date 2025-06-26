@@ -31,14 +31,19 @@ impl SourceFile {
             FileName::Anon => Some("<anon>"),
         }
     }
+
+    pub fn into_parts(&self) -> (Rc<str>, u32) {
+        (Rc::clone(&self.contents), self.id)
+    }
+
 }
 
 #[derive(Default)]
-pub struct Source {
+pub struct SourceMap {
     files: Vec<SourceFile>,
 }
 
-impl Source {
+impl SourceMap {
     pub fn add_file(&mut self, fname: FileName, contents: Rc<str>) -> &SourceFile {
         #[allow(clippy::cast_possible_truncation)]
         let id = self.files.len() as u32;
@@ -55,6 +60,13 @@ impl Source {
     #[inline]
     pub fn get(&self, id: u32) -> Option<&SourceFile> {
         self.files.get(id as usize)
+    }
+
+    pub fn slice(&self, span: Span) -> &str {
+        let src = &self.get(span.fileid)
+            .unwrap()
+            .contents;
+        span.slice(src)
     }
 
     pub fn file_position(&self, span: Span) -> FilePosition {

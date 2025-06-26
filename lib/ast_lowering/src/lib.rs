@@ -7,7 +7,7 @@ mod expr;
 mod stmt;
 mod ty;
 
-use ast::Symbol;
+use ast::{Block, Symbol};
 use hir::Ident;
 use span::Spanned;
 
@@ -33,7 +33,13 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
     }
 
     fn lower_module_owned(&mut self, m: &ast::Module) -> hir::Module<'hir> {
-        let items = self.lower_items(&m.elems);
+        use ast::ModuleBody;
+
+        let items = match &m.body {
+            ModuleBody::Inline(Block { val: items, .. }) |
+            ModuleBody::Extern { items, .. } |
+            ModuleBody::Slf(items) => self.lower_items(items),
+        };
         let name = self.lower_pathdef(ident(&m.name));
         hir::Module::new(name, items, m.span)
     }

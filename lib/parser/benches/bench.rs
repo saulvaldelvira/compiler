@@ -1,9 +1,10 @@
 #![feature(test)]
 extern crate test;
+use core::cell::RefCell;
+
 use error_manager::ErrorManager;
-use lexer::Lexer;
 use parser::parse;
-use span::Source;
+use span::SourceMap;
 use test::Bencher;
 
 #[bench]
@@ -36,12 +37,9 @@ fn main() {
 ";
 
     b.iter(move || {
-        let mut em = ErrorManager::new();
+        let mut source = SourceMap::default();
+        let (text, id) = source.add_file_anon(INPUT.into()).into_parts();
 
-        let mut source = Source::default();
-        let file = source.add_file_anon(INPUT.into());
-
-        let stream = Lexer::new(file, &mut em).into_token_stream();
-        parse(stream, file, &mut ErrorManager::new());
+        parse(&text, id, &RefCell::new(source), &mut ErrorManager::new());
     });
 }

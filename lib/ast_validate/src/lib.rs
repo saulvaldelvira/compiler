@@ -32,7 +32,7 @@ impl AstValidator<'_> {
     }
 }
 
-impl Visitor<'_> for AstValidator<'_> {
+impl Visitor for AstValidator<'_> {
     type Result = ();
 
     fn visit_expression(&mut self, expr: &'_ Expression) {

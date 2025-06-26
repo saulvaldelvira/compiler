@@ -4,7 +4,7 @@ use std::hint;
 
 use error_manager::ErrorManager;
 use lexer::Lexer;
-use span::Source;
+use span::SourceMap;
 use test::Bencher;
 
 #[bench]
@@ -23,10 +23,10 @@ int main(){
 // Unc@mm3nt this line to trigger an error
 ";
 
-    let mut source = Source::default();
-    let file = source.add_file_anon(INPUT.into());
+    let mut source = SourceMap::default();
+    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
     b.iter(|| {
-        Lexer::new(file, &mut ErrorManager::new())
+        Lexer::new(&file, id, &mut ErrorManager::new())
             .into_token_stream()
             .for_each(|token| {
                 let _ = hint::black_box(|| token);

@@ -1,9 +1,14 @@
-use ast::{Item, ItemKind};
+use std::fs;
+use std::path::PathBuf;
+
+use ast::{Item, ItemKind, ModuleBody, Symbol};
 use ast::{
     item::{Field, Param, VariableConstness},
     Block, Module,
 };
+use error_manager::ErrorManager;
 use lexer::token::TokenKind;
+use span::FileName;
 
 use crate::{error::ParseErrorKind, Parser, Result};
 
@@ -65,30 +70,54 @@ impl Parser<'_, '_> {
         })
     }
 
+    fn parse_extern_mod(&mut self, name: Symbol) -> Box<[Item]> {
+        let mut new_path = {
+            let src_map = self.src_map.borrow();
+            let fname = src_map.get(self.fileid).unwrap().filename().unwrap();
+
+            let path: &std::path::Path = fname.as_ref();
+            let parent = path.parent().unwrap();
+            PathBuf::from(parent)
+        };
+
+        let mut child = name.to_string();
+        child.push_str(".txt");
+        new_path.push(child);
+
+        let contents = fs::read_to_string(&new_path).unwrap();
+
+        let (source, id) = self.src_map.borrow_mut()
+            .add_file(FileName::Path(new_path), contents.into())
+            .into_parts();
+
+        let mut em_parse = ErrorManager::new();
+
+        let ast = crate::parse(&source, id, self.src_map, &mut em_parse).unwrap();
+
+        self.em.merge(&mut em_parse);
+
+        let ModuleBody::Slf(items) = ast.body else { unreachable!() };
+        items
+    }
+
     pub(super) fn module(&mut self) -> Result<Item> {
         let kw_mod = self.consume(TokenKind::Mod)?.span;
         let name = self.consume_ident_spanned()?;
 
-        let open_brace = self.consume(TokenKind::LeftBrace)?.span;
-
-        let mut decls = Vec::new();
-
-        while let Some(decl) = self.try_item() {
-            decls.push(decl?);
-        }
-
-        let close_brace = self.consume(TokenKind::RightBrace)?.span;
-
-        let span = kw_mod.join(&close_brace);
-
-        let decls = Block {
-            open_brace,
-            val: decls.into(),
-            close_brace,
+        let (body, end_span) = if let Some(block) = self.try_block(Self::item) {
+            let block = block?;
+            let span = block.close_brace;
+            (ModuleBody::Inline(block), span)
+        } else {
+            let semicolon = self.consume(TokenKind::Semicolon)?.span;
+            let items = self.parse_extern_mod(*name);
+            (ModuleBody::Extern { semicolon, items }, semicolon)
         };
 
+        let span = kw_mod.join(&end_span);
+
         Ok(Item {
-            kind: ItemKind::Mod(Module { elems: decls.val, name, span }),
+            kind: ItemKind::Mod(Module { body, name, span }),
             span,
         })
     }
@@ -186,7 +215,7 @@ impl Parser<'_, '_> {
             None
         };
 
-        let body = self.block()?;
+        let body = self.block(Self::statement)?;
 
         let span = kw_fn.join(&body.close_brace);
 

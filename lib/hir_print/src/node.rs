@@ -2,7 +2,7 @@ use core::fmt;
 use std::borrow::Cow;
 
 use hir::HirId;
-use span::{FilePosition, Source, Span};
+use span::{FilePosition, SourceMap, Span};
 
 pub enum Node {
     List(Vec<Node>),
@@ -28,7 +28,7 @@ impl Node {
         Self::Collapse(Node::Text(txt.into()).into(), node.into())
     }
 
-    fn __write_to(&self, f: &mut dyn fmt::Write, src: &Source, span_count: &mut usize) -> fmt::Result {
+    fn __write_to(&self, f: &mut dyn fmt::Write, src: &SourceMap, span_count: &mut usize) -> fmt::Result {
         match self {
             Node::List(list) => {
                 for node in list {
@@ -89,12 +89,12 @@ impl Node {
         }
     }
 
-    pub fn write_to(&self, f: &mut dyn fmt::Write, src: &Source) -> fmt::Result {
+    pub fn write_to(&self, f: &mut dyn fmt::Write, src: &SourceMap) -> fmt::Result {
         let mut span_count = 0;
         self.__write_to(f, src, &mut span_count)
     }
 
-    pub fn write_spans_full(&self, f: &mut dyn fmt::Write, src: &Source) -> fmt::Result {
+    pub fn write_spans_full(&self, f: &mut dyn fmt::Write, src: &SourceMap) -> fmt::Result {
         let mut span_count = 0;
         write!(
             f,
@@ -108,7 +108,7 @@ impl Node {
     fn __write_spans_full(
         &self,
         f: &mut dyn fmt::Write,
-        src: &Source,
+        src: &SourceMap,
         span_count: &mut usize,
     ) -> fmt::Result {
         match self {

@@ -1,15 +1,15 @@
 use error_manager::ErrorManager;
 use lexer::Lexer;
-use span::Source;
+use span::SourceMap;
 
 #[test]
 fn string() {
     const INPUT: &str = r#"
     " And I said, \"Hello world!\" "
 "#;
-    let mut source = Source::default();
-    let file = source.add_file_anon(INPUT.into());
-    let tokens = Lexer::new(file, &mut ErrorManager::new())
+    let mut source = SourceMap::default();
+    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
+    let tokens = Lexer::new(&file, id, &mut ErrorManager::new())
         .into_token_stream()
         .collect::<Vec<_>>();
     assert_eq!(tokens.len(), 1);

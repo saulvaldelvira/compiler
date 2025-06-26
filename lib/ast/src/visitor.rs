@@ -1,6 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::item::{Item, ItemKind, Module};
+use crate::Block;
 use crate::{
     expr::ExpressionKind,
     stmt::{Statement, StatementKind},
@@ -8,29 +9,29 @@ use crate::{
     Expression,
 };
 
-pub trait Visitor<'ast> {
+pub trait Visitor {
     type Result: VisitorResult;
 
-    fn visit_expression(&mut self, expr: &'ast Expression) -> Self::Result {
+    fn visit_expression(&mut self, expr: &Expression) -> Self::Result {
         walk_expression(self, expr)
     }
 
-    fn visit_statement(&mut self, stmt: &'ast Statement) -> Self::Result {
+    fn visit_statement(&mut self, stmt: &Statement) -> Self::Result {
         walk_statement(self, stmt)
     }
 
-    fn visit_type(&mut self, ty: &'ast Type) -> Self::Result { walk_type(self, ty) }
+    fn visit_type(&mut self, ty: &Type) -> Self::Result { walk_type(self, ty) }
 
-    fn visit_module(&mut self, prog: &'ast Module) -> Self::Result { walk_module(self, prog) }
+    fn visit_module(&mut self, prog: &Module) -> Self::Result { walk_module(self, prog) }
 
-    fn visit_item(&mut self, item: &'ast Item) -> Self::Result {
+    fn visit_item(&mut self, item: &Item) -> Self::Result {
         walk_item(self, item)
     }
 }
 
-pub fn walk_type<'ast, V>(v: &mut V, ty: &'ast Type) -> V::Result
+pub fn walk_type<V>(v: &mut V, ty: &Type) -> V::Result
 where
-    V: Visitor<'ast> + ?Sized,
+    V: Visitor + ?Sized,
 {
     match &ty.kind {
         TypeKind::Array { ty, .. } => v.visit_type(ty),
@@ -44,9 +45,9 @@ where
     }
 }
 
-pub fn walk_item<'ast, V>(v: &mut V, item: &'ast Item) -> V::Result
+pub fn walk_item<V>(v: &mut V, item: &Item) -> V::Result
 where
-    V: Visitor<'ast> + ?Sized,
+    V: Visitor + ?Sized,
 {
     match &item.kind {
         ItemKind::Variable { ty, init, .. } => {
@@ -86,9 +87,9 @@ where
     }
 }
 
-pub fn walk_statement<'ast, V>(v: &mut V, stmt: &'ast Statement) -> V::Result
+pub fn walk_statement<V>(v: &mut V, stmt: &Statement) -> V::Result
 where
-    V: Visitor<'ast> + ?Sized,
+    V: Visitor + ?Sized,
 {
     match &stmt.kind {
         StatementKind::Expression(expression, _) => v.visit_expression(expression),
@@ -158,9 +159,9 @@ where
     }
 }
 
-pub fn walk_expression<'ast, V>(v: &mut V, expr: &'ast Expression) -> V::Result
+pub fn walk_expression<V>(v: &mut V, expr: &Expression) -> V::Result
 where
-    V: Visitor<'ast> + ?Sized,
+    V: Visitor + ?Sized,
 {
     match &expr.kind {
         ExpressionKind::Unary { expr, .. } => v.visit_expression(expr),
@@ -201,12 +202,20 @@ where
     }
 }
 
-pub fn walk_module<'ast, V>(v: &mut V, program: &'ast Module) -> V::Result
+pub fn walk_module<V>(v: &mut V, module: &Module) -> V::Result
 where
-    V: Visitor<'ast> + ?Sized,
+    V: Visitor + ?Sized,
 {
-    for item in &program.elems {
-        v.visit_item(item);
+    use crate::ModuleBody;
+
+    match &module.body {
+        ModuleBody::Inline(Block { val: items, ..}) |
+        ModuleBody::Extern { items, .. } |
+        ModuleBody::Slf(items) => {
+            for item in items {
+                v.visit_item(item);
+            }
+        }
     }
     V::Result::output()
 }

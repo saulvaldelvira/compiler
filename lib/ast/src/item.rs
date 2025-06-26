@@ -58,10 +58,20 @@ pub enum ItemKind {
 }
 
 #[derive(Debug)]
+pub enum ModuleBody {
+    Inline(Block<Item>),
+    Slf(Box<[Item]>),
+    Extern {
+        semicolon: Span,
+        items: Box<[Item]>,
+    }
+}
+
+#[derive(Debug)]
 pub struct Module {
-    pub elems: Box<[Item]>,
     pub name: Spanned<Symbol>,
     pub span: Span,
+    pub body: ModuleBody,
 }
 
 pub struct Item {

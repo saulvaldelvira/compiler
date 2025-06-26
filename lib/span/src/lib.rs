@@ -3,7 +3,7 @@
 use std::{fmt, fmt::Debug, ops::Deref, str};
 
 pub mod source;
-pub use source::{FileName, Source};
+pub use source::{FileName, SourceMap};
 
 /// Represents a span in a buffer, bounded by an offset and a len
 #[derive(Clone, Copy, Default, PartialEq)]

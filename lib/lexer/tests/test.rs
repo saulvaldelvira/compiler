@@ -1,15 +1,15 @@
 use error_manager::ErrorManager;
 use lexer::{token::TokenKind, Lexer};
-use span::Source;
+use span::SourceMap;
 
 #[test]
 fn tokenize_test() {
     const INPUT: &str = "let a = 12 \n \t \r { \t   -> 1.2  \n 'a' '\\n' \"hiiii\" ";
 
     let mut em = ErrorManager::new();
-    let mut source = Source::default();
-    let file = source.add_file_anon(INPUT.into());
-    let stream = Lexer::new(file, &mut em).into_token_stream();
+    let mut source = SourceMap::default();
+    let (file, id) = source.add_file_anon(INPUT.into()).into_parts();
+    let stream = Lexer::new(&file, id, &mut em).into_token_stream();
 
     let expected = [
         TokenKind::Let,

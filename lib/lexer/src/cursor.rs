@@ -1,10 +1,9 @@
 use std::str::CharIndices;
 
-use span::source::SourceFile;
 use span::Span;
 
 pub struct Cursor<'lex> {
-    source: &'lex SourceFile,
+    fileid: u32,
     chars: CharIndices<'lex>,
     start_chars: CharIndices<'lex>,
 
@@ -13,11 +12,11 @@ pub struct Cursor<'lex> {
 }
 
 impl<'lex> Cursor<'lex> {
-    pub fn new(source: &'lex SourceFile) -> Self {
+    pub fn new(source: &'lex str, fileid: u32) -> Self {
         Self {
-            source,
-            chars: source.contents.char_indices(),
-            start_chars: source.contents.char_indices(),
+            fileid,
+            chars: source.char_indices(),
+            start_chars: source.char_indices(),
             line: 0,
             col: 0,
         }
@@ -34,7 +33,7 @@ impl<'lex> Cursor<'lex> {
         Span::new(
             self.start_chars.offset(),
             self.chars.offset() - self.start_chars.offset(),
-            self.source.id
+            self.fileid,
         )
     }
     pub fn line(&self) -> usize { self.line }
@@ -77,15 +76,15 @@ impl<'lex> Cursor<'lex> {
 
 #[cfg(test)]
 mod tests {
-    use span::Source;
+    use span::SourceMap;
     use super::Cursor;
 
     #[test]
     fn test() {
         let text = "Hello world!";
-        let mut source = Source::default();
-        let file = source.add_file_anon(text.into());
-        let mut cursor = Cursor::new(file);
+        let mut source = SourceMap::default();
+        let (src, id) = source.add_file_anon(text.into()).into_parts();
+        let mut cursor = Cursor::new(&src, id);
         for c in text.chars() {
             assert!(!cursor.is_finished());
             let next = cursor.advance();

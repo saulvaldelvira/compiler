@@ -1,20 +1,17 @@
+use core::cell::RefCell;
+
 use error_manager::ErrorManager;
-use lexer::Lexer;
 use parser::parse;
-use span::Source;
+use span::SourceMap;
 
 fn find_errors(src: &str) -> usize {
-    let mut em = ErrorManager::new();
-    let mut source = Source::default();
-    let src = source.add_file_anon(src.into());
-    let stream = Lexer::new(src, &mut em).into_token_stream();
-    /* We shouldn't test lexer here
-    Only test the parser phase */
-    /* assert!(!lexer.has_errors()); */
+    let mut source = SourceMap::default();
+    let (src, id) = source.add_file_anon(src.into()).into_parts();
+    let source = RefCell::new(source);
 
-    let mut perr = ErrorManager::new();
-    parse(stream, src, &mut perr);
-    perr.n_errors()
+    let mut em = ErrorManager::new();
+    parse(&src, id, &source, &mut em);
+    em.n_errors()
 }
 
 #[test]

@@ -1,3 +1,4 @@
+use core::cell::RefCell;
 use std::rc::Rc;
 use std::{
     io::{self, Read, stderr, stdin},
@@ -5,9 +6,8 @@ use std::{
 };
 
 use error_manager::ErrorManager;
-use lexer::Lexer;
 use semantic::Semantic;
-use span::{FileName, Source};
+use span::{FileName, SourceMap};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Emit {
@@ -16,10 +16,10 @@ pub enum Emit {
 }
 
 pub struct Compiler {
-    source: Source,
+    source: RefCell<SourceMap>,
 }
 
-fn step_emit(text: &Source, em: &mut ErrorManager) -> Option<()> {
+fn step_emit(text: &SourceMap, em: &mut ErrorManager) -> Option<()> {
     em.print_warnings(text, &mut stderr().lock()).unwrap();
     em.clear_warnings();
 
@@ -33,21 +33,29 @@ fn step_emit(text: &Source, em: &mut ErrorManager) -> Option<()> {
 
 impl Compiler {
 
+    pub fn new(source: SourceMap) -> Self {
+        Self { source: source.into() }
+    }
+
+    pub fn source(&self) -> &RefCell<SourceMap> {
+        &self.source
+    }
+
     /// Creates a new compiler instance for the given filename
     ///
     /// # Errors
     /// If it fails to read the given path
     pub fn from_filename<P: AsRef<Path>>(fname: P) -> io::Result<Self> {
         let contents = std::fs::read_to_string(&fname)?;
-        let mut source = Source::default();
+        let mut source = SourceMap::default();
         source.add_file(FileName::Path(fname.as_ref().into()), contents.into());
-        Ok(Self { source })
+        Ok(Self::new(source))
     }
 
     pub fn from_string(src: impl Into<Rc<str>>) -> Self {
-        let mut source = Source::default();
+        let mut source = SourceMap::default();
         source.add_file_anon(src.into());
-        Self { source }
+        Self::new(source)
     }
 
     /// Creates a new compiler instance for the contents of the standard input
@@ -57,29 +65,26 @@ impl Compiler {
     pub fn from_stdin() -> io::Result<Self> {
         let mut contents = String::new();
         stdin().read_to_string(&mut contents)?;
-        let mut source = Source::default();
+        let mut source = SourceMap::default();
         source.add_file(FileName::Stdin, contents.into());
-        Ok(Self { source })
+        Ok(Self::new(source))
     }
 
     pub fn generate_ast(&self) -> Option<ast::Module> {
-        let mut lexer_errs = ErrorManager::new();
-        let mut parse_errs = ErrorManager::new();
+        let mut em = ErrorManager::new();
 
         // FIXME: This is BAD
-        let src = self.source.get(0).unwrap();
-        let stream = Lexer::new(src, &mut lexer_errs).into_token_stream();
-        let program = parser::parse(stream, src, &mut parse_errs);
+        let (src, id) = self.source.borrow().get(0).unwrap().into_parts();
+        let program = parser::parse(&src, id, &self.source, &mut em);
 
-        step_emit(&self.source, &mut lexer_errs)?;
-        step_emit(&self.source, &mut parse_errs)?;
+        step_emit(&self.source.borrow(), &mut em)?;
 
         let program = program.unwrap();
 
         let mut em = ErrorManager::new();
 
         ast_validate::validate_ast(&program, &mut em);
-        step_emit(&self.source, &mut em)?;
+        step_emit(&self.source.borrow(), &mut em)?;
 
         Some(program)
     }
@@ -99,12 +104,12 @@ impl Compiler {
 
         let mut em = ErrorManager::new();
 
-        hir_identification::identify(&hir_sess, &self.source, &mut em);
-        step_emit(&self.source, &mut em)?;
+        hir_identification::identify(&hir_sess, &self.source.borrow(), &mut em);
+        step_emit(&self.source.borrow(), &mut em)?;
 
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
-        step_emit(&self.source, &mut em)?;
+        step_emit(&self.source.borrow(), &mut em)?;
 
         #[cfg(debug_assertions)]
         eprintln!(
@@ -122,17 +127,15 @@ impl Compiler {
         self.compile().map(|_| ())
     }
 
-    pub fn source(&self) -> &Source { &self.source }
-
     pub fn process(&self, emit: Emit) -> Option<String> {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
-            Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source),
+            Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow()),
             Emit::Mapl => {
                 mapl_codegen::gen_code_mapl(
                     &hir_sess,
                     &semantic,
-                    &self.source,
+                    &self.source.borrow()
                 )
             }
         })

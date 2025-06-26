@@ -2,7 +2,7 @@ use core::any::Any;
 use core::fmt;
 use std::{borrow::Cow, io};
 
-use span::Source;
+use span::SourceMap;
 pub use span::{FilePosition, Span};
 
 /// An error sent to the [`ErrorManager`]
@@ -81,7 +81,7 @@ pub struct ErrorManager {
     warnings: Vec<Box<dyn Error>>,
 }
 
-fn print_error(err: &dyn Error, src: &Source, out: &mut dyn fmt::Write) -> fmt::Result {
+fn print_error(err: &dyn Error, src: &SourceMap, out: &mut dyn fmt::Write) -> fmt::Result {
     let span = err.get_span();
     let file = src.get(span.fileid).unwrap();
     let FilePosition {
@@ -129,7 +129,7 @@ impl ErrorManager {
         })
     }
 
-    pub fn print_errors(&self, src: &Source, out: &mut dyn io::Write) -> fmt::Result {
+    pub fn print_errors(&self, src: &SourceMap, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.errors {
             out.write_all("ERROR ".as_bytes()).unwrap();
@@ -144,7 +144,7 @@ impl ErrorManager {
 
     pub fn clear_warnings(&mut self) { self.warnings.clear(); }
 
-    pub fn print_warnings(&self, src: &Source, out: &mut dyn io::Write) -> fmt::Result {
+    pub fn print_warnings(&self, src: &SourceMap, out: &mut dyn io::Write) -> fmt::Result {
         let mut buf = String::new();
         for err in &self.warnings {
             out.write_all("WARNING ".as_bytes()).unwrap();
@@ -153,6 +153,11 @@ impl ErrorManager {
             buf.clear();
         }
         Ok(())
+    }
+
+    pub fn merge(&mut self, other: &mut ErrorManager) {
+        self.errors.append(&mut other.errors);
+        self.warnings.append(&mut other.warnings);
     }
 }
 

@@ -25,7 +25,7 @@
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
 use hir::{Item, ItemKind, Module, Path};
-use span::Source;
+use span::SourceMap;
 
 use std::collections::HashMap;
 
@@ -40,7 +40,7 @@ use hir::{
 use interner::Symbol;
 
 /// Performs identification for the given hir tree
-pub fn identify(sess: &hir::Session<'_>, source: &Source, em: &mut ErrorManager) {
+pub fn identify(sess: &hir::Session<'_>, source: &SourceMap, em: &mut ErrorManager) {
     let prog = sess.get_root();
     let mut ident = Identification::new(sess, source, em);
     ident.visit_module(prog);
@@ -122,12 +122,12 @@ impl<'ast> VisitorCtx<'ast> for Ctx {
 pub struct Identification<'ident, 'hir> {
     hir_sess: &'ident hir::Session<'hir>,
     em: &'ident mut ErrorManager,
-    source: &'ident Source,
+    source: &'ident SourceMap,
     ctx: Ctx,
 }
 
 impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
-    pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident Source, em: &'ident mut ErrorManager) -> Self {
+    pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident SourceMap, em: &'ident mut ErrorManager) -> Self {
         let mut ident = Self {
             ctx: Ctx {
                 st: SymbolTable::default(),

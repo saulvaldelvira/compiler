@@ -5,7 +5,7 @@ use code_generator::CodeGenerator;
 use codefuncs::Define;
 use mir::MaplInstruction;
 use semantic::Semantic;
-use span::Source;
+use span::SourceMap;
 
 mod code_generator;
 mod codefuncs;
@@ -15,7 +15,7 @@ mod size;
 pub fn gen_code_mapl<'sem, 'hir, 'src>(
     hir: &hir::Session<'hir>,
     sem: &Semantic<'sem>,
-    source: &'src Source,
+    source: &SourceMap,
 ) -> String
 where
     'hir: 'sem,

@@ -1,9 +1,12 @@
+use std::rc::Rc;
+
 use compiler_driver::Compiler;
 use error_manager::{ErrorManager, FilePosition};
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
 use hir::{Expression, Item, ItemKind};
 use interner::Symbol;
+use span::SourceMap;
 
 use crate::{IdentificationError, IdentificationErrorKind};
 
@@ -111,13 +114,17 @@ pub struct Tester<'a> {
 
 impl Tester<'_> {
     fn test<'hir>(&self) -> hir::Session<'hir> {
-        let compiler = Compiler::from_string(self.input);
+        let mut source = SourceMap::default();
+        let contents = Rc::from(self.input);
+        source.add_file_anon(contents);
+        let compiler = Compiler::new(source);
+
         let ast = compiler.generate_ast().expect("AST should generate correctly");
         let hir = compiler.generate_hir(&ast);
 
         let mut em = ErrorManager::new();
 
-        crate::identify(&hir, compiler.source(), &mut em);
+        crate::identify(&hir, &compiler.source().borrow(), &mut em);
 
         let errors = em.errors_iterator_cast::<IdentificationError>();
 

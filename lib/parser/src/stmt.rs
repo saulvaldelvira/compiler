@@ -21,7 +21,7 @@ impl Parser<'_, '_> {
             };
             Ok(stmt)
         }
-        else if let Some(block) = self.try_block() {
+        else if let Some(block) = self.try_block(Self::statement) {
             block.map(Statement::from)
         } else if self.match_type(TokenKind::If) {
             self.if_stmt()
@@ -82,7 +82,7 @@ impl Parser<'_, '_> {
         self.consume(TokenKind::LeftParen)?;
         let cond = self.expression()?;
         self.consume(TokenKind::RightParen)?;
-        let body = Box::new(Statement::from(self.block()?));
+        let body = Box::new(Statement::from(self.block(Self::statement)?));
         let span = kw_while.join(&body.span);
         Ok(Statement {
             kind: StatementKind::While {
