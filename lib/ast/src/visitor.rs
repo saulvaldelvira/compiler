@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::item::{Item, ItemKind, Module};
-use crate::Block;
+use crate::{Ast, Block};
 use crate::{
     expr::ExpressionKind,
     stmt::{Statement, StatementKind},
@@ -11,6 +11,13 @@ use crate::{
 
 pub trait Visitor {
     type Result: VisitorResult;
+
+    fn visit_ast(&mut self, ast: &Ast) -> Self::Result {
+        for item in &*ast.items {
+            self.visit_item(item);
+        }
+        Self::Result::output()
+    }
 
     fn visit_expression(&mut self, expr: &Expression) -> Self::Result {
         walk_expression(self, expr)
@@ -209,10 +216,13 @@ where
     use crate::ModuleBody;
 
     match &module.body {
-        ModuleBody::Inline(Block { val: items, ..}) |
-        ModuleBody::Extern { items, .. } |
-        ModuleBody::Slf(items) => {
+        ModuleBody::Inline(Block { val: items, ..}) => {
             for item in items {
+                v.visit_item(item);
+            }
+        },
+        ModuleBody::Extern { items, .. }  => {
+            for item in &**items {
                 v.visit_item(item);
             }
         }

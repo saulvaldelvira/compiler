@@ -70,34 +70,44 @@ impl Parser<'_, '_> {
         })
     }
 
-    fn parse_extern_mod(&mut self, name: Symbol) -> Box<[Item]> {
+    fn parse_extern_mod(&mut self, name: Symbol) -> Box<[Item]>{
         let mut new_path = {
             let src_map = self.src_map.borrow();
             let fname = src_map.get_file_for_offset(self.base_offset).unwrap().filename().unwrap();
 
             let path: &std::path::Path = fname.as_ref();
+
             let parent = path.parent().unwrap();
-            PathBuf::from(parent)
+            let mut new_path = PathBuf::from(parent);
+            if let Some(stem) = path.file_stem() {
+                new_path.push(stem);
+            }
+            new_path
         };
 
         let mut child = name.to_string();
         child.push_str(".txt");
         new_path.push(child);
 
+        if !new_path.exists() {
+            self.error(ParseErrorKind::CouldntFindFile(new_path.into_os_string()));
+            return Box::from([])
+        }
+
         let contents = fs::read_to_string(&new_path).unwrap();
 
-        let (source, id) = self.src_map.borrow_mut()
+        let (source, base_offset) = self.src_map.borrow_mut()
             .add_file(FileName::Path(new_path), contents.into())
             .into_parts();
 
         let mut em_parse = ErrorManager::new();
 
-        let ast = crate::parse(&source, id, self.src_map, &mut em_parse).unwrap();
-
-        self.em.merge(&mut em_parse);
-
-        let ModuleBody::Slf(items) = ast.body else { unreachable!() };
-        items
+        crate::parse_module(
+            &source,
+            base_offset,
+            self.src_map,
+            &mut em_parse
+        )
     }
 
     pub(super) fn module(&mut self) -> Result<Item> {

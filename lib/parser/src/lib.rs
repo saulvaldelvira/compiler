@@ -8,7 +8,7 @@ mod ty;
 use core::cell::RefCell;
 use std::{borrow::Cow, str::FromStr};
 
-use ast::{Block, Module, Parenthesized, Path};
+use ast::{Ast, Block, Item, Parenthesized, Path};
 use error::ParseErrorKind;
 use error_manager::ErrorManager;
 use lexer::Lexer;
@@ -34,12 +34,26 @@ pub fn parse(
     base_offset: usize,
     src_map: &RefCell<SourceMap>,
     em: &mut ErrorManager,
-) -> Option<Module> {
+) -> Ast {
+    let items = parse_module(src, base_offset, src_map, em);
+    Ast { items }
+}
+
+fn parse_module(
+    src: &str,
+    base_offset: usize,
+    src_map: &RefCell<SourceMap>,
+    em: &mut ErrorManager,
+) -> Box<[Item]> {
     let stream = Lexer::new(src, base_offset, em).into_token_stream();
     let mut parse_em = ErrorManager::new();
-    let ast = Parser { stream, src, base_offset, em: &mut parse_em, src_map }.parse();
+    let items = Parser {
+        stream, src, base_offset,
+        em: &mut parse_em,
+        src_map,
+    }.parse();
     em.merge(&mut parse_em);
-    ast
+    items
 }
 
 struct Parser<'sess, 'src> {
@@ -51,11 +65,11 @@ struct Parser<'sess, 'src> {
 }
 
 impl<'sess, 'src> Parser<'sess, 'src> {
-    fn parse(mut self) -> Option<Module> {
-        let mut decls = Vec::new();
+    fn parse(mut self) -> Box<[Item]> {
+        let mut items = Vec::new();
         while !self.is_finished() {
             match self.item() {
-                Ok(stmt) => decls.push(stmt),
+                Ok(stmt) => items.push(stmt),
                 Err(e) => {
                     self.error(e);
                     self.synchronize_with(&[TokenKind::Let, TokenKind::Const, TokenKind::Fn]);
@@ -63,23 +77,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             }
         }
 
-        if self.em.has_errors() {
-            return None;
-        }
-
-        let mut span = decls.first().map(|s| s.span).unwrap_or_default();
-        if let Some(l) = decls.last() {
-            span = span.join(&l.span);
-        }
-        let name = Symbol::new("self");
-        let name = Spanned { span: Span::dummy(), val: name };
-
-        let m = Module {
-            body: ast::ModuleBody::Slf(decls.into_boxed_slice()),
-            name,
-            span,
-        };
-        Some(m)
+        items.into()
     }
 
     fn consume_ident_spanned(&mut self) -> Result<Spanned<Symbol>> {

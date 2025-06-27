@@ -66,3 +66,8 @@ pub struct Path {
 impl<T> Parenthesized<T> {
     pub fn span(&self) -> Span { self.open_paren.join(&self.close_paren) }
 }
+
+#[derive(Debug, Default)]
+pub struct Ast {
+    pub items: Box<[Item]>
+}

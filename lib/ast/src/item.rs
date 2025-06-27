@@ -60,7 +60,6 @@ pub enum ItemKind {
 #[derive(Debug)]
 pub enum ModuleBody {
     Inline(Block<Item>),
-    Slf(Box<[Item]>),
     Extern {
         semicolon: Span,
         items: Box<[Item]>,

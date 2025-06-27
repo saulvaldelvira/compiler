@@ -1,4 +1,5 @@
-use ast::item::{Item, ItemKind, Module};
+use ast::item::{Item, ItemKind};
+use ast::Ast;
 use ast::{
     Expression, Visitor, expr::ExpressionKind,
     stmt::StatementKind, visitor,
@@ -14,9 +15,10 @@ struct AstValidator<'v> {
     em: &'v mut ErrorManager,
 }
 
-pub fn validate_ast(prog: &Module, em: &mut ErrorManager) {
+#[allow(clippy::implicit_hasher)]
+pub fn validate_ast(ast: &Ast, em: &mut ErrorManager) {
     let mut v = AstValidator { em };
-    v.visit_module(prog);
+    v.visit_ast(ast);
 }
 
 impl AstValidator<'_> {

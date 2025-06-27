@@ -5,6 +5,7 @@ use std::{
     path::Path,
 };
 
+use ast::Ast;
 use error_manager::ErrorManager;
 use semantic::Semantic;
 use span::source::{FileName, SourceMap};
@@ -70,37 +71,32 @@ impl Compiler {
         Ok(Self::new(source))
     }
 
-    pub fn generate_ast(&self) -> Option<ast::Module> {
+    pub fn generate_ast(&self) -> Option<Ast> {
         let mut em = ErrorManager::new();
 
         // FIXME: This is BAD
-        let (src, id) = self.source.borrow().get_file_for_offset(0).unwrap().into_parts();
-        let program = parser::parse(&src, id, &self.source, &mut em);
+        let (src, offset) = self.source.borrow().get_file_for_offset(0).unwrap().into_parts();
+        let ast = parser::parse(&src, offset, &self.source, &mut em);
 
         step_emit(&self.source.borrow(), &mut em)?;
-
-        let program = program.unwrap();
 
         let mut em = ErrorManager::new();
 
-        ast_validate::validate_ast(&program, &mut em);
+        ast_validate::validate_ast(&ast, &mut em);
         step_emit(&self.source.borrow(), &mut em)?;
 
-        Some(program)
+        Some(ast)
     }
 
-    pub fn generate_hir<'hir>(&self, root: &ast::Module) -> hir::Session<'hir> {
+    pub fn generate_hir<'hir>(&self, ast: &ast::Ast) -> hir::Session<'hir> {
         let hir_sess = hir::Session::default();
-        ast_lowering::lower(&hir_sess, root);
+        ast_lowering::lower(&hir_sess, ast);
         hir_sess
     }
 
     fn compile(&self) -> Option<(hir::Session<'_>, semantic::Semantic<'_>)> {
-        let program = self.generate_ast()?;
-
-        let hir_sess = self.generate_hir(&program);
-
-        ast_lowering::lower(&hir_sess, &program);
+        let ast = self.generate_ast()?;
+        let hir_sess = self.generate_hir(&ast);
 
         let mut em = ErrorManager::new();
 

@@ -82,8 +82,8 @@ mod tests {
     fn test() {
         let text = "Hello world!";
         let mut source = SourceMap::default();
-        let (src, id) = source.add_file_annon(text.into()).into_parts();
-        let mut cursor = Cursor::new(&src, id);
+        let (src, offset) = source.add_file_annon(text.into()).into_parts();
+        let mut cursor = Cursor::new(&src, offset);
         for c in text.chars() {
             assert!(!cursor.is_finished());
             let next = cursor.advance();

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::ffi::OsString;
 
 use lexer::token::TokenKind;
 use span::Span;
@@ -20,6 +21,7 @@ pub enum ParseErrorKind {
     CantPeek,
     NoPreviousToken,
     LexemParseError,
+    CouldntFindFile(OsString),
 }
 
 pub struct ParseError {
@@ -45,6 +47,10 @@ impl error_manager::Error for ParseError {
             ParseErrorKind::CantPeek => write!(out, "Can't peek"),
             ParseErrorKind::NoPreviousToken => write!(out, "No previous token"),
             ParseErrorKind::LexemParseError => write!(out, "Error parsing lexem"),
+            ParseErrorKind::CouldntFindFile(fname) => {
+                let name = String::from_utf8_lossy(fname.as_encoded_bytes());
+                write!(out, "Couldn't read file '{name}'")
+            }
         }
     }
 }
