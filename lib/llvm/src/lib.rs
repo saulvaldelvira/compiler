@@ -23,5 +23,7 @@ macro_rules! cstr {
 }
 
 pub mod core;
+pub use core::{Builder, Value, Type, Module};
+
 pub mod analysis;
 pub mod bitwriter;

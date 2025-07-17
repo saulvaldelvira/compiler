@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use span::Span;
 
 use crate::item::Item;
-use crate::UseItem;
+use crate::Param;
 use crate::{Expression, HirId, Module, PathDef, Statement, Type, item::Field};
 
 #[derive(Clone, Copy, Debug)]
 pub enum HirNodeKind<'hir> {
     Expr(&'hir Expression<'hir>),
     Item(&'hir Item<'hir>),
-    Use(&'hir UseItem<'hir>),
+    Param(&'hir Param<'hir>),
     PathDef(&'hir PathDef),
     Stmt(&'hir Statement<'hir>),
     Field(&'hir Field<'hir>),
@@ -42,7 +42,7 @@ impl<'hir> HirNodeKind<'hir> {
         Some(match self {
             HirNodeKind::Expr(expression) => expression.span,
             HirNodeKind::Item(item) => item.span,
-            HirNodeKind::Use(u) => u.span,
+            HirNodeKind::Param(p) => p.span,
             HirNodeKind::Stmt(statement) => statement.span,
             HirNodeKind::Field(field) => field.span,
             HirNodeKind::PathDef(_) |

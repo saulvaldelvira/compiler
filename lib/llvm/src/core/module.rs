@@ -1,8 +1,10 @@
 use core::ffi::{c_char, CStr};
+use core::fmt::Display;
 use core::ptr;
+use std::ffi::CString;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
 
 pub struct Module {
     raw: LLVMModuleRef,
@@ -54,6 +56,18 @@ impl Module {
         unsafe { LLVMDisposeMessage(err); }
 
         ret
+    }
+}
+
+impl Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        unsafe {
+            let module_str = LLVMPrintModuleToString(self.raw);
+            let s = CStr::from_ptr(module_str).to_str().unwrap();
+            write!(f, "{s}")?;
+            LLVMDisposeMessage(module_str);
+            Ok(())
+        }
     }
 }
 

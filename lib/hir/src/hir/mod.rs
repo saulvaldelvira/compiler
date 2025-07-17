@@ -36,4 +36,3 @@ mod node_ref;
 pub mod path;
 pub use node_ref::{NodeRef, NodeRefKind};
 pub use path::{Path, PathDef};
-

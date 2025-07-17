@@ -8,16 +8,16 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
     fn lower_params(
         &mut self,
         params: &[ast::item::Param],
-    ) -> &'hir [hir::Item<'hir>] {
+    ) -> &'hir [hir::Param<'hir>] {
         self.sess
             .alloc_iter(params.iter().map(|p| self.lower_param_owned(p)))
     }
 
-    fn lower_param_owned(&mut self, param: &ast::item::Param) -> hir::Item<'hir> {
+    fn lower_param_owned(&mut self, param: &ast::item::Param) -> hir::Param<'hir> {
         let ty = self.lower_type(&param.ty);
         let name = self.lower_pathdef(ident(&param.name));
 
-        hir::item::Item::new_param(name, ty, param.span)
+        hir::item::Param::new(name, ty, param.span)
     }
 
     pub(super) fn lower_pathdef(&mut self, ident: Ident) -> &'hir hir::PathDef {
@@ -122,8 +122,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     None => ident(path.segments.last().unwrap()),
                 };
                 let as_name = self.lower_pathdef(as_name);
-                let u = UseItem::new(Self::lower_path(path), as_name, def.span);
-                let u = self.sess.alloc(u);
+                let u = UseItem::new(Self::lower_path(path), as_name);
+                let u = self.sess.alloc_annon(u);
                 HIK::Use(u)
             }
         };

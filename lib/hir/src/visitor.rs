@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::item::Item;
-use crate::{Constness, UseItem};
+use crate::{Constness, Param, UseItem};
 use crate::{
     Expression, HirId, Ident, Module, Path, PathDef,
     Statement, Type,
@@ -17,6 +17,10 @@ pub trait Visitor<'hir> {
     fn get_ctx(&mut self) -> &mut Self::Ctx;
 
     fn visit_module(&mut self, m: &'hir Module<'hir>) -> Self::Result { walk_module(self, m) }
+
+    fn visit_param(&mut self, param: &'hir Param<'hir>) -> Self::Result {
+        walk_param(self, param)
+    }
 
     fn visit_item(&mut self, item: &'hir Item<'hir>) -> Self::Result {
         walk_item(self, item)
@@ -138,7 +142,7 @@ pub trait Visitor<'hir> {
         &mut self,
         base: &'hir Item<'hir>,
         name: &'hir PathDef,
-        params: &'hir [Item<'hir>],
+        params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,
         body: &'hir [Statement<'hir>],
     ) -> Self::Result {
@@ -342,6 +346,15 @@ where
     V::Result::output()
 }
 
+pub fn walk_param<'hir, V>(v: &mut V, param: &'hir Param<'hir>) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized,
+{
+    v.visit_pathdef(param.id, param.name);
+    v.visit_type(param.ty);
+    V::Result::output()
+}
+
 pub fn walk_item<'hir, V>(v: &mut V, item: &'hir Item<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -383,7 +396,7 @@ pub fn walk_function_definition<'hir, V>(
     v: &mut V,
     base: &'hir Item<'hir>,
     name: &'hir PathDef,
-    params: &'hir [Item<'hir>],
+    params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
     body: &'hir [Statement<'hir>],
 ) -> V::Result
@@ -393,7 +406,7 @@ where
     v.visit_pathdef(base.id, name);
     v.get_ctx().enter_function(base);
     for p in params {
-        v.visit_item(p);
+        v.visit_param(p);
     }
     for stmt in body {
         v.visit_statement(stmt);

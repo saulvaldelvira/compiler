@@ -95,12 +95,10 @@ impl Compiler {
         hir_sess
     }
 
-    fn compile(&self) -> Option<(hir::Session<'_>, semantic::Semantic<'_>)> {
+    pub fn compile(&self) -> Option<(hir::Session<'_>, semantic::Semantic<'_>)> {
         let program = self.generate_ast()?;
 
         let hir_sess = self.generate_hir(&program);
-
-        ast_lowering::lower(&hir_sess, &program);
 
         let mut em = ErrorManager::new();
 

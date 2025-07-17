@@ -1,7 +1,8 @@
 use core::ffi::c_char;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildMul, LLVMBuildRet, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::Type;
 
 pub struct Builder {
     raw: LLVMBuilderRef,
@@ -40,8 +41,13 @@ impl Builder {
         self.binop(left, right, name, LLVMBuildMul)
     }
 
-    pub fn ret(&mut self, val: Value) -> Value {
-        Value(unsafe { LLVMBuildRet(self.raw, val.0) })
+    pub fn ret(&mut self, val: impl Into<Option<Value>>) -> Value {
+        Value(unsafe {
+            match val.into() {
+                Some(val) => LLVMBuildRet(self.raw, val.0),
+                None => LLVMBuildRetVoid(self.raw),
+            }
+        })
     }
 }
 

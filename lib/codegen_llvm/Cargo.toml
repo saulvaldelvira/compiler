@@ -1,0 +1,17 @@
+[package]
+name = "codegen_llvm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+llvm = { path = "../llvm" }
+hir = { path = "../hir" }
+semantic = { path = "../semantic" }
+tiny-vec.workspace = true
+
+[dev-dependencies]
+compiler_driver =  { path = "../compiler_driver" }
+interner =  { path = "../interner" }
+
+[lints]
+workspace = true

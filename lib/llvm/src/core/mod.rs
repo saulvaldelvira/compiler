@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt32Type, LLVMTypeKind, LLVMTypeRef, LLVMValueRef};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeRef, LLVMValueRef};
 
 mod module;
 pub use module::Module;
@@ -14,6 +14,18 @@ pub struct Type(LLVMTypeRef);
 impl Type {
     pub fn int_32() -> Self {
         Self(unsafe { LLVMInt32Type() })
+    }
+
+    pub fn int_1() -> Self {
+        Self(unsafe { LLVMInt1Type() })
+    }
+
+    pub fn float_32() -> Self {
+        Self(unsafe { LLVMFloatType() })
+    }
+
+    pub fn float_64() -> Self {
+        Self(unsafe { LLVMDoubleType() })
     }
 
     pub fn function(
@@ -36,13 +48,60 @@ impl Type {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Value(LLVMValueRef);
+
+impl Value {
+
+    pub fn const_int(ty: Type, val: u64) -> Self {
+        unsafe {
+            Self(LLVMConstInt(ty.0, val, 1))
+        }
+    }
+
+    pub fn const_uint(ty: Type, val: u64) -> Self {
+        unsafe {
+            Self(LLVMConstInt(ty.0, val, 0))
+        }
+    }
+
+    pub fn const_float(ty: Type, val: f64) -> Self {
+        unsafe {
+            Self(LLVMConstReal(ty.0, val))
+        }
+    }
+
+    pub fn const_int1(val: u64) -> Self {
+        Self::const_int(Type::int_1(), val)
+    }
+
+    pub fn const_int32(val: u64) -> Self {
+        Self::const_int(Type::int_32(), val)
+    }
+
+    pub fn const_f64(val: f64) -> Self {
+        Self::const_float(Type::float_64(), val)
+    }
+
+    pub fn const_f32(val: f32) -> Self {
+        Self::const_float(Type::float_32(), val as f64)
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        cstr!(name);
+        unsafe { LLVMSetValueName(self.0, name); }
+    }
+}
 
 pub struct Function(Value);
 
 impl Function {
     pub fn param(&self, idx: u32) -> Value {
         Value(unsafe { LLVMGetParam(self.0.0, idx) })
+    }
+
+    pub fn n_params(&self) -> u32 {
+        unsafe { LLVMCountParams(self.0.0) }
     }
 
     pub fn append_basic_block(&mut self, name: &str) -> BasicBlock {

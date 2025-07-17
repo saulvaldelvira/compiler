@@ -1,4 +1,4 @@
-use hir::{Item, ItemKind};
+use hir::{Item, ItemKind, Param};
 use hir::{Expression, node_map::HirNodeKind};
 use semantic::types::TypeKind;
 
@@ -19,6 +19,7 @@ impl Address for Expression<'_> {
                 let node = cg.hir.get_node(&def_id);
                 match node {
                     HirNodeKind::Item(item) => item.address(cg),
+                    HirNodeKind::Param(param) => param.address(cg),
                     _ => unreachable!()
                 }
             }
@@ -78,6 +79,13 @@ impl Address for Expression<'_> {
                 unreachable!("We can't address a {:#?}", self.kind);
             }
         }
+    }
+}
+
+impl Address for Param<'_> {
+    fn address(&self, cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction {
+        let addr = cg.address_of(self.id).unwrap();
+        MaplInstruction::Pushaddr(addr)
     }
 }
 
