@@ -2,6 +2,7 @@ use core::fmt;
 use std::collections::HashMap;
 
 use interner::Symbol;
+use span::source::FileId;
 use span::Span;
 
 use super::{Constness, Expression, Statement, types::Type};
@@ -162,6 +163,7 @@ pub struct Module<'hir> {
     pub items: &'hir [Item<'hir>],
     pub name: &'hir PathDef,
     pub span: Span,
+    pub extern_file: Option<FileId>,
     item_map: HashMap<Symbol, &'hir Item<'hir>>,
 }
 
@@ -177,11 +179,12 @@ impl fmt::Debug for Module<'_> {
 }
 
 impl<'hir> Module<'hir> {
-    pub fn new(name: &'hir PathDef, defs: &'hir [Item<'hir>], span: Span) -> Self {
+    pub fn new(name: &'hir PathDef, defs: &'hir [Item<'hir>], span: Span, extern_file: impl Into<Option<FileId>>) -> Self {
         let mut m = Self {
             name,
             items: defs,
             span,
+            extern_file: extern_file.into(),
             id: HirId::DUMMY,
             item_map: HashMap::new(),
         };

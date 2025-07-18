@@ -1,4 +1,6 @@
 use core::cell::RefCell;
+use core::hash::Hash;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::{
     io::{self, Read, stderr, stdin},
@@ -7,7 +9,7 @@ use std::{
 
 use error_manager::ErrorManager;
 use semantic::Semantic;
-use span::source::{FileName, SourceMap};
+use span::source::{FileId, FileName, SourceMap};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Emit {
@@ -30,6 +32,12 @@ fn step_emit(text: &SourceMap, em: &mut ErrorManager) -> Option<()> {
     } else {
         Some(())
     }
+}
+
+pub enum Output {
+    Hir(String),
+    Mapl(String),
+    LlvmIr(HashMap<FileId, String>),
 }
 
 impl Compiler {
@@ -126,19 +134,25 @@ impl Compiler {
         self.compile().map(|_| ())
     }
 
-    pub fn process(&self, emit: Emit) -> Option<String> {
+    pub fn process(&self, emit: Emit) -> Option<Output> {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
-            Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow()),
+            Emit::Hir => Output::Hir(hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow())),
             Emit::LlvmIr => {
-                let module = codegen_llvm::codegen(&hir_sess, &semantic);
-                module.to_string()
+                let modules = codegen_llvm::codegen(&hir_sess, &semantic, &self.source.borrow());
+                let mut out = HashMap::new();
+                for (k, v) in modules {
+                    out.insert(k, v.to_string());
+                }
+                Output::LlvmIr(out)
             }
             Emit::Mapl => {
-                mapl_codegen::gen_code_mapl(
-                    &hir_sess,
-                    &semantic,
-                    &self.source.borrow()
+                Output::Mapl(
+                    mapl_codegen::gen_code_mapl(
+                        &hir_sess,
+                        &semantic,
+                        &self.source.borrow()
+                    )
                 )
             }
         })

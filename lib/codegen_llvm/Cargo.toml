@@ -9,6 +9,7 @@ hir = { path = "../hir" }
 semantic = { path = "../semantic" }
 tiny-vec.workspace = true
 interner = { path = "../interner" }
+span = { path = "../span" }
 
 [dev-dependencies]
 compiler_driver =  { path = "../compiler_driver" }

@@ -211,7 +211,7 @@ where
     match &module.body {
         ModuleBody::Inline(Block { val: items, ..}) |
         ModuleBody::Extern { items, .. } |
-        ModuleBody::Slf(items) => {
+        ModuleBody::Slf(items, _) => {
             for item in items {
                 v.visit_item(item);
             }

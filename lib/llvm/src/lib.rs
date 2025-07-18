@@ -27,3 +27,4 @@ pub use core::{Builder, Value, Type, Module};
 
 pub mod analysis;
 pub mod bitwriter;
+pub mod linker;

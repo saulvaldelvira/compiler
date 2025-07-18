@@ -1,19 +1,24 @@
+use core::cell::RefCell;
 use core::ops::Index;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
-use hir::{HirId, ItemKind, Param, PathDef, Statement, Type};
+use hir::{HirId, ItemKind, Module, Param, PathDef, Statement, Type};
 use interner::Symbol;
 use llvm::core::Function;
 use llvm::Value;
 use semantic::{PrimitiveType, TypeKind};
+use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
 
-pub fn codegen<'hir>(hir: &hir::Session<'hir>, semantic: &semantic::Semantic<'hir>) -> llvm::Module {
-    let mut ctx = CodegenCtx::new(hir, semantic);
+pub fn codegen<'hir>(hir: &hir::Session<'hir>, semantic: &semantic::Semantic<'hir>, src: &SourceMap) -> HashMap<FileId, llvm::Module> {
+    let mut ctx = CodegenCtx::new(hir, semantic, src);
     let root = hir.get_root();
-    root.codegen(&mut ctx)
+    root.codegen(&mut ctx);
+    RefCell::into_inner(Arc::into_inner(ctx.modules).unwrap())
 }
 
 struct CodegenCtx<'cg, 'hir> {
@@ -22,12 +27,18 @@ struct CodegenCtx<'cg, 'hir> {
     curr_builder: Option<llvm::Builder>,
     params: HashMap<HirId, Value>,
     hir: &'cg hir::Session<'hir>,
+
     mangling: Vec<Symbol>,
     semantic: &'cg semantic::Semantic<'hir>,
+
+    mangled_syms: Arc<RefCell<HashMap<HirId, String>>>,
+
+    src: &'cg SourceMap,
+    modules: Arc<RefCell<HashMap<FileId, llvm::Module>>>,
 }
 
 impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
-    pub fn new(hir: &'cg hir::Session<'hir>, semantic: &'cg semantic::Semantic<'hir>) -> Self {
+    pub fn new(hir: &'cg hir::Session<'hir>, semantic: &'cg semantic::Semantic<'hir>, src: &'cg SourceMap) -> Self {
         Self {
             hir,
             curr_mod: None,
@@ -35,7 +46,10 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
             curr_func: None,
             params: HashMap::new(),
             mangling: Vec::new(),
+            mangled_syms: Default::default(),
             semantic,
+            src,
+            modules: Default::default(),
         }
     }
 
@@ -43,27 +57,36 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         self.curr_mod.as_mut().unwrap()
     }
 
-    fn mangle(&self, name: Symbol) -> String {
+    fn get_mangled(&mut self, id: HirId) -> Option<String> {
+        self.mangled_syms.borrow().get(&id).cloned()
+    }
+
+    fn mangle_symbol(&mut self, id: HirId, name: Symbol) -> String {
         use core::fmt::Write;
 
-        let mut mangled = String::new();
-        let symbols = self.mangling.iter()
-                          .chain([&name]);
+        self.mangled_syms.borrow_mut().entry(id).or_insert_with(|| {
+            let mut mangled = String::new();
+            let symbols = self.mangling.iter()
+                .chain([&name]);
 
-        for (i, pref) in symbols.enumerate() {
-            if i > 0 {
-                mangled.push('_');
+            for (i, pref) in symbols.enumerate() {
+                if i > 0 {
+                    mangled.push('_');
+                }
+                write!(mangled, "{pref}").unwrap();
             }
-            write!(mangled, "{pref}").unwrap();
-        }
 
-        mangled
+            mangled
+        })
+        .clone()
     }
 
     fn enter(mut self, module: &'hir hir::Module<'hir>) -> Self {
-        let name = self.mangle(module.name.ident.sym);
-        self.mangling.push(module.name.ident.sym);
+        let name = self.mangle_symbol(module.id, module.name.ident.sym);
         self.curr_mod = Some(llvm::Module::new(&name));
+        if module.name.ident.sym != *"root" {
+            self.mangling.push(module.name.ident.sym);
+        }
         self.params.clear();
         self.curr_func = None;
         self.curr_builder = None;
@@ -94,10 +117,13 @@ impl Clone for CodegenCtx<'_, '_> {
             curr_mod: None,
             curr_func: None,
             curr_builder: None,
+            mangled_syms: Arc::clone(&self.mangled_syms),
             params: HashMap::new(),
             hir: self.hir,
             semantic: self.semantic,
+            src: self.src,
             mangling: self.mangling.clone(),
+            modules: Arc::clone(&self.modules)
         }
     }
 }
@@ -109,14 +135,20 @@ trait Codegen<'hir> {
 }
 
 impl<'hir> Codegen<'hir> for &'hir hir::Module<'hir> {
-    type Output = llvm::Module;
+    type Output = ();
 
-    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) -> Self::Output {
-        let mut ctx = ctx.clone().enter(self);
-        for item in self.items {
-            item.codegen(&mut ctx);
+    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
+        if let Some(id) = self.extern_file {
+            let mut ctx = ctx.clone().enter(self);
+            for item in self.items {
+                item.codegen(&mut ctx);
+            }
+            ctx.modules.borrow_mut().insert(id, ctx.curr_mod.unwrap());
+        } else {
+            for item in self.items {
+                item.codegen(ctx);
+            }
         }
-        ctx.curr_mod.unwrap()
     }
 }
 
@@ -155,9 +187,15 @@ impl Codegen<'_> for hir::Expression<'_> {
                     HirNodeKind::Item(item) => {
                         match &item.kind {
                             ItemKind::Function { name, .. } => {
-                                name.ident.sym.borrow(|name| {
-                                    ctx.module().get_function(name).unwrap().into_value()
-                                })
+                                let name = ctx.get_mangled(item.id).unwrap().to_string();
+                                match ctx.module().get_function(&name) {
+                                    Some(func) => func.into_value(),
+                                    None => {
+                                        let fty = ctx.semantic.type_of(&item.id).unwrap();
+                                        let fty = fty.codegen(ctx);
+                                        ctx.module().add_function(&name, fty).into_value()
+                                    }
+                                }
                             },
                             ItemKind::Mod(module) => todo!(),
                             ItemKind::Variable { name, ty, init, constness } => todo!(),
@@ -224,15 +262,15 @@ impl Codegen<'_> for hir::Statement<'_> {
     }
 }
 
-impl Codegen<'_> for hir::Item<'_> {
+impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
     type Output = ();
 
-    fn codegen(&self, module: &mut CodegenCtx) {
+    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match self.kind {
-            hir::ItemKind::Mod(module) => todo!(),
+            hir::ItemKind::Mod(module) => module.codegen(ctx),
             hir::ItemKind::Variable { name, ty, init, constness } => todo!(),
             hir::ItemKind::Function { name, params, ret_ty, body } =>
-                codegen_function(module, self, name, params, ret_ty, body),
+                codegen_function(ctx, self, name, params, ret_ty, body),
             hir::ItemKind::Struct { name, fields } => todo!(),
             hir::ItemKind::Use(use_item) => todo!(),
         }
@@ -278,9 +316,8 @@ fn codegen_function(
     let ty = ctx.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(ctx);
 
-    let mut sum_func = name.ident.sym.borrow(|name| {
-        ctx.module().add_function(name, fty)
-    });
+    let name = ctx.mangle_symbol(item.id, name.ident.sym).to_string();
+    let mut sum_func = ctx.module().add_function(&name, fty);
 
     ctx.params.clear();
     for i in 0..sum_func.n_params() {

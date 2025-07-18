@@ -17,6 +17,7 @@ use lexer::{
     TokenStream,
 };
 use interner::Symbol;
+use span::source::FileId;
 use span::{Span, Spanned, source::SourceMap};
 
 use self::error::ParseError;
@@ -75,7 +76,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         let name = Spanned { span: Span::dummy(), val: name };
 
         let m = Module {
-            body: ast::ModuleBody::Slf(decls.into_boxed_slice()),
+            body: ast::ModuleBody::Slf(decls.into_boxed_slice(), FileId::from_offset(self.base_offset)),
             name,
             span,
         };

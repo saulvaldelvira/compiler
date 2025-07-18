@@ -23,6 +23,13 @@ impl<T: Into<PathBuf>> From<T> for FileName {
     }
 }
 
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+pub struct FileId(usize);
+
+impl FileId {
+    pub fn from_offset(off: usize) -> Self { Self(off) }
+}
+
 /// A source file for the compiler
 #[derive(Clone)]
 pub struct SourceFile {
@@ -119,6 +126,8 @@ impl SourceFile {
     pub fn file_position(&self, span: Span) -> FilePosition {
         span.file_position(self.offset, &self.contents)
     }
+
+    pub const fn id(&self) -> FileId { FileId(self.offset) }
 }
 
 /// A storage for source files.
@@ -231,6 +240,10 @@ impl SourceMap {
     /// Returns the first file whose offset if >= than the given value
     pub fn get_file_for_offset(&self, offset: usize) -> Option<&SourceFile> {
         self.files.iter().find(|file| file.offset == offset)
+    }
+
+    pub fn get_file_for_id(&self, id: &FileId) -> Option<&SourceFile> {
+        self.get_file_for_offset(id.0)
     }
 
     /// Returns base offset for a [`Span`]. This is: the offset of the

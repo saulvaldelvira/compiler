@@ -6,9 +6,9 @@ pub fn main() {
         return a + b;
     }");
 
-    let (hir_sess, _) = compiler.compile().unwrap();
+    let (hir_sess, sem) = compiler.compile().unwrap();
 
-    let mut module = codegen(&hir_sess);
+    let mut module = codegen(&hir_sess, &sem, &compiler.source().borrow()).into_values().next().unwrap();
 
     module.verify(VeryfierFailureAction::Print).unwrap_or_else(|err| {
         eprintln!("ERROR: {err}");
