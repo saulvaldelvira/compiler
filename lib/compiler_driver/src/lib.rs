@@ -12,6 +12,7 @@ use span::source::{FileName, SourceMap};
 #[derive(Clone, Copy, Debug)]
 pub enum Emit {
     Hir,
+    LlvmIr,
     Mapl,
 }
 
@@ -129,6 +130,10 @@ impl Compiler {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
             Emit::Hir => hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow()),
+            Emit::LlvmIr => {
+                let module = codegen_llvm::codegen(&hir_sess, &semantic);
+                module.to_string()
+            }
             Emit::Mapl => {
                 mapl_codegen::gen_code_mapl(
                     &hir_sess,

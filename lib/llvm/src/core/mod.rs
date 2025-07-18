@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeRef, LLVMValueRef};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -28,6 +28,10 @@ impl Type {
         Self(unsafe { LLVMDoubleType() })
     }
 
+    pub fn void() -> Self {
+        Self(unsafe { LLVMVoidType()})
+    }
+
     pub fn function(
         ret_ty: Type,
         param_tys: &mut [Type],
@@ -49,6 +53,7 @@ impl Type {
 }
 
 #[derive(Clone, Copy)]
+#[repr(transparent)]
 pub struct Value(LLVMValueRef);
 
 impl Value {
@@ -96,6 +101,10 @@ impl Value {
 pub struct Function(Value);
 
 impl Function {
+    pub fn into_value(self) -> Value {
+        self.0
+    }
+
     pub fn param(&self, idx: u32) -> Value {
         Value(unsafe { LLVMGetParam(self.0.0, idx) })
     }

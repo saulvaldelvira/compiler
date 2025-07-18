@@ -1,7 +1,8 @@
 use core::ffi::c_char;
+use std::env::Args;
 
-use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::core::{BasicBlock, Function, Value};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildCall2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {
@@ -48,6 +49,22 @@ impl Builder {
                 None => LLVMBuildRetVoid(self.raw),
             }
         })
+    }
+
+    pub fn call(&mut self, func_ty: Type, func: Value, args: &mut [Value], name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            let len = args.len();
+            let args = args.as_mut_ptr().cast();
+            Value(LLVMBuildCall2(
+                self.raw,
+                func_ty.0,
+                func.0,
+                args,
+                len as u32,
+                name
+            ))
+        }
     }
 }
 

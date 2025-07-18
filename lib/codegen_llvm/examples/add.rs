@@ -1,7 +1,5 @@
-use codegen_llvm::{Codegen, CodegenCtx};
-use interner::Symbol;
+use codegen_llvm::codegen;
 use llvm::analysis::VeryfierFailureAction;
-use llvm::core::Module;
 
 pub fn main() {
     let compiler = compiler_driver::Compiler::from_string("fn add(a: int, b: int) -> int {
@@ -10,12 +8,7 @@ pub fn main() {
 
     let (hir_sess, _) = compiler.compile().unwrap();
 
-    let main = hir_sess.get_root().find_item(Symbol::new("add")).unwrap();
-
-    let mut module = Module::new("test_mod");
-    let mut ctx = CodegenCtx::new(&hir_sess, &mut module);
-
-    main.codegen(&mut ctx);
+    let mut module = codegen(&hir_sess);
 
     module.verify(VeryfierFailureAction::Print).unwrap_or_else(|err| {
         eprintln!("ERROR: {err}");

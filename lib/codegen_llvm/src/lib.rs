@@ -1,42 +1,127 @@
+use core::ops::Index;
 use std::collections::HashMap;
 
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
-use hir::types::{PrimitiveType, TypeKind};
-use hir::{HirId, Param, PathDef, Statement, Type};
+use hir::{HirId, ItemKind, Param, PathDef, Statement, Type};
+use interner::Symbol;
 use llvm::core::Function;
 use llvm::Value;
+use semantic::{PrimitiveType, TypeKind};
 use tiny_vec::TinyVec;
 
-pub struct CodegenCtx<'cg, 'hir> {
-    curr_mod: &'cg mut llvm::Module,
+pub fn codegen<'hir>(hir: &hir::Session<'hir>, semantic: &semantic::Semantic<'hir>) -> llvm::Module {
+    let mut ctx = CodegenCtx::new(hir, semantic);
+    let root = hir.get_root();
+    root.codegen(&mut ctx)
+}
+
+struct CodegenCtx<'cg, 'hir> {
+    curr_mod: Option<llvm::Module>,
     curr_func: Option<Function>,
     curr_builder: Option<llvm::Builder>,
     params: HashMap<HirId, Value>,
-
     hir: &'cg hir::Session<'hir>,
+    mangling: Vec<Symbol>,
+    semantic: &'cg semantic::Semantic<'hir>,
 }
 
 impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
-    pub fn new(hir: &'cg hir::Session<'hir>, module: &'cg mut llvm::Module) -> Self {
+    pub fn new(hir: &'cg hir::Session<'hir>, semantic: &'cg semantic::Semantic<'hir>) -> Self {
         Self {
             hir,
-            curr_mod: module,
+            curr_mod: None,
             curr_builder: None,
             curr_func: None,
             params: HashMap::new(),
+            mangling: Vec::new(),
+            semantic,
         }
     }
+
+    pub fn module(&mut self) -> &mut llvm::Module {
+        self.curr_mod.as_mut().unwrap()
+    }
+
+    fn mangle(&self, name: Symbol) -> String {
+        use core::fmt::Write;
+
+        let mut mangled = String::new();
+        let symbols = self.mangling.iter()
+                          .chain([&name]);
+
+        for (i, pref) in symbols.enumerate() {
+            if i > 0 {
+                mangled.push('_');
+            }
+            write!(mangled, "{pref}").unwrap();
+        }
+
+        mangled
+    }
+
+    fn enter(mut self, module: &'hir hir::Module<'hir>) -> Self {
+        let name = self.mangle(module.name.ident.sym);
+        self.mangling.push(module.name.ident.sym);
+        self.curr_mod = Some(llvm::Module::new(&name));
+        self.params.clear();
+        self.curr_func = None;
+        self.curr_builder = None;
+        self
+    }
+
+    /* pub fn codegen(&mut self, module: &'hir hir::Module<'hir>) -> llvm::Module { */
+    /*     let name = self.mangle(module.name.ident.sym); */
+    /*     self.mangling.push(module.name.ident.sym); */
+
+    /*     let ctx = CodegenCtx { */
+    /*         mangling: self.mangling.clone(), */
+    /*         hir: self.hir, */
+    /*         curr_mod: Some(llvm_mod), */
+    /*         curr_builder: None, */
+    /*         curr_func: None, */
+    /*         params: HashMap::new(), */
+    /*     }; */
+
+    /* } */
+
     fn builder(&mut self) -> &mut llvm::Builder { self.curr_builder.as_mut().unwrap() }
 }
 
-pub trait Codegen {
-    type Output;
-
-    fn codegen(&self, ctx: &mut CodegenCtx) -> Self::Output;
+impl Clone for CodegenCtx<'_, '_> {
+    fn clone(&self) -> Self {
+        Self {
+            curr_mod: None,
+            curr_func: None,
+            curr_builder: None,
+            params: HashMap::new(),
+            hir: self.hir,
+            semantic: self.semantic,
+            mangling: self.mangling.clone(),
+        }
+    }
 }
 
-impl Codegen for hir::Expression<'_> {
+trait Codegen<'hir> {
+    type Output;
+
+    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) -> Self::Output;
+}
+
+impl<'hir> Codegen<'hir> for &'hir hir::Module<'hir> {
+    type Output = llvm::Module;
+
+    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) -> Self::Output {
+        let mut ctx = ctx.clone().enter(self);
+        for item in self.items {
+            item.codegen(&mut ctx);
+        }
+        ctx.curr_mod.unwrap()
+    }
+}
+
+
+impl Codegen<'_> for hir::Expression<'_> {
     type Output = llvm::Value;
 
     fn codegen(&self, ctx: &mut CodegenCtx) -> llvm::Value {
@@ -67,7 +152,19 @@ impl Codegen for hir::Expression<'_> {
                 let def = path.def().expect_resolved();
                 match ctx.hir.get_node(&def) {
                     HirNodeKind::Param(param) => ctx.params.get(&def).unwrap().clone(),
-                    HirNodeKind::Item(item) => todo!(),
+                    HirNodeKind::Item(item) => {
+                        match &item.kind {
+                            ItemKind::Function { name, .. } => {
+                                name.ident.sym.borrow(|name| {
+                                    ctx.module().get_function(name).unwrap().into_value()
+                                })
+                            },
+                            ItemKind::Mod(module) => todo!(),
+                            ItemKind::Variable { name, ty, init, constness } => todo!(),
+                            ItemKind::Struct { name, fields } => todo!(),
+                            ItemKind::Use(use_item) => todo!(),
+                        }
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -80,7 +177,16 @@ impl Codegen for hir::Expression<'_> {
                     LitValue::Char(_) => todo!(),
                 }
             }
-            EK::Call { callee, args } => todo!(),
+            EK::Call { callee, args } => {
+                let fty = ctx.semantic.type_of(&callee.id).unwrap();
+                let func_ty = fty.codegen(ctx);
+                let func = callee.codegen(ctx);
+                let mut args: TinyVec<_, 8> = args.iter().map(|expr| {
+                    expr.codegen(ctx)
+                }).collect();
+
+                ctx.builder().call(func_ty, func, &mut args, "tmp_call")
+            }
             EK::Cast { expr, to } => todo!(),
             EK::ArrayAccess { arr, index } => todo!(),
             EK::StructAccess { st, field } => todo!(),
@@ -88,7 +194,7 @@ impl Codegen for hir::Expression<'_> {
     }
 }
 
-impl Codegen for hir::Statement<'_> {
+impl Codegen<'_> for hir::Statement<'_> {
     type Output = ();
 
     fn codegen(&self, ctx: &mut CodegenCtx) {
@@ -118,7 +224,7 @@ impl Codegen for hir::Statement<'_> {
     }
 }
 
-impl Codegen for hir::Item<'_> {
+impl Codegen<'_> for hir::Item<'_> {
     type Output = ();
 
     fn codegen(&self, module: &mut CodegenCtx) {
@@ -133,24 +239,29 @@ impl Codegen for hir::Item<'_> {
     }
 }
 
-impl Codegen for hir::Type<'_> {
+impl Codegen<'_> for semantic::Ty<'_> {
     type Output = llvm::Type;
 
-    fn codegen(&self, _: &mut CodegenCtx) -> Self::Output {
+    fn codegen(&self, ctx: &mut CodegenCtx) -> Self::Output {
         match &self.kind {
             TypeKind::Primitive(prim) => match prim {
                 PrimitiveType::Int => llvm::Type::int_32(),
                 PrimitiveType::Float => llvm::Type::float_64(),
                 PrimitiveType::Bool => llvm::Type::int_1(),
                 PrimitiveType::Char => todo!(),
-                PrimitiveType::Empty => todo!(),
+                PrimitiveType::Empty => llvm::Type::void(),
             },
             TypeKind::Function { params, ret_ty } => {
-               todo!()
+                let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {
+                    param.codegen(ctx)
+                }).collect();
+                let ret = ret_ty.codegen(ctx);
+
+                llvm::Type::function(ret, &mut params_tys, false)
             },
             TypeKind::Ref(_) => todo!(),
             TypeKind::Array(_, _) => todo!(),
-            TypeKind::Path(path) => todo!(),
+            TypeKind::Struct { name, fields } => todo!(),
         }
     }
 }
@@ -163,16 +274,12 @@ fn codegen_function(
     ret_ty: &Type<'_>,
     body: &[Statement<'_>],
 ) {
-    let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {
-        let ty = param.ty;
-        ty.codegen(ctx)
-    }).collect();
 
-    let ret = ret_ty.codegen(ctx);
-    let fty = llvm::Type::function(ret, &mut params_tys, false);
+    let ty = ctx.semantic.type_of(&item.id).unwrap();
+    let fty = ty.codegen(ctx);
 
     let mut sum_func = name.ident.sym.borrow(|name| {
-        ctx.curr_mod.add_function(name, fty)
+        ctx.module().add_function(name, fty)
     });
 
     ctx.params.clear();
@@ -195,5 +302,12 @@ fn codegen_function(
         for stmt in body {
             stmt.codegen(ctx);
         }
+
+        if ret_ty.is_empty() {
+            ctx.builder().ret(None);
+        }
+
+        ctx.curr_builder.take();
     }
+
 }

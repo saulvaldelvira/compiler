@@ -28,7 +28,7 @@ fn main() {
                 .find(|&(_, c)| c == '.')
                 .map_or(0, |(i, _)| i);
             let start = &file[..ext];
-            format!("{start}.out")
+            format!("{start}.{}", conf.get_extension())
         });
         fs::write(&fname, prog).unwrap();
         println!("Program written to {fname}");

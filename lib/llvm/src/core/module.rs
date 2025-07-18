@@ -4,7 +4,7 @@ use core::ptr;
 use std::ffi::CString;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
 
 pub struct Module {
     raw: LLVMModuleRef,
@@ -34,6 +34,12 @@ impl Module {
         Function(Value(unsafe {
             LLVMAddFunction(self.raw, name, func_ty.0)
         }))
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<Function> {
+        cstr!(name);
+        let ptr = unsafe { LLVMGetNamedFunction(self.raw, name) };
+        (!ptr.is_null()).then_some(Function(Value(ptr)))
     }
 
     /// Gets the raw LLVM module reference

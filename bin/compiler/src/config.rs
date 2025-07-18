@@ -37,6 +37,7 @@ impl Config {
                     });
                     match em.as_str() {
                         "mapl" => conf.emit = Emit::Mapl,
+                        "llvm-ir" => conf.emit = Emit::LlvmIr,
                         "hir" => conf.emit = Emit::Hir,
                         a => {
                             eprintln!("Unknown argument for '--emit': {a}");
@@ -48,5 +49,13 @@ impl Config {
             }
         }
         conf
+    }
+
+    pub fn get_extension(&self) -> &'static str {
+        match self.emit {
+            Emit::Hir => "html",
+            Emit::Mapl => "mapl",
+            Emit::LlvmIr => "ll",
+        }
     }
 }
