@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 use std::{fs, io};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::{FilePosition, Span};
@@ -128,6 +128,14 @@ impl SourceFile {
     }
 
     pub const fn id(&self) -> FileId { FileId(self.offset) }
+
+    pub fn path(&self) -> Option<&Path> {
+        match &self.fname {
+            FileName::Path(pbuf) => Some(pbuf),
+            FileName::Stdin |
+            FileName::Annon => None,
+        }
+    }
 }
 
 /// A storage for source files.
@@ -273,5 +281,7 @@ impl SourceMap {
             .unwrap()
             .file_position(span)
     }
+
+    pub fn files(&self) -> &[SourceFile] { &self.files }
 }
 

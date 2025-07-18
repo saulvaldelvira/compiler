@@ -16,6 +16,8 @@ pub enum Emit {
     Hir,
     LlvmIr,
     Mapl,
+    Asm,
+    Bin,
 }
 
 pub struct Compiler {
@@ -38,6 +40,8 @@ pub enum Output {
     Hir(String),
     Mapl(String),
     LlvmIr(HashMap<FileId, String>),
+    ForBin(HashMap<FileId, String>),
+    Asm(HashMap<FileId, String>),
 }
 
 impl Compiler {
@@ -138,13 +142,19 @@ impl Compiler {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
             Emit::Hir => Output::Hir(hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow())),
-            Emit::LlvmIr => {
+            Emit::Asm | Emit::Bin | Emit::LlvmIr => {
                 let modules = codegen_llvm::codegen(&hir_sess, &semantic, &self.source.borrow());
                 let mut out = HashMap::new();
                 for (k, v) in modules {
                     out.insert(k, v.to_string());
                 }
-                Output::LlvmIr(out)
+
+                match emit {
+                    Emit::Bin => Output::ForBin(out),
+                    Emit::LlvmIr => Output::LlvmIr(out),
+                    Emit::Asm => Output::Asm(out),
+                    _ => unreachable!()
+                }
             }
             Emit::Mapl => {
                 Output::Mapl(

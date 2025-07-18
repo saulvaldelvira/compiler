@@ -1,10 +1,44 @@
+use std::collections::HashMap;
+use std::io::{Read, Stdin, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::{env, fs, process};
 
 pub mod config;
 use compiler_driver::{Compiler, Output};
 use config::Config;
-use span::source::FileName;
+use span::source::{FileId, FileName};
+
+fn gen_llvm(comp: &Compiler, mods: &HashMap<FileId, String>) {
+    let src = comp.source().borrow();
+    for (id, code) in mods {
+        let file = src.get_file_for_id(id).unwrap();
+        match &file.fname {
+            FileName::Path(path) => {
+                let mut path = path.clone();
+                path.set_extension("ll");
+                fs::write(path, code).unwrap();
+            },
+            FileName::Stdin => todo!(),
+            FileName::Annon => todo!(),
+        }
+    }
+}
+
+fn gen_asm(comp: &Compiler, mods: &HashMap<FileId, String>) {
+    gen_llvm(comp, mods);
+
+    for f in comp.source().borrow().files() {
+        let mut path = PathBuf::from(f.path().unwrap());
+        path.set_extension("ll");
+        Command::new("llc")
+            .arg(path)
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap();
+    }
+}
 
 fn main() {
     let conf = Config::parse(env::args());
@@ -37,19 +71,36 @@ fn main() {
                 println!("Program written to {}", fname.display());
             }
             Output::LlvmIr(modules) => {
-                let src = comp.source().borrow();
-                for (id, code) in modules {
-                    let file = src.get_file_for_id(&id).unwrap();
-                    match &file.fname {
-                        FileName::Path(path) => {
-                            let mut path = path.clone();
-                            path.set_extension("ll");
-                            fs::write(path, code).unwrap();
-                        },
-                        FileName::Stdin => todo!(),
-                        FileName::Annon => todo!(),
-                    }
+                gen_llvm(&comp, &modules);
+            }
+            Output::Asm(modules) => {
+                gen_asm(&comp, &modules);
+            }
+            Output::ForBin(modules) => {
+                gen_asm(&comp, &modules);
 
+                let out = conf.out_file.as_deref().unwrap_or("a.out");
+
+                let mut gcc = Command::new("gcc");
+                gcc.args(["-xassembler", "-o", out]);
+
+                for file in comp.source().borrow().files() {
+                    let mut path = PathBuf::from(file.path().unwrap());
+                    path.set_extension("s");
+                    gcc.arg(path);
+                }
+
+                gcc.spawn().unwrap().wait().unwrap();
+                println!("Program written to {out}");
+
+                for file in comp.source().borrow().files() {
+                    let mut path = PathBuf::from(file.path().unwrap());
+
+                    path.set_extension("s");
+                    fs::remove_file(&path).unwrap();
+
+                    path.set_extension("ll");
+                    fs::remove_file(path).unwrap();
                 }
             }
         }
