@@ -223,7 +223,12 @@ impl Codegen<'_> for hir::Expression<'_> {
                     expr.codegen(ctx)
                 }).collect();
 
-                ctx.builder().call(func_ty, func, &mut args, "tmp_call")
+                let name = if fty.as_function_type().unwrap().1.is_empty_type() {
+                    ""
+                } else {
+                    "tmp_call"
+                };
+                ctx.builder().call(func_ty, func, &mut args, name)
             }
             EK::Cast { expr, to } => todo!(),
             EK::ArrayAccess { arr, index } => todo!(),
