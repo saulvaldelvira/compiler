@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -95,6 +95,12 @@ impl Value {
     pub fn set_name(&mut self, name: &str) {
         cstr!(name);
         unsafe { LLVMSetValueName(self.0, name); }
+    }
+
+    pub fn get_type(&self) -> Type {
+        unsafe {
+            Type(LLVMTypeOf(self.0))
+        }
     }
 }
 

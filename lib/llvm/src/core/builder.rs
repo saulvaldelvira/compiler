@@ -2,7 +2,7 @@ use core::ffi::c_char;
 use std::env::Args;
 
 use crate::core::{BasicBlock, Function, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildCall2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {
@@ -64,6 +64,26 @@ impl Builder {
                 len as u32,
                 name
             ))
+        }
+    }
+
+    pub fn alloca(&mut self, ty: Type, name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            Value(LLVMBuildAlloca(self.raw, ty.0, name))
+        }
+    }
+
+    pub fn load(&mut self, alloca: Value, ty: Type, name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            Value(LLVMBuildLoad2(self.raw, ty.0, alloca.0, name))
+        }
+    }
+
+    pub fn store(&mut self, value: Value, ptr: Value) -> Value {
+        unsafe {
+            Value(LLVMBuildStore(self.raw, value.0, ptr.0))
         }
     }
 }

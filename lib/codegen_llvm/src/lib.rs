@@ -1,15 +1,18 @@
 use core::cell::RefCell;
 use core::ops::Index;
+use core::usize;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use hir::hir_id::HirNode;
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
-use hir::{HirId, ItemKind, Module, Param, PathDef, Statement, Type};
+use hir::{Constness, HirId, Item, ItemKind, Module, Param, PathDef, Statement, Type};
 use interner::Symbol;
 use llvm::core::Function;
 use llvm::Value;
+use semantic::rules::expr::SideEffect;
 use semantic::{PrimitiveType, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
@@ -25,13 +28,14 @@ struct CodegenCtx<'cg, 'hir> {
     curr_mod: Option<llvm::Module>,
     curr_func: Option<Function>,
     curr_builder: Option<llvm::Builder>,
-    params: HashMap<HirId, Value>,
     hir: &'cg hir::Session<'hir>,
 
     mangling: Vec<Symbol>,
     semantic: &'cg semantic::Semantic<'hir>,
 
     mangled_syms: Arc<RefCell<HashMap<HirId, String>>>,
+    allocas: HashMap<HirId, Value>,
+    params: HashMap<HirId, Value>,
 
     src: &'cg SourceMap,
     modules: Arc<RefCell<HashMap<FileId, llvm::Module>>>,
@@ -44,11 +48,12 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
             curr_mod: None,
             curr_builder: None,
             curr_func: None,
-            params: HashMap::new(),
             mangling: Vec::new(),
             mangled_syms: Default::default(),
             semantic,
             src,
+            params: HashMap::new(),
+            allocas: HashMap::new(),
             modules: Default::default(),
         }
     }
@@ -87,7 +92,6 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         if module.name.ident.sym != *"root" {
             self.mangling.push(module.name.ident.sym);
         }
-        self.params.clear();
         self.curr_func = None;
         self.curr_builder = None;
         self
@@ -109,6 +113,24 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
     /* } */
 
     fn builder(&mut self) -> &mut llvm::Builder { self.curr_builder.as_mut().unwrap() }
+
+    fn address_of(&mut self, id: HirId, name: Symbol) -> Value {
+        debug_assert!(matches!(self.hir.get_node(&id), HirNodeKind::Param(_) | HirNodeKind::Item(_)));
+
+        if let Some(param) = self.params.get(&id).copied() {
+            let ty = param.get_type();
+            let builder = self.builder();
+            let alloca = name.borrow(|name| {
+                builder.alloca(ty, name)
+            });
+            builder.store(param, alloca);
+            self.allocas.insert(id, alloca);
+            self.params.remove(&id);
+            alloca
+        } else {
+            *self.allocas.get(&id).unwrap()
+        }
+    }
 }
 
 impl Clone for CodegenCtx<'_, '_> {
@@ -118,10 +140,11 @@ impl Clone for CodegenCtx<'_, '_> {
             curr_func: None,
             curr_builder: None,
             mangled_syms: Arc::clone(&self.mangled_syms),
-            params: HashMap::new(),
             hir: self.hir,
             semantic: self.semantic,
+            params: HashMap::new(),
             src: self.src,
+            allocas: HashMap::new(),
             mangling: self.mangling.clone(),
             modules: Arc::clone(&self.modules)
         }
@@ -152,11 +175,63 @@ impl<'hir> Codegen<'hir> for &'hir hir::Module<'hir> {
     }
 }
 
+trait Address {
+    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value;
+}
 
-impl Codegen<'_> for hir::Expression<'_> {
-    type Output = llvm::Value;
+impl Address for hir::Item<'_> {
+    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value {
+        match self.kind {
+            ItemKind::Variable { name, .. } => {
+                ctx.address_of(self.id, name.ident.sym)
+            }
+            ItemKind::Function { .. } => {
+                let name = ctx.get_mangled(self.id).unwrap().to_string();
+                match ctx.module().get_function(&name) {
+                    Some(func) => func.into_value(),
+                    None => {
+                        let fty = ctx.semantic.type_of(&self.id).unwrap();
+                        let fty = fty.codegen(ctx);
+                        ctx.module().add_function(&name, fty).into_value()
+                    }
+                }
+            }
+            ItemKind::Use(use_item) => todo!(),
+            ItemKind::Mod(module) => todo!(),
+            ItemKind::Struct { name, fields } => todo!(),
+        }
+    }
+}
 
-    fn codegen(&self, ctx: &mut CodegenCtx) -> llvm::Value {
+impl Address for hir::Expression<'_> {
+    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value {
+        use hir::expr::ExpressionKind as EK;
+        match &self.kind {
+            EK::Variable(path) => {
+                let def = path.def().expect_resolved();
+                match ctx.hir.get_node(&def) {
+                    HirNodeKind::Item(item) => item.addess(ctx),
+                    HirNodeKind::Param(p) => {
+                        ctx.address_of(p.id, p.name.ident.sym)
+                    }
+                    _ => unreachable!(),
+                }
+            },
+            _ => unreachable!()
+        }
+    }
+}
+
+trait CGValue {
+    fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value;
+}
+
+trait CGExecute {
+    fn execute(&self, ctx: &mut CodegenCtx<'_, '_>);
+}
+
+impl CGValue for hir::Expression<'_> {
+    fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value {
         use hir::expr::ExpressionKind as EK;
         use hir::expr::{ArithmeticOp, LitValue};
 
@@ -168,8 +243,8 @@ impl Codegen<'_> for hir::Expression<'_> {
             EK::Logical { left, op, right } => todo!(),
             EK::Comparison { left, op, right } => todo!(),
             EK::Arithmetic { left, op, right } => {
-                let left = left.codegen(ctx);
-                let right = right.codegen(ctx);
+                let left = left.value(ctx);
+                let right = right.value(ctx);
                 match op {
                     ArithmeticOp::Add => ctx.builder().add(left, right, "tmp_add"),
                     ArithmeticOp::Sub => ctx.builder().sub(left, right, "tmp_sub"),
@@ -179,32 +254,35 @@ impl Codegen<'_> for hir::Expression<'_> {
                 }
             }
             EK::Ternary { cond, if_true, if_false } => todo!(),
-            EK::Assignment { left, right } => todo!(),
+            EK::Assignment { left, right } => {
+                let left = left.addess(ctx);
+                let right = right.value(ctx);
+                ctx.builder().store(right, left);
+                right
+            }
             EK::Variable(path) => {
-                let def = path.def().expect_resolved();
-                match ctx.hir.get_node(&def) {
-                    HirNodeKind::Param(param) => ctx.params.get(&def).unwrap().clone(),
-                    HirNodeKind::Item(item) => {
-                        match &item.kind {
-                            ItemKind::Function { name, .. } => {
-                                let name = ctx.get_mangled(item.id).unwrap().to_string();
-                                match ctx.module().get_function(&name) {
-                                    Some(func) => func.into_value(),
-                                    None => {
-                                        let fty = ctx.semantic.type_of(&item.id).unwrap();
-                                        let fty = fty.codegen(ctx);
-                                        ctx.module().add_function(&name, fty).into_value()
-                                    }
-                                }
-                            },
-                            ItemKind::Mod(module) => todo!(),
-                            ItemKind::Variable { name, ty, init, constness } => todo!(),
-                            ItemKind::Struct { name, fields } => todo!(),
-                            ItemKind::Use(use_item) => todo!(),
-                        }
+                let id = path.def().expect_resolved();
+                let node = ctx.hir.get_node(&id);
+                if let HirNodeKind::Param(p) = node {
+                    if let Some(p) = ctx.params.get(&p.id) {
+                        return p.clone();
                     }
-                    _ => unreachable!(),
                 }
+                let addr = match node {
+                    HirNodeKind::Item(item) => item.addess(ctx),
+                    HirNodeKind::Param(param) => ctx.address_of(param.id, param.name.ident.sym),
+                    _ => unreachable!(),
+                };
+                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
+                let name = match ctx.hir.get_node(&id) {
+                    HirNodeKind::Item(item) => item.get_name(),
+                    HirNodeKind::Param(param) => param.name.ident.sym,
+                    _ => unreachable!()
+                };
+                let name = name.borrow(|name| {
+                    format!("load_{name}")
+                });
+                ctx.builder().load(addr, ty, &name)
             }
             EK::Literal(val) => {
                 match val {
@@ -218,9 +296,9 @@ impl Codegen<'_> for hir::Expression<'_> {
             EK::Call { callee, args } => {
                 let fty = ctx.semantic.type_of(&callee.id).unwrap();
                 let func_ty = fty.codegen(ctx);
-                let func = callee.codegen(ctx);
+                let func = callee.addess(ctx);
                 let mut args: TinyVec<_, 8> = args.iter().map(|expr| {
-                    expr.codegen(ctx)
+                    expr.value(ctx)
                 }).collect();
 
                 let name = if fty.as_function_type().unwrap().1.is_empty_type() {
@@ -237,13 +315,50 @@ impl Codegen<'_> for hir::Expression<'_> {
     }
 }
 
-impl Codegen<'_> for hir::Statement<'_> {
+impl CGExecute for hir::Expression<'_> {
+    fn execute(&self, ctx: &mut CodegenCtx<'_, '_>) {
+        use hir::expr::ExpressionKind as EK;
+
+        match &self.kind {
+            EK::Array(expressions) => expressions.iter().for_each(|expr| expr.execute(ctx)),
+            EK::Unary { expr, .. } => expr.execute(ctx),
+            EK::Ref(expression) => expression.execute(ctx),
+            EK::Deref(expression) => expression.execute(ctx),
+            EK::Logical { left, right, .. } |
+            EK::Comparison { left, right, .. } |
+            EK::Arithmetic { left, right, .. } => {
+                left.execute(ctx);
+                right.execute(ctx);
+            }
+            EK::Ternary { cond, if_true, if_false } => {
+                cond.execute(ctx);
+                if_true.execute(ctx);
+                if_false.execute(ctx);
+            }
+            EK::Assignment { left, right } => {
+                self.value(ctx);
+            }
+            EK::Variable(_) |
+            EK::Literal(_) => { }
+            EK::Call { .. } => {
+                self.value(ctx);
+            }
+            EK::Cast { expr, .. } => {
+                expr.execute(ctx);
+            }
+            EK::ArrayAccess { arr, .. } => arr.execute(ctx),
+            EK::StructAccess { st, .. } => st.execute(ctx),
+        }
+    }
+}
+
+impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
     type Output = ();
 
-    fn codegen(&self, ctx: &mut CodegenCtx) {
+    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match &self.kind {
             StatementKind::Expr(expr) => {
-                expr.codegen(ctx);
+                expr.value(ctx);
             },
             StatementKind::Block(stmts) => {
                 for stmt in *stmts {
@@ -251,7 +366,7 @@ impl Codegen<'_> for hir::Statement<'_> {
                 };
             },
             StatementKind::Return(expr) => {
-                let val = expr.map(|expr| expr.codegen(ctx));
+                let val = expr.map(|expr| expr.value(ctx));
                 ctx.builder().ret(val);
             },
             StatementKind::If { cond, if_true, if_false } => todo!(),
@@ -262,7 +377,9 @@ impl Codegen<'_> for hir::Statement<'_> {
             StatementKind::Continue => todo!(),
             StatementKind::Print(expression) => todo!(),
             StatementKind::Read(expression) => todo!(),
-            StatementKind::Item(item) => todo!(),
+            StatementKind::Item(item) => {
+                item.codegen(ctx);
+            }
         }
     }
 }
@@ -273,7 +390,19 @@ impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match self.kind {
             hir::ItemKind::Mod(module) => module.codegen(ctx),
-            hir::ItemKind::Variable { name, ty, init, constness } => todo!(),
+            hir::ItemKind::Variable { name, ty, init, constness } => {
+                match constness {
+                    Constness::Const => todo!(),
+                    Constness::Default => {
+                        let ty = ctx.semantic.type_of(&self.id).unwrap();
+                        let ty = ty.codegen(ctx);
+                        name.ident.sym.borrow(|name| {
+                            let alloca = ctx.builder().alloca(ty, name);
+                            ctx.allocas.insert(self.id, alloca);
+                        });
+                    },
+                }
+            },
             hir::ItemKind::Function { name, params, ret_ty, body } =>
                 codegen_function(ctx, self, name, params, ret_ty, body),
             hir::ItemKind::Struct { name, fields } => todo!(),
@@ -309,35 +438,46 @@ impl Codegen<'_> for semantic::Ty<'_> {
     }
 }
 
-fn codegen_function(
-    ctx: &mut CodegenCtx,
-    item: &hir::Item<'_>,
+fn codegen_function<'hir>(
+    ctx: &mut CodegenCtx<'_, 'hir>,
+    item: &'hir hir::Item<'hir>,
     name: &PathDef,
-    params: &[Param<'_>],
-    ret_ty: &Type<'_>,
-    body: &[Statement<'_>],
+    params: &'hir [Param<'hir>],
+    ret_ty: &'hir Type<'hir>,
+    body: &'hir[Statement<'hir>],
 ) {
-
     let ty = ctx.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(ctx);
 
     let name = ctx.mangle_symbol(item.id, name.ident.sym).to_string();
     let mut sum_func = ctx.module().add_function(&name, fty);
 
+    ctx.allocas.clear();
     ctx.params.clear();
-    for i in 0..sum_func.n_params() {
-        let mut param = sum_func.param(i);
-        params[i as usize].get_name().borrow(|name| {
-            param.set_name(name);
-        });
-        ctx.params.insert(params[i as usize].id, param);
-    }
+
+    /* for i in 0..sum_func.n_params() { */
+    /*     let mut param = sum_func.param(i); */
+    /*     params[i as usize].get_name().borrow(|name| { */
+    /*         param.set_name(name); */
+    /*     }); */
+    /*     ctx.params.insert(params[i as usize].id, param); */
+    /* } */
 
     let mut entry = sum_func.append_basic_block("entry");
 
     {
         let mut builder = llvm::Builder::new();
         builder.position_at_end(&mut entry);
+
+        for i in 0..sum_func.n_params() {
+            let param = sum_func.param(i);
+            params[i as usize].get_name().borrow(|name| {
+                /* param.set_name(name); */
+                ctx.params.insert(params[i as usize].id, param);
+                /* let alloca = builder.alloca(param.get_type(), name); */
+                /* ctx.allocas.insert(params[i as usize].id, alloca); */
+            });
+        }
 
         debug_assert!(ctx.curr_builder.is_none());
         ctx.curr_builder = Some(builder);
@@ -352,4 +492,6 @@ fn codegen_function(
         ctx.curr_builder.take();
     }
 
+    ctx.allocas.clear();
+    ctx.params.clear();
 }
