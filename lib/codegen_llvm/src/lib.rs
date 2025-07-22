@@ -86,7 +86,17 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         .clone()
     }
 
-    fn enter(mut self, module: &'hir hir::Module<'hir>) -> Self {
+    fn enter(&mut self, module: &'hir hir::Module<'hir>) {
+        if module.name.ident.sym != *"root" {
+            self.mangling.push(module.name.ident.sym);
+        }
+    }
+
+    fn exit(&mut self) {
+        self.mangling.pop();
+    }
+
+    fn enter_extern(mut self, module: &'hir hir::Module<'hir>) -> Self {
         let name = self.mangle_symbol(module.id, module.name.ident.sym);
         self.curr_mod = Some(llvm::Module::new(&name));
         if module.name.ident.sym != *"root" {
@@ -162,15 +172,17 @@ impl<'hir> Codegen<'hir> for &'hir hir::Module<'hir> {
 
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         if let Some(id) = self.extern_file {
-            let mut ctx = ctx.clone().enter(self);
+            let mut ctx = ctx.clone().enter_extern(self);
             for item in self.items {
                 item.codegen(&mut ctx);
             }
             ctx.modules.borrow_mut().insert(id, ctx.curr_mod.unwrap());
         } else {
+            ctx.enter(self);
             for item in self.items {
                 item.codegen(ctx);
             }
+            ctx.exit();
         }
     }
 }
