@@ -229,7 +229,13 @@ impl Address for hir::Expression<'_> {
                     _ => unreachable!(),
                 }
             },
-            _ => unreachable!()
+            EK::ArrayAccess { arr, index } => {
+                let arr_ptr = arr.addess(ctx);
+                let index = index.value(ctx);
+                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
+                ctx.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
+            }
+            _ => unreachable!("Can't get address of {self:?}")
         }
     }
 }
@@ -321,7 +327,11 @@ impl CGValue for hir::Expression<'_> {
                 ctx.builder().call(func_ty, func, &mut args, name)
             }
             EK::Cast { expr, to } => todo!(),
-            EK::ArrayAccess { arr, index } => todo!(),
+            EK::ArrayAccess { arr, index } => {
+                let gep = self.addess(ctx);
+                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
+                ctx.builder().load(gep, ty, "tmp_load")
+            }
             EK::StructAccess { st, field } => todo!(),
         }
     }
@@ -444,7 +454,9 @@ impl Codegen<'_> for semantic::Ty<'_> {
                 llvm::Type::function(ret, &mut params_tys, false)
             },
             TypeKind::Ref(_) => todo!(),
-            TypeKind::Array(_, _) => todo!(),
+            TypeKind::Array(ty, len) => {
+                llvm::Type::array(ty.codegen(ctx), *len as _)
+            }
             TypeKind::Struct { name, fields } => todo!(),
         }
     }

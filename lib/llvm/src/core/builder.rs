@@ -2,7 +2,7 @@ use core::ffi::c_char;
 use std::env::Args;
 
 use crate::core::{BasicBlock, Function, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMGetNamedMetadataName, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {
@@ -84,6 +84,22 @@ impl Builder {
     pub fn store(&mut self, value: Value, ptr: Value) -> Value {
         unsafe {
             Value(LLVMBuildStore(self.raw, value.0, ptr.0))
+        }
+    }
+
+    pub fn gep(&mut self, ty: Type, ptr: Value, indices: &mut [Value], name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            let len = indices.len();
+            let indices = indices.as_mut_ptr().cast();
+            Value(LLVMBuildGEP2(
+                self.raw,
+                ty.0,
+                ptr.0,
+                indices,
+                len as _,
+                name
+            ))
         }
     }
 }

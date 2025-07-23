@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -9,6 +9,7 @@ mod builder;
 pub use builder::Builder;
 
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug)]
 pub struct Type(LLVMTypeRef);
 
 impl Type {
@@ -30,6 +31,12 @@ impl Type {
 
     pub fn void() -> Self {
         Self(unsafe { LLVMVoidType()})
+    }
+
+    pub fn array(ty: Type, len: u32) -> Self {
+        Self(unsafe {
+            LLVMArrayType(ty.0, len)
+        })
     }
 
     pub fn function(
