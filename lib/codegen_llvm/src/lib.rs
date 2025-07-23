@@ -360,7 +360,7 @@ impl CGExecute for hir::Expression<'_> {
             EK::Assignment { left, right } => {
                 self.value(ctx);
             }
-            EK::Variable(_) |
+            EK::Variable(_) => {},
             EK::Literal(_) => { }
             EK::Call { .. } => {
                 self.value(ctx);
@@ -380,7 +380,7 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match &self.kind {
             StatementKind::Expr(expr) => {
-                expr.value(ctx);
+                expr.execute(ctx);
             },
             StatementKind::Block(stmts) => {
                 for stmt in *stmts {
