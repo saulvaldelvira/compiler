@@ -145,6 +145,23 @@ impl<'ty> Ty<'ty> {
         }
     }
 
+    #[inline]
+    pub const fn as_struct_type(&self) -> Option<(Symbol, &'ty [Field<'ty>])> {
+        match self.kind {
+            TypeKind::Struct { name, fields } => Some((name, fields)),
+            _ => None,
+        }
+    }
+
+    pub fn field_index_of(&self, name: Symbol) -> Option<usize> {
+        for (i, field) in self.as_struct_type()?.1.iter().enumerate() {
+            if field.name == name {
+                return Some(i)
+            }
+        }
+        None
+    }
+
     pub fn access_field(&'ty self, field_name: &Symbol) -> Result<&'ty Ty<'ty>, SemanticErrorKind> {
         match self.kind {
             TypeKind::Struct { name, fields } => {

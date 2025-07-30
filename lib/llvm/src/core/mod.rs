@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -52,6 +52,17 @@ impl Type {
               len,
               is_variadic as c_int
         )})
+    }
+
+    pub fn struct_named(name: &str, types: &mut [Type], packed: bool) -> Self {
+        cstr!(name);
+        unsafe {
+            let sty = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+            let count = types.len() as u32;
+            let types = types.as_mut_ptr().cast();
+            LLVMStructSetBody(sty, types, count, packed as i32);
+            Self(sty)
+        }
     }
 
     pub (crate) fn kind(&self) -> LLVMTypeKind {

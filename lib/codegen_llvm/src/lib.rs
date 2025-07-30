@@ -1,3 +1,4 @@
+use core::any::Any;
 use core::cell::RefCell;
 use core::ops::Index;
 use core::usize;
@@ -13,7 +14,7 @@ use interner::Symbol;
 use llvm::core::Function;
 use llvm::Value;
 use semantic::rules::expr::SideEffect;
-use semantic::{PrimitiveType, TypeKind};
+use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
 
@@ -39,6 +40,8 @@ struct CodegenCtx<'cg, 'hir> {
 
     src: &'cg SourceMap,
     modules: Arc<RefCell<HashMap<FileId, llvm::Module>>>,
+
+    types: HashMap<TypeId, llvm::Type>,
 }
 
 impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
@@ -55,6 +58,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
             params: HashMap::new(),
             allocas: HashMap::new(),
             modules: Default::default(),
+            types: Default::default(),
         }
     }
 
@@ -156,7 +160,8 @@ impl Clone for CodegenCtx<'_, '_> {
             src: self.src,
             allocas: HashMap::new(),
             mangling: self.mangling.clone(),
-            modules: Arc::clone(&self.modules)
+            modules: Arc::clone(&self.modules),
+            types: self.types.clone(),
         }
     }
 }
@@ -234,6 +239,17 @@ impl Address for hir::Expression<'_> {
                 let index = index.value(ctx);
                 let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
                 ctx.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
+            },
+            EK::StructAccess { st, field } => {
+                let sty = ctx.semantic.type_of(&st.id).unwrap();
+                let idx = sty.field_index_of(field.sym).unwrap();
+                let st = st.addess(ctx);
+                let sty = *ctx.types.get(&sty.id).unwrap();
+
+                let zero = Value::const_int(llvm::Type::int_32(), 0);
+                let idx = Value::const_int(llvm::Type::int_32(), idx as u64);
+                ctx.builder().gep(sty, st, &mut [zero, idx], "tmp_gep")
+
             }
             _ => unreachable!("Can't get address of {self:?}")
         }
@@ -327,12 +343,12 @@ impl CGValue for hir::Expression<'_> {
                 ctx.builder().call(func_ty, func, &mut args, name)
             }
             EK::Cast { expr, to } => todo!(),
-            EK::ArrayAccess { arr, index } => {
+            EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
+            {
                 let gep = self.addess(ctx);
                 let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
                 ctx.builder().load(gep, ty, "tmp_load")
-            }
-            EK::StructAccess { st, field } => todo!(),
+            },
         }
     }
 }
@@ -427,8 +443,17 @@ impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
             },
             hir::ItemKind::Function { name, params, ret_ty, body } =>
                 codegen_function(ctx, self, name, params, ret_ty, body),
-            hir::ItemKind::Struct { name, fields } => todo!(),
-            hir::ItemKind::Use(use_item) => todo!(),
+            hir::ItemKind::Struct { .. } => {
+                let struct_type = ctx.semantic.type_of(&self.id).unwrap();
+                let (name, fields) = struct_type.as_struct_type().unwrap();
+                let name = ctx.mangle_symbol(self.id, name);
+                let mut fields: TinyVec<_, 8> = fields.iter().map(|f| {
+                    f.ty.codegen(ctx)
+                }).collect();
+                let s = llvm::Type::struct_named(&name, &mut fields, false);
+                ctx.types.insert(struct_type.id, s);
+            }
+            hir::ItemKind::Use(_) => {},
         }
     }
 }
@@ -457,7 +482,9 @@ impl Codegen<'_> for semantic::Ty<'_> {
             TypeKind::Array(ty, len) => {
                 llvm::Type::array(ty.codegen(ctx), *len as _)
             }
-            TypeKind::Struct { name, fields } => todo!(),
+            TypeKind::Struct { .. } => {
+                *ctx.types.get(&self.id).unwrap()
+            }
         }
     }
 }
