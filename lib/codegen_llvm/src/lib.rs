@@ -2,11 +2,13 @@ use core::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use hir::expr::CmpOp;
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
 use llvm::core::Function;
+use llvm::ffi::LLVMIntPredicate;
 use llvm::Value;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
@@ -104,21 +106,6 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         self.curr_builder = None;
         self
     }
-
-    /* pub fn codegen(&mut self, module: &'hir hir::Module<'hir>) -> llvm::Module { */
-    /*     let name = self.mangle(module.name.ident.sym); */
-    /*     self.mangling.push(module.name.ident.sym); */
-
-    /*     let ctx = CodegenCtx { */
-    /*         mangling: self.mangling.clone(), */
-    /*         hir: self.hir, */
-    /*         curr_mod: Some(llvm_mod), */
-    /*         curr_builder: None, */
-    /*         curr_func: None, */
-    /*         params: HashMap::new(), */
-    /*     }; */
-
-    /* } */
 
     fn builder(&mut self) -> &mut llvm::Builder { self.curr_builder.as_mut().unwrap() }
 
@@ -257,10 +244,33 @@ trait CGExecute {
     fn execute(&self, ctx: &mut CodegenCtx<'_, '_>);
 }
 
+fn cmp_op_to_int_pred(op: CmpOp) -> LLVMIntPredicate {
+    match op {
+        CmpOp::Gt => LLVMIntPredicate::LLVMIntSGT,
+        CmpOp::Ge => LLVMIntPredicate::LLVMIntSGE,
+        CmpOp::Lt => LLVMIntPredicate::LLVMIntSLT,
+        CmpOp::Le => LLVMIntPredicate::LLVMIntSLE,
+        CmpOp::Eq => LLVMIntPredicate::LLVMIntEQ,
+        CmpOp::Neq => LLVMIntPredicate::LLVMIntNE,
+    }
+}
+
+fn cmp_op_to_uint_pred(op: CmpOp) -> LLVMIntPredicate {
+    match op {
+        CmpOp::Gt => LLVMIntPredicate::LLVMIntUGT,
+        CmpOp::Ge => LLVMIntPredicate::LLVMIntUGE,
+        CmpOp::Lt => LLVMIntPredicate::LLVMIntULT,
+        CmpOp::Le => LLVMIntPredicate::LLVMIntULE,
+        CmpOp::Eq => LLVMIntPredicate::LLVMIntEQ,
+        CmpOp::Neq => LLVMIntPredicate::LLVMIntNE,
+    }
+}
+
 impl CGValue for hir::Expression<'_> {
+    #[allow(clippy::too_many_lines)]
     fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value {
         use hir::expr::ExpressionKind as EK;
-        use hir::expr::{UnaryOp, ArithmeticOp, LitValue};
+        use hir::expr::{UnaryOp, LogicalOp, ArithmeticOp, LitValue};
 
         match &self.kind {
             EK::Array(_) => todo!(),
@@ -273,8 +283,32 @@ impl CGValue for hir::Expression<'_> {
             },
             EK::Ref(_) => todo!(),
             EK::Deref(_) => todo!(),
-            EK::Logical { .. } => todo!(),
-            EK::Comparison { .. } => todo!(),
+            EK::Logical { left, op, right } => {
+                let left = left.value(ctx);
+                let right = right.value(ctx);
+                match op {
+                    LogicalOp::And => ctx.builder().and(left, right, "tmp_and"),
+                    LogicalOp::Or => ctx.builder().or(left, right, "tmp_or"),
+                }
+            }
+            EK::Comparison { left, op, right } => {
+                let lty = ctx.semantic.type_of(&left.id).unwrap();
+                let is_int = lty.is_integer();
+                let is_signed = lty.is_signed();
+
+                let left = left.value(ctx);
+                let right = right.value(ctx);
+                if is_int {
+                    let pred = if is_signed {
+                        cmp_op_to_int_pred(*op)
+                    } else {
+                        cmp_op_to_uint_pred(*op)
+                    };
+                    ctx.builder().signed_integer_cmp(left, right, pred, "tmp_cmp")
+                } else {
+                    todo!()
+                }
+            }
             EK::Arithmetic { left, op, right } => {
                 let left = left.value(ctx);
                 let right = right.value(ctx);
@@ -341,7 +375,9 @@ impl CGValue for hir::Expression<'_> {
                 };
                 ctx.builder().call(func_ty, func, &mut args, name)
             }
-            EK::Cast { .. } => todo!(),
+            EK::Cast { expr, to } => {
+                todo!("{expr:?}, {to:?}")
+            }
             EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
             {
                 let gep = self.addess(ctx);
@@ -497,33 +533,20 @@ fn codegen_function<'hir>(
     let fty = ty.codegen(ctx);
 
     let name = ctx.mangle_symbol(item.id, name.ident.sym).to_string();
-    let mut sum_func = ctx.module().add_function(&name, fty);
+    let mut function = ctx.module().add_function(&name, fty);
 
     ctx.allocas.clear();
     ctx.params.clear();
 
-    /* for i in 0..sum_func.n_params() { */
-    /*     let mut param = sum_func.param(i); */
-    /*     params[i as usize].get_name().borrow(|name| { */
-    /*         param.set_name(name); */
-    /*     }); */
-    /*     ctx.params.insert(params[i as usize].id, param); */
-    /* } */
-
-    let mut entry = sum_func.append_basic_block("entry");
+    let mut entry = function.append_basic_block("entry");
 
     {
         let mut builder = llvm::Builder::new();
         builder.position_at_end(&mut entry);
 
-        for i in 0..sum_func.n_params() {
-            let param = sum_func.param(i);
+        for i in 0..function.n_params() {
+            let param = function.param(i);
             ctx.params.insert(params[i as usize].id, param);
-            /* params[i as usize].get_name().borrow(|_| { */
-            /*     /1* param.set_name(name); *1/ */
-            /*     /1* let alloca = builder.alloca(param.get_type(), name); *1/ */
-            /*     /1* ctx.allocas.insert(params[i as usize].id, alloca); *1/ */
-            /* }); */
         }
 
         debug_assert!(ctx.curr_builder.is_none());

@@ -1,7 +1,7 @@
 use core::ffi::c_char;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {
@@ -41,10 +41,30 @@ impl Builder {
         self.binop(left, right, name, LLVMBuildMul)
     }
 
+    pub fn and(&mut self, left: Value, right: Value, name: &str) -> Value {
+        self.binop(left, right, name, LLVMBuildAnd)
+    }
+
+    pub fn or(&mut self, left: Value, right: Value, name: &str) -> Value {
+        self.binop(left, right, name, LLVMBuildOr)
+    }
+
     pub fn neg(&mut self, value: Value, name: &str) -> Value {
         cstr!(name);
         Value(unsafe {
             LLVMBuildNeg(self.raw, value.0, name)
+        })
+    }
+
+    pub fn signed_integer_cmp(&mut self,
+        left: Value,
+        right: Value,
+        int_pred: LLVMIntPredicate,
+        name: &str,
+    ) -> Value {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildICmp(self.raw, int_pred, left.0, right.0, name)
         })
     }
 

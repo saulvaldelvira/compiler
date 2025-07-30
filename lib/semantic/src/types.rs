@@ -138,6 +138,16 @@ impl<'ty> Ty<'ty> {
     }
 
     #[inline]
+    pub const fn is_integer(&self) -> bool {
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int | PrimitiveType::Bool))
+    }
+
+    #[inline]
+    pub const fn is_signed(&self) -> bool {
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int))
+    }
+
+    #[inline]
     pub const fn as_function_type(&self) -> Option<(&'ty [&'ty Ty<'ty>], &'ty Ty<'ty>)> {
         match self.kind {
             TypeKind::Function { params, ret_ty } => Some((params, ret_ty)),
