@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use std::io::{Read, Stdin, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::PathBuf;
+use std::process::Command;
 use std::{env, fs, process};
 
 pub mod config;

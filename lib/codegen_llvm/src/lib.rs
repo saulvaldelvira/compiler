@@ -1,19 +1,13 @@
-use core::any::Any;
 use core::cell::RefCell;
-use core::ops::Index;
-use core::usize;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hir::hir_id::HirNode;
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
-use hir::{Constness, HirId, Item, ItemKind, Module, Param, PathDef, Statement, Type};
+use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
 use llvm::core::Function;
 use llvm::Value;
-use semantic::rules::expr::SideEffect;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
@@ -204,18 +198,17 @@ impl Address for hir::Item<'_> {
             }
             ItemKind::Function { .. } => {
                 let name = ctx.get_mangled(self.id).unwrap().to_string();
-                match ctx.module().get_function(&name) {
-                    Some(func) => func.into_value(),
-                    None => {
-                        let fty = ctx.semantic.type_of(&self.id).unwrap();
-                        let fty = fty.codegen(ctx);
-                        ctx.module().add_function(&name, fty).into_value()
-                    }
+                if let Some(func) = ctx.module().get_function(&name) {
+                    func.into_value()
+                } else {
+                    let fty = ctx.semantic.type_of(&self.id).unwrap();
+                    let fty = fty.codegen(ctx);
+                    ctx.module().add_function(&name, fty).into_value()
                 }
             }
-            ItemKind::Use(use_item) => todo!(),
-            ItemKind::Mod(module) => todo!(),
-            ItemKind::Struct { name, fields } => todo!(),
+            ItemKind::Use(_) => todo!(),
+            ItemKind::Mod(_) => todo!(),
+            ItemKind::Struct { .. } => todo!(),
         }
     }
 }
@@ -270,12 +263,12 @@ impl CGValue for hir::Expression<'_> {
         use hir::expr::{ArithmeticOp, LitValue};
 
         match &self.kind {
-            EK::Array(expressions) => todo!(),
-            EK::Unary { op, expr } => todo!(),
-            EK::Ref(expression) => todo!(),
-            EK::Deref(expression) => todo!(),
-            EK::Logical { left, op, right } => todo!(),
-            EK::Comparison { left, op, right } => todo!(),
+            EK::Array(_) => todo!(),
+            EK::Unary { .. } => todo!(),
+            EK::Ref(_) => todo!(),
+            EK::Deref(_) => todo!(),
+            EK::Logical { .. } => todo!(),
+            EK::Comparison { .. } => todo!(),
             EK::Arithmetic { left, op, right } => {
                 let left = left.value(ctx);
                 let right = right.value(ctx);
@@ -287,7 +280,7 @@ impl CGValue for hir::Expression<'_> {
                     ArithmeticOp::Mod => todo!(),
                 }
             }
-            EK::Ternary { cond, if_true, if_false } => todo!(),
+            EK::Ternary { .. } => todo!(),
             EK::Assignment { left, right } => {
                 let left = left.addess(ctx);
                 let right = right.value(ctx);
@@ -299,7 +292,7 @@ impl CGValue for hir::Expression<'_> {
                 let node = ctx.hir.get_node(&id);
                 if let HirNodeKind::Param(p) = node {
                     if let Some(p) = ctx.params.get(&p.id) {
-                        return p.clone();
+                        return *p;
                     }
                 }
                 let addr = match node {
@@ -323,7 +316,7 @@ impl CGValue for hir::Expression<'_> {
                     LitValue::Int(ival) => llvm::Value::const_int32(*ival as u64),
                     LitValue::Float(f) => llvm::Value::const_f64(*f),
                     LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val)),
-                    LitValue::Str(symbol) => todo!(),
+                    LitValue::Str(_) => todo!(),
                     LitValue::Char(_) => todo!(),
                 }
             }
@@ -342,7 +335,7 @@ impl CGValue for hir::Expression<'_> {
                 };
                 ctx.builder().call(func_ty, func, &mut args, name)
             }
-            EK::Cast { expr, to } => todo!(),
+            EK::Cast { .. } => todo!(),
             EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
             {
                 let gep = self.addess(ctx);
@@ -360,8 +353,9 @@ impl CGExecute for hir::Expression<'_> {
         match &self.kind {
             EK::Array(expressions) => expressions.iter().for_each(|expr| expr.execute(ctx)),
             EK::Unary { expr, .. } => expr.execute(ctx),
-            EK::Ref(expression) => expression.execute(ctx),
-            EK::Deref(expression) => expression.execute(ctx),
+            EK::Ref(expression) | EK::Deref(expression) => {
+                expression.execute(ctx);
+            }
             EK::Logical { left, right, .. } |
             EK::Comparison { left, right, .. } |
             EK::Arithmetic { left, right, .. } => {
@@ -373,14 +367,10 @@ impl CGExecute for hir::Expression<'_> {
                 if_true.execute(ctx);
                 if_false.execute(ctx);
             }
-            EK::Assignment { left, right } => {
+            EK::Assignment { .. } | EK::Call { .. } => {
                 self.value(ctx);
             }
-            EK::Variable(_) => {},
-            EK::Literal(_) => { }
-            EK::Call { .. } => {
-                self.value(ctx);
-            }
+            EK::Variable(_) | EK::Literal(_) => {},
             EK::Cast { expr, .. } => {
                 expr.execute(ctx);
             }
@@ -407,14 +397,14 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
                 let val = expr.map(|expr| expr.value(ctx));
                 ctx.builder().ret(val);
             },
-            StatementKind::If { cond, if_true, if_false } => todo!(),
-            StatementKind::While { cond, body } => todo!(),
-            StatementKind::For { init, cond, inc, body } => todo!(),
+            StatementKind::If { .. } => todo!(),
+            StatementKind::While {.. } => todo!(),
+            StatementKind::For { .. } => todo!(),
             StatementKind::Empty => todo!(),
             StatementKind::Break => todo!(),
             StatementKind::Continue => todo!(),
-            StatementKind::Print(expression) => todo!(),
-            StatementKind::Read(expression) => todo!(),
+            StatementKind::Print(_) => todo!(),
+            StatementKind::Read(_) => todo!(),
             StatementKind::Item(item) => {
                 item.codegen(ctx);
             }
@@ -428,7 +418,7 @@ impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match self.kind {
             hir::ItemKind::Mod(module) => module.codegen(ctx),
-            hir::ItemKind::Variable { name, ty, init, constness } => {
+            hir::ItemKind::Variable { name, constness, .. } => {
                 match constness {
                     Constness::Const => todo!(),
                     Constness::Default => {
@@ -522,12 +512,12 @@ fn codegen_function<'hir>(
 
         for i in 0..sum_func.n_params() {
             let param = sum_func.param(i);
-            params[i as usize].get_name().borrow(|name| {
-                /* param.set_name(name); */
-                ctx.params.insert(params[i as usize].id, param);
-                /* let alloca = builder.alloca(param.get_type(), name); */
-                /* ctx.allocas.insert(params[i as usize].id, alloca); */
-            });
+            ctx.params.insert(params[i as usize].id, param);
+            /* params[i as usize].get_name().borrow(|_| { */
+            /*     /1* param.set_name(name); *1/ */
+            /*     /1* let alloca = builder.alloca(param.get_type(), name); *1/ */
+            /*     /1* ctx.allocas.insert(params[i as usize].id, alloca); *1/ */
+            /* }); */
         }
 
         debug_assert!(ctx.curr_builder.is_none());

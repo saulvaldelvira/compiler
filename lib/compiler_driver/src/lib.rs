@@ -1,5 +1,4 @@
 use core::cell::RefCell;
-use core::hash::Hash;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{

@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMBuildLoad2, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMInt8Type, LLVMSetValueName, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMSetValueName, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;

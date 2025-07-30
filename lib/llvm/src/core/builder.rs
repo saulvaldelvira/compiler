@@ -1,8 +1,7 @@
 use core::ffi::c_char;
-use std::env::Args;
 
-use crate::core::{BasicBlock, Function, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMGetNamedMetadataName, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::core::{BasicBlock, Value};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {

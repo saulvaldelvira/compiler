@@ -1,7 +1,6 @@
 use core::ffi::{c_char, CStr};
 use core::fmt::Display;
 use core::ptr;
-use std::ffi::CString;
 
 use super::{Function, Type, Value};
 use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
