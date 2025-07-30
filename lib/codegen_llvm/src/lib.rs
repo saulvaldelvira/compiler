@@ -442,7 +442,7 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
             StatementKind::If { .. } => todo!(),
             StatementKind::While {.. } => todo!(),
             StatementKind::For { .. } => todo!(),
-            StatementKind::Empty => todo!(),
+            StatementKind::Empty => {}
             StatementKind::Break => todo!(),
             StatementKind::Continue => todo!(),
             StatementKind::Print(_) => todo!(),
@@ -460,7 +460,7 @@ impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match self.kind {
             hir::ItemKind::Mod(module) => module.codegen(ctx),
-            hir::ItemKind::Variable { name, constness, .. } => {
+            hir::ItemKind::Variable { name, constness, init, .. } => {
                 match constness {
                     Constness::Const => todo!(),
                     Constness::Default => {
@@ -469,6 +469,10 @@ impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
                         name.ident.sym.borrow(|name| {
                             let alloca = ctx.builder().alloca(ty, name);
                             ctx.allocas.insert(self.id, alloca);
+                            if let Some(init) = init {
+                                let initializer = init.value(ctx);
+                                ctx.builder().store(initializer, alloca);
+                            }
                         });
                     },
                 }
