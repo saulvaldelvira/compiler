@@ -260,11 +260,17 @@ trait CGExecute {
 impl CGValue for hir::Expression<'_> {
     fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value {
         use hir::expr::ExpressionKind as EK;
-        use hir::expr::{ArithmeticOp, LitValue};
+        use hir::expr::{UnaryOp, ArithmeticOp, LitValue};
 
         match &self.kind {
             EK::Array(_) => todo!(),
-            EK::Unary { .. } => todo!(),
+            EK::Unary { op, expr } => {
+                let val = expr.value(ctx);
+                match op {
+                    UnaryOp::Not => ctx.builder().not(val, "tmp_not"),
+                    UnaryOp::Neg => ctx.builder().neg(val, "tmp_neg"),
+                }
+            },
             EK::Ref(_) => todo!(),
             EK::Deref(_) => todo!(),
             EK::Logical { .. } => todo!(),

@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMSetValueName, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMIntType, LLVMIsConstant, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -13,6 +13,10 @@ pub use builder::Builder;
 pub struct Type(LLVMTypeRef);
 
 impl Type {
+    pub fn int(n_bytes: u32) -> Self {
+        Self(unsafe { LLVMIntType(n_bytes) })
+    }
+
     pub fn int_32() -> Self {
         Self(unsafe { LLVMInt32Type() })
     }
@@ -65,6 +69,10 @@ impl Type {
         }
     }
 
+    pub fn size_of(&self) -> Value {
+        unsafe { Value(LLVMSizeOf(self.0)) }
+    }
+
     pub (crate) fn kind(&self) -> LLVMTypeKind {
         unsafe { LLVMGetTypeKind(self.0) }
     }
@@ -75,6 +83,21 @@ impl Type {
 pub struct Value(LLVMValueRef);
 
 impl Value {
+
+    pub fn is_constant(&self) -> bool {
+        unsafe { LLVMIsConstant(self.0) != 0 }
+    }
+
+    pub fn as_const_int(&self) -> Option<u64> {
+        if !matches!(self.get_type().kind(), LLVMTypeKind::LLVMIntegerTypeKind) {
+            return None
+        }
+        unsafe {
+            self.is_constant().then(|| {
+                LLVMConstIntGetZExtValue(self.0)
+            })
+        }
+    }
 
     pub fn const_int(ty: Type, val: u64) -> Self {
         unsafe {
