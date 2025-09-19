@@ -87,7 +87,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
     }
 
     fn enter(&mut self, module: &'hir hir::Module<'hir>) {
-        if module.name.ident.sym != *"root" {
+        if module.name.ident.sym != "root" {
             self.mangling.push(module.name.ident.sym);
         }
     }
@@ -99,7 +99,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
     fn enter_extern(mut self, module: &'hir hir::Module<'hir>) -> Self {
         let name = self.mangle_symbol(module.id, module.name.ident.sym);
         self.curr_mod = Some(llvm::Module::new(&name));
-        if module.name.ident.sym != *"root" {
+        if module.name.ident.sym != "root" {
             self.mangling.push(module.name.ident.sym);
         }
         self.curr_func = None;
