@@ -84,10 +84,10 @@ fn path_can_be_variable_ty(sess: &hir::Session<'_>, path: &Path) -> Option<bool>
     let node = sess.get_node(&id);
     let val = match node {
         HirNodeKind::Item(item) if item.is_definition() => true,
+        HirNodeKind::Param(_) => true,
         HirNodeKind::Item(Item { kind: ItemKind::Use(u), .. }) => {
             path_can_be_variable_ty(sess, &u.path)?
         }
-        HirNodeKind::Use(u) => path_can_be_variable_ty(sess, &u.path)?,
         _ => false,
     };
     Some(val)
@@ -257,12 +257,12 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn visit_function_definition(
-            &mut self,
-            base: &'hir hir::Item<'hir>,
-            name: &'hir hir::PathDef,
-            params: &'hir [hir::Item<'hir>],
-            ret_ty: &'hir hir::Type<'hir>,
-            body: &'hir [hir::Statement<'hir>],
+        &mut self,
+        base: &'hir hir::Item<'hir>,
+        name: &'hir hir::PathDef,
+        params: &'hir [hir::Param<'hir>],
+        ret_ty: &'hir hir::Type<'hir>,
+        body: &'hir [hir::Statement<'hir>],
     ) -> Self::Result {
         self.define(name.ident.sym, base.id);
         self.ctx.st.enter_scope();

@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 use std::{fs, io};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::{FilePosition, Span};
@@ -21,6 +21,13 @@ impl<T: Into<PathBuf>> From<T> for FileName {
     fn from(value: T) -> Self {
         FileName::Path(value.into())
     }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+pub struct FileId(usize);
+
+impl FileId {
+    pub fn from_offset(off: usize) -> Self { Self(off) }
 }
 
 /// A source file for the compiler
@@ -118,6 +125,16 @@ impl SourceFile {
     #[inline]
     pub fn file_position(&self, span: Span) -> FilePosition {
         span.file_position(self.offset, &self.contents)
+    }
+
+    pub const fn id(&self) -> FileId { FileId(self.offset) }
+
+    pub fn path(&self) -> Option<&Path> {
+        match &self.fname {
+            FileName::Path(pbuf) => Some(pbuf),
+            FileName::Stdin |
+            FileName::Annon => None,
+        }
     }
 }
 
@@ -233,6 +250,10 @@ impl SourceMap {
         self.files.iter().find(|file| file.offset == offset)
     }
 
+    pub fn get_file_for_id(&self, id: &FileId) -> Option<&SourceFile> {
+        self.get_file_for_offset(id.0)
+    }
+
     /// Returns base offset for a [`Span`]. This is: the offset of the
     /// file it belongs to.
     ///
@@ -260,5 +281,7 @@ impl SourceMap {
             .unwrap()
             .file_position(span)
     }
+
+    pub fn files(&self) -> &[SourceFile] { &self.files }
 }
 

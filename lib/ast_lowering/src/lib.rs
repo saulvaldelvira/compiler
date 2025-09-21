@@ -38,9 +38,14 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         let items = match &m.body {
             ModuleBody::Inline(Block { val: items, .. }) |
             ModuleBody::Extern { items, .. } |
-            ModuleBody::Slf(items) => self.lower_items(items),
+            ModuleBody::Slf(items, _) => self.lower_items(items),
+        };
+        let id = match &m.body {
+            ModuleBody::Inline(_) => None,
+            ModuleBody::Extern { id, .. }
+            | ModuleBody::Slf(_, id) => Some(id),
         };
         let name = self.lower_pathdef(ident(&m.name));
-        hir::Module::new(name, items, m.span)
+        hir::Module::new(name, items, m.span, id.copied())
     }
 }

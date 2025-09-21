@@ -1,8 +1,9 @@
 use core::ffi::{c_char, CStr};
+use core::fmt::Display;
 use core::ptr;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
 
 pub struct Module {
     raw: LLVMModuleRef,
@@ -34,6 +35,12 @@ impl Module {
         }))
     }
 
+    pub fn get_function(&self, name: &str) -> Option<Function> {
+        cstr!(name);
+        let ptr = unsafe { LLVMGetNamedFunction(self.raw, name) };
+        (!ptr.is_null()).then_some(Function(Value(ptr)))
+    }
+
     /// Gets the raw LLVM module reference
     #[inline]
     pub (crate) fn as_raw(&self) -> LLVMModuleRef { self.raw }
@@ -54,6 +61,18 @@ impl Module {
         unsafe { LLVMDisposeMessage(err); }
 
         ret
+    }
+}
+
+impl Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        unsafe {
+            let module_str = LLVMPrintModuleToString(self.raw);
+            let s = CStr::from_ptr(module_str).to_str().unwrap();
+            write!(f, "{s}")?;
+            LLVMDisposeMessage(module_str);
+            Ok(())
+        }
     }
 }
 

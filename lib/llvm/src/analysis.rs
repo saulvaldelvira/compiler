@@ -22,7 +22,7 @@ impl From<VeryfierFailureAction> for LLVMVerifierFailureAction {
 impl Module {
     pub fn verify(&mut self, action: VeryfierFailureAction) -> Result<(), String> {
         let mut msg: *mut c_char = ptr::null_mut();
-        let res = unsafe { LLVMVerifyModule(self.as_raw(), action.into(), &mut msg) };
+        let res = unsafe { LLVMVerifyModule(self.as_raw(), action.into(), &raw mut msg) };
 
         let ret = if res == 0 {
             Ok(())

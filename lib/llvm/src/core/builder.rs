@@ -1,7 +1,8 @@
 use core::ffi::c_char;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildMul, LLVMBuildRet, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::Type;
 
 pub struct Builder {
     raw: LLVMBuilderRef,
@@ -40,8 +41,115 @@ impl Builder {
         self.binop(left, right, name, LLVMBuildMul)
     }
 
-    pub fn ret(&mut self, val: Value) -> Value {
-        Value(unsafe { LLVMBuildRet(self.raw, val.0) })
+    pub fn and(&mut self, left: Value, right: Value, name: &str) -> Value {
+        self.binop(left, right, name, LLVMBuildAnd)
+    }
+
+    pub fn or(&mut self, left: Value, right: Value, name: &str) -> Value {
+        self.binop(left, right, name, LLVMBuildOr)
+    }
+
+    pub fn neg(&mut self, value: Value, name: &str) -> Value {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildNeg(self.raw, value.0, name)
+        })
+    }
+
+    pub fn signed_integer_cmp(&mut self,
+        left: Value,
+        right: Value,
+        int_pred: LLVMIntPredicate,
+        name: &str,
+    ) -> Value {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildICmp(self.raw, int_pred, left.0, right.0, name)
+        })
+    }
+
+    pub fn not(&mut self, value: Value, name: &str) -> Value {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildNot(self.raw, value.0, name)
+        })
+    }
+
+    pub fn ret(&mut self, val: impl Into<Option<Value>>) -> Value {
+        Value(unsafe {
+            match val.into() {
+                Some(val) => LLVMBuildRet(self.raw, val.0),
+                None => LLVMBuildRetVoid(self.raw),
+            }
+        })
+    }
+
+    pub fn call(&mut self, func_ty: Type, func: Value, args: &mut [Value], name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            let len = args.len();
+            let args = args.as_mut_ptr().cast();
+            Value(LLVMBuildCall2(
+                self.raw,
+                func_ty.0,
+                func.0,
+                args,
+                len as u32,
+                name
+            ))
+        }
+    }
+
+    pub fn alloca(&mut self, ty: Type, name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            Value(LLVMBuildAlloca(self.raw, ty.0, name))
+        }
+    }
+
+    pub fn load(&mut self, alloca: Value, ty: Type, name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            Value(LLVMBuildLoad2(self.raw, ty.0, alloca.0, name))
+        }
+    }
+
+    pub fn store(&mut self, value: Value, ptr: Value) -> Value {
+        unsafe {
+            Value(LLVMBuildStore(self.raw, value.0, ptr.0))
+        }
+    }
+
+    pub fn gep(&mut self, ty: Type, ptr: Value, indices: &mut [Value], name: &str) -> Value {
+        cstr!(name);
+        unsafe {
+            let len = indices.len();
+            let indices = indices.as_mut_ptr().cast();
+            Value(LLVMBuildGEP2(
+                self.raw,
+                ty.0,
+                ptr.0,
+                indices,
+                len as _,
+                name
+            ))
+        }
+    }
+
+    pub fn branch(&mut self, block: &mut BasicBlock) -> Value {
+        Value(unsafe { LLVMBuildBr(self.raw, block.0) })
+    }
+
+    pub fn cond_br(&mut self, val: Value, then: &BasicBlock, else_br: &BasicBlock) -> Value {
+        Value(unsafe {
+            LLVMBuildCondBr(self.raw, val.0, then.0, else_br.0)
+        })
+    }
+
+    pub fn build_unreachable(&mut self) -> Value {
+        Value(unsafe {
+            LLVMBuildUnreachable(self.raw)
+        })
     }
 }
 

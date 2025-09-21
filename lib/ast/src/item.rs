@@ -1,6 +1,7 @@
 use core::fmt;
 
 use interner::Symbol;
+use span::source::FileId;
 use span::{Span, Spanned};
 
 use crate::Path;
@@ -60,10 +61,11 @@ pub enum ItemKind {
 #[derive(Debug)]
 pub enum ModuleBody {
     Inline(Block<Item>),
-    Slf(Box<[Item]>),
+    Slf(Box<[Item]>, FileId),
     Extern {
         semicolon: Span,
         items: Box<[Item]>,
+        id: FileId,
     }
 }
 

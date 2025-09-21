@@ -144,6 +144,10 @@ impl<'ty> Type<'ty> {
     pub const fn char() -> &'ty Self { &Self::CHAR }
     pub const fn bool() -> &'ty Self { &Self::BOOL }
     pub const fn empty() -> &'ty Self { &Self::EMPTY }
+
+    pub fn is_empty(&self) -> bool {
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
+    }
 }
 
 impl Hash for Type<'_> {

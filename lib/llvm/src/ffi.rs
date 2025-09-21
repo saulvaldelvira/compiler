@@ -224,7 +224,6 @@ pub enum LLVMTypeKind {
     LLVMPointerTypeKind = 12,
     LLVMVectorTypeKind = 13,
     LLVMMetadataTypeKind = 14,
-    LLVMX86_MMXTypeKind = 15,
     LLVMTokenTypeKind = 16,
     LLVMScalableVectorTypeKind = 17,
     LLVMBFloatTypeKind = 18,
@@ -430,6 +429,8 @@ pub enum LLVMAtomicRMWBinOp {
     LLVMAtomicRMWBinOpFMin = 14,
     LLVMAtomicRMWBinOpUIncWrap = 15,
     LLVMAtomicRMWBinOpUDecWrap = 16,
+    LLVMAtomicRMWBinOpUSubCond = 17,
+    LLVMAtomicRMWBinOpUSubSat = 18,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -519,6 +520,12 @@ pub enum LLVMVerifierFailureAction {
     LLVMPrintMessageAction = 1,
     LLVMReturnStatusAction = 2,
 }
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum LLVMLinkerMode {
+    LLVMLinkerDestroySource = 0,
+    LLVMLinkerPreserveSource_Removed = 1,
+}
 unsafe extern "C" {
     pub fn LLVMInstallFatalErrorHandler(Handler: LLVMFatalErrorHandler);
     pub fn LLVMResetFatalErrorHandler();
@@ -559,6 +566,11 @@ unsafe extern "C" {
     pub fn LLVMGetMDKindID(
         Name: *const ::std::os::raw::c_char,
         SLen: ::std::os::raw::c_uint,
+    ) -> ::std::os::raw::c_uint;
+    pub fn LLVMGetSyncScopeID(
+        C: LLVMContextRef,
+        Name: *const ::std::os::raw::c_char,
+        SLen: usize,
     ) -> ::std::os::raw::c_uint;
     pub fn LLVMGetEnumAttributeKindForName(
         Name: *const ::std::os::raw::c_char,
@@ -763,6 +775,11 @@ unsafe extern "C" {
         M: LLVMModuleRef,
         Name: *const ::std::os::raw::c_char,
     ) -> LLVMValueRef;
+    pub fn LLVMGetNamedFunctionWithLength(
+        M: LLVMModuleRef,
+        Name: *const ::std::os::raw::c_char,
+        Length: usize,
+    ) -> LLVMValueRef;
     pub fn LLVMGetFirstFunction(M: LLVMModuleRef) -> LLVMValueRef;
     pub fn LLVMGetLastFunction(M: LLVMModuleRef) -> LLVMValueRef;
     pub fn LLVMGetNextFunction(Fn: LLVMValueRef) -> LLVMValueRef;
@@ -878,13 +895,11 @@ unsafe extern "C" {
     pub fn LLVMGetConstantPtrAuthAddrDiscriminator(PtrAuth: LLVMValueRef) -> LLVMValueRef;
     pub fn LLVMVoidTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
     pub fn LLVMLabelTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
-    pub fn LLVMX86MMXTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
     pub fn LLVMX86AMXTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
     pub fn LLVMTokenTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
     pub fn LLVMMetadataTypeInContext(C: LLVMContextRef) -> LLVMTypeRef;
     pub fn LLVMVoidType() -> LLVMTypeRef;
     pub fn LLVMLabelType() -> LLVMTypeRef;
-    pub fn LLVMX86MMXType() -> LLVMTypeRef;
     pub fn LLVMX86AMXType() -> LLVMTypeRef;
     pub fn LLVMTargetExtTypeInContext(
         C: LLVMContextRef,
@@ -918,6 +933,7 @@ unsafe extern "C" {
     );
     pub fn LLVMDumpValue(Val: LLVMValueRef);
     pub fn LLVMPrintValueToString(Val: LLVMValueRef) -> *mut ::std::os::raw::c_char;
+    pub fn LLVMGetValueContext(Val: LLVMValueRef) -> LLVMContextRef;
     pub fn LLVMPrintDbgRecordToString(Record: LLVMDbgRecordRef) -> *mut ::std::os::raw::c_char;
     pub fn LLVMReplaceAllUsesWith(OldVal: LLVMValueRef, NewVal: LLVMValueRef);
     pub fn LLVMIsConstant(Val: LLVMValueRef) -> LLVMBool;
@@ -1241,6 +1257,11 @@ unsafe extern "C" {
         M: LLVMModuleRef,
         Name: *const ::std::os::raw::c_char,
     ) -> LLVMValueRef;
+    pub fn LLVMGetNamedGlobalWithLength(
+        M: LLVMModuleRef,
+        Name: *const ::std::os::raw::c_char,
+        Length: usize,
+    ) -> LLVMValueRef;
     pub fn LLVMGetFirstGlobal(M: LLVMModuleRef) -> LLVMValueRef;
     pub fn LLVMGetLastGlobal(M: LLVMModuleRef) -> LLVMValueRef;
     pub fn LLVMGetNextGlobal(GlobalVar: LLVMValueRef) -> LLVMValueRef;
@@ -1304,14 +1325,14 @@ unsafe extern "C" {
         ParamTypes: *mut LLVMTypeRef,
         ParamCount: usize,
         NameLength: *mut usize,
-    ) -> *const ::std::os::raw::c_char;
+    ) -> *mut ::std::os::raw::c_char;
     pub fn LLVMIntrinsicCopyOverloadedName2(
         Mod: LLVMModuleRef,
         ID: ::std::os::raw::c_uint,
         ParamTypes: *mut LLVMTypeRef,
         ParamCount: usize,
         NameLength: *mut usize,
-    ) -> *const ::std::os::raw::c_char;
+    ) -> *mut ::std::os::raw::c_char;
     pub fn LLVMIntrinsicIsOverloaded(ID: ::std::os::raw::c_uint) -> LLVMBool;
     pub fn LLVMGetFunctionCallConv(Fn: LLVMValueRef) -> ::std::os::raw::c_uint;
     pub fn LLVMSetFunctionCallConv(Fn: LLVMValueRef, CC: ::std::os::raw::c_uint);
@@ -1508,6 +1529,10 @@ unsafe extern "C" {
     pub fn LLVMGetFCmpPredicate(Inst: LLVMValueRef) -> LLVMRealPredicate;
     pub fn LLVMInstructionClone(Inst: LLVMValueRef) -> LLVMValueRef;
     pub fn LLVMIsATerminatorInst(Inst: LLVMValueRef) -> LLVMValueRef;
+    pub fn LLVMGetFirstDbgRecord(Inst: LLVMValueRef) -> LLVMDbgRecordRef;
+    pub fn LLVMGetLastDbgRecord(Inst: LLVMValueRef) -> LLVMDbgRecordRef;
+    pub fn LLVMGetNextDbgRecord(DbgRecord: LLVMDbgRecordRef) -> LLVMDbgRecordRef;
+    pub fn LLVMGetPreviousDbgRecord(DbgRecord: LLVMDbgRecordRef) -> LLVMDbgRecordRef;
     pub fn LLVMGetNumArgOperands(Instr: LLVMValueRef) -> ::std::os::raw::c_uint;
     pub fn LLVMSetInstructionCallConv(Instr: LLVMValueRef, CC: ::std::os::raw::c_uint);
     pub fn LLVMGetInstructionCallConv(Instr: LLVMValueRef) -> ::std::os::raw::c_uint;
@@ -1636,6 +1661,7 @@ unsafe extern "C" {
     pub fn LLVMAddMetadataToInst(Builder: LLVMBuilderRef, Inst: LLVMValueRef);
     pub fn LLVMBuilderGetDefaultFPMathTag(Builder: LLVMBuilderRef) -> LLVMMetadataRef;
     pub fn LLVMBuilderSetDefaultFPMathTag(Builder: LLVMBuilderRef, FPMathTag: LLVMMetadataRef);
+    pub fn LLVMGetBuilderContext(Builder: LLVMBuilderRef) -> LLVMContextRef;
     pub fn LLVMSetCurrentDebugLocation(Builder: LLVMBuilderRef, L: LLVMValueRef);
     pub fn LLVMGetCurrentDebugLocation(Builder: LLVMBuilderRef) -> LLVMValueRef;
     pub fn LLVMBuildRetVoid(arg1: LLVMBuilderRef) -> LLVMValueRef;
@@ -2305,6 +2331,12 @@ unsafe extern "C" {
         singleThread: LLVMBool,
         Name: *const ::std::os::raw::c_char,
     ) -> LLVMValueRef;
+    pub fn LLVMBuildFenceSyncScope(
+        B: LLVMBuilderRef,
+        ordering: LLVMAtomicOrdering,
+        SSID: ::std::os::raw::c_uint,
+        Name: *const ::std::os::raw::c_char,
+    ) -> LLVMValueRef;
     pub fn LLVMBuildAtomicRMW(
         B: LLVMBuilderRef,
         op: LLVMAtomicRMWBinOp,
@@ -2312,6 +2344,14 @@ unsafe extern "C" {
         Val: LLVMValueRef,
         ordering: LLVMAtomicOrdering,
         singleThread: LLVMBool,
+    ) -> LLVMValueRef;
+    pub fn LLVMBuildAtomicRMWSyncScope(
+        B: LLVMBuilderRef,
+        op: LLVMAtomicRMWBinOp,
+        PTR: LLVMValueRef,
+        Val: LLVMValueRef,
+        ordering: LLVMAtomicOrdering,
+        SSID: ::std::os::raw::c_uint,
     ) -> LLVMValueRef;
     pub fn LLVMBuildAtomicCmpXchg(
         B: LLVMBuilderRef,
@@ -2322,6 +2362,15 @@ unsafe extern "C" {
         FailureOrdering: LLVMAtomicOrdering,
         SingleThread: LLVMBool,
     ) -> LLVMValueRef;
+    pub fn LLVMBuildAtomicCmpXchgSyncScope(
+        B: LLVMBuilderRef,
+        Ptr: LLVMValueRef,
+        Cmp: LLVMValueRef,
+        New: LLVMValueRef,
+        SuccessOrdering: LLVMAtomicOrdering,
+        FailureOrdering: LLVMAtomicOrdering,
+        SSID: ::std::os::raw::c_uint,
+    ) -> LLVMValueRef;
     pub fn LLVMGetNumMaskElements(ShuffleVectorInst: LLVMValueRef) -> ::std::os::raw::c_uint;
     pub fn LLVMGetUndefMaskElem() -> ::std::os::raw::c_int;
     pub fn LLVMGetMaskValue(
@@ -2330,6 +2379,9 @@ unsafe extern "C" {
     ) -> ::std::os::raw::c_int;
     pub fn LLVMIsAtomicSingleThread(AtomicInst: LLVMValueRef) -> LLVMBool;
     pub fn LLVMSetAtomicSingleThread(AtomicInst: LLVMValueRef, SingleThread: LLVMBool);
+    pub fn LLVMIsAtomic(Inst: LLVMValueRef) -> LLVMBool;
+    pub fn LLVMGetAtomicSyncScopeID(AtomicInst: LLVMValueRef) -> ::std::os::raw::c_uint;
+    pub fn LLVMSetAtomicSyncScopeID(AtomicInst: LLVMValueRef, SSID: ::std::os::raw::c_uint);
     pub fn LLVMGetCmpXchgSuccessOrdering(CmpXchgInst: LLVMValueRef) -> LLVMAtomicOrdering;
     pub fn LLVMSetCmpXchgSuccessOrdering(CmpXchgInst: LLVMValueRef, Ordering: LLVMAtomicOrdering);
     pub fn LLVMGetCmpXchgFailureOrdering(CmpXchgInst: LLVMValueRef) -> LLVMAtomicOrdering;
@@ -2393,4 +2445,5 @@ unsafe extern "C" {
         Handle: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
     pub fn LLVMWriteBitcodeToMemoryBuffer(M: LLVMModuleRef) -> LLVMMemoryBufferRef;
+    pub fn LLVMLinkModules2(Dest: LLVMModuleRef, Src: LLVMModuleRef) -> LLVMBool;
 }

@@ -1,4 +1,4 @@
-use hir::{Item, ItemKind, Module, Statement};
+use hir::{Item, ItemKind, Module, Param, Statement};
 
 use super::{Address, Define, Eval, Execute};
 use crate::codefuncs::Metadata;
@@ -87,7 +87,7 @@ impl Define for Module<'_> {
 
 fn define_func<'hir>(
     def: &Item<'hir>,
-    params: &[Item<'hir>],
+    params: &[Param<'hir>],
     body: &[Statement<'hir>],
     cg: &mut CodeGenerator,
 ) -> MaplInstruction {

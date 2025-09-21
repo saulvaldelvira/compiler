@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMBasicBlockRef, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt32Type, LLVMTypeKind, LLVMTypeRef, LLVMValueRef};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMIntType, LLVMIsConstant, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -9,11 +9,38 @@ mod builder;
 pub use builder::Builder;
 
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug)]
 pub struct Type(LLVMTypeRef);
 
 impl Type {
+    pub fn int(n_bytes: u32) -> Self {
+        Self(unsafe { LLVMIntType(n_bytes) })
+    }
+
     pub fn int_32() -> Self {
         Self(unsafe { LLVMInt32Type() })
+    }
+
+    pub fn int_1() -> Self {
+        Self(unsafe { LLVMInt1Type() })
+    }
+
+    pub fn float_32() -> Self {
+        Self(unsafe { LLVMFloatType() })
+    }
+
+    pub fn float_64() -> Self {
+        Self(unsafe { LLVMDoubleType() })
+    }
+
+    pub fn void() -> Self {
+        Self(unsafe { LLVMVoidType()})
+    }
+
+    pub fn array(ty: Type, len: u32) -> Self {
+        Self(unsafe {
+            LLVMArrayType(ty.0, len)
+        })
     }
 
     pub fn function(
@@ -31,25 +58,126 @@ impl Type {
         )})
     }
 
+    pub fn struct_named(name: &str, types: &mut [Type], packed: bool) -> Self {
+        cstr!(name);
+        unsafe {
+            let sty = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+            let count = types.len() as u32;
+            let types = types.as_mut_ptr().cast();
+            LLVMStructSetBody(sty, types, count, packed as i32);
+            Self(sty)
+        }
+    }
+
+    pub fn size_of(&self) -> Value {
+        unsafe { Value(LLVMSizeOf(self.0)) }
+    }
+
     pub (crate) fn kind(&self) -> LLVMTypeKind {
         unsafe { LLVMGetTypeKind(self.0) }
     }
 }
 
+#[derive(Clone, Copy)]
+#[repr(transparent)]
 pub struct Value(LLVMValueRef);
+
+impl Value {
+
+    pub fn is_constant(&self) -> bool {
+        unsafe { LLVMIsConstant(self.0) != 0 }
+    }
+
+    pub fn as_const_int(&self) -> Option<u64> {
+        if !matches!(self.get_type().kind(), LLVMTypeKind::LLVMIntegerTypeKind) {
+            return None
+        }
+        unsafe {
+            self.is_constant().then(|| {
+                LLVMConstIntGetZExtValue(self.0)
+            })
+        }
+    }
+
+    pub fn const_int(ty: Type, val: u64) -> Self {
+        unsafe {
+            Self(LLVMConstInt(ty.0, val, 1))
+        }
+    }
+
+    pub fn const_uint(ty: Type, val: u64) -> Self {
+        unsafe {
+            Self(LLVMConstInt(ty.0, val, 0))
+        }
+    }
+
+    pub fn const_float(ty: Type, val: f64) -> Self {
+        unsafe {
+            Self(LLVMConstReal(ty.0, val))
+        }
+    }
+
+    pub fn const_int1(val: u64) -> Self {
+        Self::const_int(Type::int_1(), val)
+    }
+
+    pub fn const_int32(val: u64) -> Self {
+        Self::const_int(Type::int_32(), val)
+    }
+
+    pub fn const_f64(val: f64) -> Self {
+        Self::const_float(Type::float_64(), val)
+    }
+
+    pub fn const_f32(val: f32) -> Self {
+        Self::const_float(Type::float_32(), val as f64)
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        cstr!(name);
+        unsafe { LLVMSetValueName(self.0, name); }
+    }
+
+    pub fn get_type(&self) -> Type {
+        unsafe {
+            Type(LLVMTypeOf(self.0))
+        }
+    }
+}
 
 pub struct Function(Value);
 
 impl Function {
+    pub fn into_value(self) -> Value {
+        self.0
+    }
+
     pub fn param(&self, idx: u32) -> Value {
         Value(unsafe { LLVMGetParam(self.0.0, idx) })
+    }
+
+    pub fn n_params(&self) -> u32 {
+        unsafe { LLVMCountParams(self.0.0) }
     }
 
     pub fn append_basic_block(&mut self, name: &str) -> BasicBlock {
         cstr!(name);
         BasicBlock(unsafe { LLVMAppendBasicBlock(self.0.0, name)})
     }
+
+    pub fn append_existing_basic_block(&mut self, b: &BasicBlock) {
+        unsafe { LLVMAppendExistingBasicBlock(self.0.0, b.0)}
+    }
 }
 
 pub struct BasicBlock(LLVMBasicBlockRef);
+
+impl BasicBlock {
+    pub fn new(name: &str) -> Self {
+        cstr!(name);
+        BasicBlock(unsafe {
+            LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), name)
+        })
+    }
+}
 

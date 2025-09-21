@@ -75,14 +75,14 @@ impl FromStr for Symbol {
     }
 }
 
-impl PartialEq<str> for Symbol {
+impl PartialEq<&str> for Symbol {
     /// Attemps to resolve the symbol, and compares it
     /// with the given string
     ///
     /// NOTE: If the symbol doesn't exist in the session
     /// storage, it returns false.
-    fn eq(&self, other: &str) -> bool {
-        GLOBAL_INTERNER.resolve_unchecked(*self, |s| s == other)
+    fn eq(&self, other: &&str) -> bool {
+        GLOBAL_INTERNER.resolve_unchecked(*self, |s| s == *other)
     }
 }
 

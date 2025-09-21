@@ -151,8 +151,10 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
        walk_use(self, item, u);
 
        let def = u.path.def().expect_resolved();
-       let ty = self.semantic.type_of(&def).unwrap().id;
-       self.semantic.set_type_of(item.id, ty);
+
+       if let Some(ty) = self.semantic.type_of(&def) {
+           self.semantic.set_type_of(item.id, ty.id);
+       }
     }
 
     fn visit_deref(
@@ -352,6 +354,11 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         self.semantic.set_type_of(base.id, ty.id);
     }
 
+    fn visit_param(&mut self, param: &'hir hir::Param<'hir>) -> Self::Result {
+        let ty = self.lowerer.lower_hir_type(param.ty);
+        self.semantic.set_type_of(param.id, ty.id);
+    }
+
     fn visit_struct_definition(
         &mut self,
         base: &'hir Item<'hir>,
@@ -391,18 +398,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         &mut self,
         def: &'hir hir::Item<'hir>,
         name: &'hir PathDef,
-        params: &'hir [hir::Item<'hir>],
+        params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir Type<'hir>,
         body: &'hir [hir::Statement<'hir>],
     ) -> Self::Result {
         {
-            let params = params.iter().map(|p| {
-                match p.kind {
-                    hir::ItemKind::Variable { ty, .. } => ty.unwrap(),
-                    _ => unreachable!()
-                }
-            });
-
+            let params = params.iter().map(|p| p.ty);
             let params = self.lowerer.lower_hir_types_iter(params);
             let ret_ty = self.lowerer.lower_hir_type(ret_ty);
 

@@ -68,6 +68,15 @@ impl Default for Session<'_> {
 }
 
 impl<'hir> Session<'hir> {
+
+    #[inline]
+    pub fn alloc_annon<T, C>(&self, val: T) -> &'hir T
+    where
+        T: ArenaAllocable<'hir, C>
+    {
+        val.alloc_into(&self.arena)
+    }
+
     pub fn alloc<T, C>(&self, val: T) -> &'hir T
     where
         T: ArenaAllocable<'hir, C> + HirNode<'hir>,
@@ -95,5 +104,17 @@ impl<'hir> Session<'hir> {
             node_map.define(elem.get_hir_id(), elem.get_hir_node_kind());
         }
         items
+    }
+
+    #[inline]
+    pub fn alloc_iter_annon<T, I, C>(&self, val: I) -> &'hir [T]
+    where
+        T: ArenaAllocable<'hir, C>,
+        I: IntoIterator<
+            Item = T,
+            IntoIter: ExactSizeIterator
+           >,
+    {
+        T::alloc_iter(val, &self.arena)
     }
 }

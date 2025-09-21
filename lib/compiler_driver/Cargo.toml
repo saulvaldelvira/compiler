@@ -16,6 +16,7 @@ semantic = { path = "../../lib/semantic" }
 error_manager = { path = "../../lib/error_manager" }
 mapl_codegen = { path = "../../lib/mapl_codegen" }
 hir_print = { path = "../../lib/hir_print" }
+codegen_llvm = { path = "../codegen_llvm" }
 
 [lints]
 workspace = true

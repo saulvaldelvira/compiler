@@ -2,6 +2,7 @@ use core::fmt;
 use std::collections::HashMap;
 
 use interner::Symbol;
+use span::source::FileId;
 use span::Span;
 
 use super::{Constness, Expression, Statement, types::Type};
@@ -10,15 +11,13 @@ use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind, path::
 
 #[derive(Debug, Clone)]
 pub struct UseItem<'hir> {
-    pub id: HirId,
-    pub span: Span,
     pub path: Path,
     pub new_name: &'hir PathDef,
 }
 
 impl<'hir> UseItem<'hir> {
-    pub fn new(path: Path, new_name: &'hir PathDef, span: Span) -> Self {
-        Self { id: HirId::DUMMY, path, span, new_name }
+    pub fn new(path: Path, new_name: &'hir PathDef) -> Self {
+        Self { path, new_name }
     }
 
     pub fn get_name(&self) -> Symbol {
@@ -26,7 +25,23 @@ impl<'hir> UseItem<'hir> {
     }
 }
 
-impl_hir_node!(UseItem<'hir>, Use);
+#[derive(Debug, Clone, Copy)]
+pub struct Param<'hir> {
+    pub name: &'hir PathDef,
+    pub ty: &'hir Type<'hir>,
+    pub id: HirId,
+    pub span: Span,
+}
+
+impl<'hir> Param<'hir> {
+    pub fn new(name: &'hir PathDef, ty: &'hir Type<'hir>, span: Span) -> Self {
+        Self { name, ty, span, id: HirId::DUMMY }
+    }
+
+    pub fn get_name(&self) -> Symbol { self.name.ident.sym }
+}
+
+impl_hir_node!(Param<'hir>, Param);
 
 #[derive(Debug, Clone, Copy)]
 pub enum ItemKind<'hir> {
@@ -39,7 +54,7 @@ pub enum ItemKind<'hir> {
     },
     Function {
         name: &'hir PathDef,
-        params: &'hir [Item<'hir>],
+        params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,
         body: &'hir [Statement<'hir>],
     },
@@ -148,6 +163,7 @@ pub struct Module<'hir> {
     pub items: &'hir [Item<'hir>],
     pub name: &'hir PathDef,
     pub span: Span,
+    pub extern_file: Option<FileId>,
     item_map: HashMap<Symbol, &'hir Item<'hir>>,
 }
 
@@ -163,11 +179,12 @@ impl fmt::Debug for Module<'_> {
 }
 
 impl<'hir> Module<'hir> {
-    pub fn new(name: &'hir PathDef, defs: &'hir [Item<'hir>], span: Span) -> Self {
+    pub fn new(name: &'hir PathDef, defs: &'hir [Item<'hir>], span: Span, extern_file: impl Into<Option<FileId>>) -> Self {
         let mut m = Self {
             name,
             items: defs,
             span,
+            extern_file: extern_file.into(),
             id: HirId::DUMMY,
             item_map: HashMap::new(),
         };

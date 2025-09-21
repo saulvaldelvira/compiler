@@ -16,7 +16,7 @@ impl Config {
         let mut conf = Self {
             files: Vec::new(),
             out_file: None,
-            emit: Emit::Mapl,
+            emit: Emit::Bin,
             check: false,
         };
         let mut args = args.skip(1);
@@ -37,7 +37,10 @@ impl Config {
                     });
                     match em.as_str() {
                         "mapl" => conf.emit = Emit::Mapl,
+                        "llvm-ir" => conf.emit = Emit::LlvmIr,
                         "hir" => conf.emit = Emit::Hir,
+                        "asm" => conf.emit = Emit::Asm,
+                        "bin" => conf.emit = Emit::Bin,
                         a => {
                             eprintln!("Unknown argument for '--emit': {a}");
                             process::exit(1);
@@ -48,5 +51,15 @@ impl Config {
             }
         }
         conf
+    }
+
+    pub fn get_extension(&self) -> &'static str {
+        match self.emit {
+            Emit::Hir => "html",
+            Emit::Mapl => "mapl",
+            Emit::LlvmIr => "ll",
+            Emit::Asm => "s",
+            Emit::Bin => "out",
+        }
     }
 }
