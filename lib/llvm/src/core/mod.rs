@@ -1,6 +1,6 @@
 use core::ffi::c_int;
 
-use crate::ffi::{LLVMAppendBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMIntType, LLVMIsConstant, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
+use crate::ffi::{LLVMAppendBasicBlock, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleType, LLVMFloatType, LLVMFunctionType, LLVMGetGlobalContext, LLVMGetParam, LLVMGetTypeKind, LLVMInt1Type, LLVMInt32Type, LLVMIntType, LLVMIsConstant, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidType};
 
 mod module;
 pub use module::Module;
@@ -164,7 +164,20 @@ impl Function {
         cstr!(name);
         BasicBlock(unsafe { LLVMAppendBasicBlock(self.0.0, name)})
     }
+
+    pub fn append_existing_basic_block(&mut self, b: &BasicBlock) {
+        unsafe { LLVMAppendExistingBasicBlock(self.0.0, b.0)}
+    }
 }
 
 pub struct BasicBlock(LLVMBasicBlockRef);
+
+impl BasicBlock {
+    pub fn new(name: &str) -> Self {
+        cstr!(name);
+        BasicBlock(unsafe {
+            LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), name)
+        })
+    }
+}
 

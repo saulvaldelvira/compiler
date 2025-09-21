@@ -7,9 +7,10 @@ use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
-use llvm::core::Function;
+use llvm::core::{BasicBlock, Function};
 use llvm::ffi::LLVMIntPredicate;
 use llvm::Value;
+use semantic::rules::stmt::HasReturn;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
@@ -108,6 +109,8 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
     }
 
     fn builder(&mut self) -> &mut llvm::Builder { self.curr_builder.as_mut().unwrap() }
+
+    fn function(&mut self) -> &mut Function { self.curr_func.as_mut().unwrap() }
 
     fn address_of(&mut self, id: HirId, name: Symbol) -> Value {
         debug_assert!(matches!(self.hir.get_node(&id), HirNodeKind::Param(_) | HirNodeKind::Item(_)));
@@ -439,8 +442,55 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
                 let val = expr.map(|expr| expr.value(ctx));
                 ctx.builder().ret(val);
             },
-            StatementKind::If { .. } => todo!(),
-            StatementKind::While {.. } => todo!(),
+            StatementKind::If { cond, if_true, if_false } => {
+                let mut if_block = BasicBlock::new("if.then");
+                let mut else_block = BasicBlock::new("if.else");
+                let mut end_block = BasicBlock::new("if.end");
+
+                let cond = cond.value(ctx);
+                ctx.builder().cond_br(cond, &if_block, &else_block);
+
+                ctx.function().append_existing_basic_block(&if_block);
+
+                ctx.builder().position_at_end(&mut if_block);
+
+                if_true.codegen(ctx);
+                ctx.builder().branch(&mut end_block);
+
+                ctx.function().append_existing_basic_block(&else_block);
+                if let Some(if_false) = if_false {
+                    ctx.builder().position_at_end(&mut else_block);
+                    if_false.codegen(ctx);
+                    ctx.builder().branch(&mut end_block);
+                }
+
+                ctx.function().append_existing_basic_block(&end_block);
+                ctx.builder().position_at_end(&mut end_block);
+
+                if self.has_return() {
+                    ctx.builder().build_unreachable();
+                }
+            }
+            StatementKind::While { cond, body } => {
+                let mut loop_cond = BasicBlock::new("while.cond");
+                let mut loop_body = BasicBlock::new("while.body");
+                let mut loop_end = BasicBlock::new("while.end");
+
+                ctx.builder().branch(&mut loop_cond);
+                ctx.function().append_existing_basic_block(&loop_cond);
+                ctx.builder().position_at_end(&mut loop_cond);
+
+                let cond = cond.value(ctx);
+                ctx.builder().cond_br(cond, &loop_body, &loop_end);
+
+                ctx.function().append_existing_basic_block(&loop_body);
+                ctx.builder().position_at_end(&mut loop_body);
+                body.codegen(ctx);
+                ctx.builder().branch(&mut loop_cond);
+
+                ctx.function().append_existing_basic_block(&loop_end);
+                ctx.builder().position_at_end(&mut loop_end);
+            }
             StatementKind::For { .. } => todo!(),
             StatementKind::Empty => {}
             StatementKind::Break => todo!(),
@@ -555,6 +605,9 @@ fn codegen_function<'hir>(
 
         debug_assert!(ctx.curr_builder.is_none());
         ctx.curr_builder = Some(builder);
+
+        let old_f = ctx.curr_func.replace(function);
+
         for stmt in body {
             stmt.codegen(ctx);
         }
@@ -564,6 +617,7 @@ fn codegen_function<'hir>(
         }
 
         ctx.curr_builder.take();
+        ctx.curr_func = old_f;
     }
 
     ctx.allocas.clear();

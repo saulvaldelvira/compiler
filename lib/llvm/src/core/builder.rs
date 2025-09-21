@@ -1,7 +1,7 @@
 use core::ffi::c_char;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildCall2, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuilderRef, LLVMCreateBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMValueRef};
 use crate::Type;
 
 pub struct Builder {
@@ -134,6 +134,22 @@ impl Builder {
                 name
             ))
         }
+    }
+
+    pub fn branch(&mut self, block: &mut BasicBlock) -> Value {
+        Value(unsafe { LLVMBuildBr(self.raw, block.0) })
+    }
+
+    pub fn cond_br(&mut self, val: Value, then: &BasicBlock, else_br: &BasicBlock) -> Value {
+        Value(unsafe {
+            LLVMBuildCondBr(self.raw, val.0, then.0, else_br.0)
+        })
+    }
+
+    pub fn build_unreachable(&mut self) -> Value {
+        Value(unsafe {
+            LLVMBuildUnreachable(self.raw)
+        })
     }
 }
 
