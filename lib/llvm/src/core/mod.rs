@@ -170,6 +170,7 @@ impl Function {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct BasicBlock(LLVMBasicBlockRef);
 
 impl BasicBlock {

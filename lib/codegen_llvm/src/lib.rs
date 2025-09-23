@@ -28,6 +28,9 @@ struct CodegenCtx<'cg, 'hir> {
     curr_builder: Option<llvm::Builder>,
     hir: &'cg hir::Session<'hir>,
 
+    current_loop_end: Option<BasicBlock>,
+    current_loop_cond: Option<BasicBlock>,
+
     mangling: Vec<Symbol>,
     semantic: &'cg semantic::Semantic<'hir>,
 
@@ -56,6 +59,8 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
             allocas: HashMap::new(),
             modules: Default::default(),
             types: Default::default(),
+            current_loop_end: None,
+            current_loop_cond: None,
         }
     }
 
@@ -137,6 +142,8 @@ impl Clone for CodegenCtx<'_, '_> {
             curr_mod: None,
             curr_func: None,
             curr_builder: None,
+            current_loop_cond: None,
+            current_loop_end: None,
             mangled_syms: Arc::clone(&self.mangled_syms),
             hir: self.hir,
             semantic: self.semantic,
@@ -428,6 +435,7 @@ impl CGExecute for hir::Expression<'_> {
 impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
     type Output = ();
 
+    #[allow(clippy::too_many_lines)]
     fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
         match &self.kind {
             StatementKind::Expr(expr) => {
@@ -458,11 +466,11 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
                 ctx.builder().branch(&mut end_block);
 
                 ctx.function().append_existing_basic_block(&else_block);
+                ctx.builder().position_at_end(&mut else_block);
                 if let Some(if_false) = if_false {
-                    ctx.builder().position_at_end(&mut else_block);
                     if_false.codegen(ctx);
-                    ctx.builder().branch(&mut end_block);
                 }
+                ctx.builder().branch(&mut end_block);
 
                 ctx.function().append_existing_basic_block(&end_block);
                 ctx.builder().position_at_end(&mut end_block);
@@ -475,6 +483,9 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
                 let mut loop_cond = BasicBlock::new("while.cond");
                 let mut loop_body = BasicBlock::new("while.body");
                 let mut loop_end = BasicBlock::new("while.end");
+
+                let old_loop_cond = ctx.current_loop_cond.replace(loop_cond.clone());
+                let old_loop_end = ctx.current_loop_cond.replace(loop_end.clone());
 
                 ctx.builder().branch(&mut loop_cond);
                 ctx.function().append_existing_basic_block(&loop_cond);
@@ -490,11 +501,70 @@ impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
 
                 ctx.function().append_existing_basic_block(&loop_end);
                 ctx.builder().position_at_end(&mut loop_end);
+
+                ctx.current_loop_cond = old_loop_cond;
+                ctx.current_loop_end = old_loop_end;
             }
-            StatementKind::For { .. } => todo!(),
+            StatementKind::For { init, cond, inc, body } => {
+
+                if let Some(init) = init {
+                    let mut for_init = BasicBlock::new("for.init");
+                    ctx.builder().branch(&mut for_init);
+                    ctx.function().append_existing_basic_block(&for_init);
+                    ctx.builder().position_at_end(&mut for_init);
+                    init.codegen(ctx);
+                }
+
+
+                let mut for_cond = BasicBlock::new("for.cond");
+                let mut for_body = BasicBlock::new("for.body");
+                let mut for_end = BasicBlock::new("for.end");
+                let mut for_inc = None;
+
+                let old_end = ctx.current_loop_end.replace(for_end);
+                let old_cond = if inc.is_some() {
+                    for_inc = Some(ctx.function().append_basic_block("for.inc"));
+                    ctx.current_loop_cond.replace(for_inc.unwrap())
+                } else {
+                    ctx.current_loop_cond.replace(for_cond)
+                };
+
+                ctx.builder().branch(&mut for_cond);
+                ctx.function().append_existing_basic_block(&for_cond);
+                ctx.builder().position_at_end(&mut for_cond);
+
+                if let Some(cond) = cond {
+                    let cond = cond.value(ctx);
+                    ctx.builder().cond_br(cond, &for_body, &for_end);
+                } else {
+                    ctx.builder().branch(&mut for_body);
+                }
+
+                ctx.function().append_existing_basic_block(&for_body);
+                ctx.builder().position_at_end(&mut for_body);
+                body.codegen(ctx);
+                if let Some(inc) = inc {
+                    ctx.builder().branch(&mut for_inc.unwrap());
+                    ctx.builder().position_at_end(&mut for_inc.unwrap());
+                    inc.value(ctx);
+                }
+                ctx.builder().branch(&mut for_cond);
+
+                ctx.function().append_existing_basic_block(&for_end);
+                ctx.builder().position_at_end(&mut for_end);
+
+                ctx.current_loop_cond = old_cond;
+                ctx.current_loop_end = old_end;
+            }
             StatementKind::Empty => {}
-            StatementKind::Break => todo!(),
-            StatementKind::Continue => todo!(),
+            StatementKind::Break => {
+                let mut b = ctx.current_loop_end.unwrap();
+                ctx.builder().branch(&mut b);
+            }
+            StatementKind::Continue => {
+                let mut b = ctx.current_loop_cond.unwrap();
+                ctx.builder().branch(&mut b);
+            },
             StatementKind::Print(_) => todo!(),
             StatementKind::Read(_) => todo!(),
             StatementKind::Item(item) => {
