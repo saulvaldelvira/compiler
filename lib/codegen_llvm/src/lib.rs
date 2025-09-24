@@ -121,7 +121,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
 
             for (i, pref) in symbols.enumerate() {
                 if i > 0 {
-                    mangled.push('_');
+                    mangled.push('.');
                 }
                 write!(mangled, "{pref}").unwrap();
             }
