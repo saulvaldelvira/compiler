@@ -1,8 +1,8 @@
 use core::ffi::{c_char, CStr};
 use core::ptr;
 
-use crate::core::Module;
-use crate::ffi::{LLVMDisposeMessage, LLVMVerifierFailureAction, LLVMVerifyModule};
+use crate::core::{Function, Module};
+use crate::ffi::{LLVMDisposeMessage, LLVMVerifierFailureAction, LLVMVerifyFunction, LLVMVerifyModule};
 
 #[derive(Clone, Copy)]
 pub enum VeryfierFailureAction {
@@ -19,7 +19,7 @@ impl From<VeryfierFailureAction> for LLVMVerifierFailureAction {
     }
 }
 
-impl Module {
+impl Module<'_> {
     pub fn verify(&mut self, action: VeryfierFailureAction) -> Result<(), String> {
         let mut msg: *mut c_char = ptr::null_mut();
         let res = unsafe { LLVMVerifyModule(self.as_raw(), action.into(), &raw mut msg) };
@@ -40,3 +40,13 @@ impl Module {
     }
 }
 
+impl Function<'_> {
+    pub fn verify(&mut self, action: VeryfierFailureAction) -> Result<(), i32> {
+        let res = unsafe { LLVMVerifyFunction(self.as_value().raw(), action.into()) };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(res)
+        }
+    }
+}

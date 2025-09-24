@@ -1,21 +1,24 @@
 use core::ffi::{c_char, CStr};
 use core::fmt::Display;
+use core::marker::PhantomData;
 use core::ptr;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithName, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
+use crate::Context;
 
-pub struct Module {
+pub struct Module<'ctx> {
     raw: LLVMModuleRef,
+    ctx: &'ctx Context,
 }
 
-impl Module {
-    pub fn new(name: &str) -> Self {
+impl<'ctx> Module<'ctx> {
+    pub fn new(name: &str, ctx: &'ctx Context) -> Self {
         cstr!(name);
         let raw = unsafe {
-            LLVMModuleCreateWithName(name)
+            LLVMModuleCreateWithNameInContext(name, ctx.raw)
         };
-        Self { raw }
+        Self { raw, ctx }
     }
 
     /// Adds a function to this module, with the given `name`.
@@ -23,7 +26,7 @@ impl Module {
     /// `func_ty` must be an [`LLVMFunctionTypeKind`]
     ///
     /// [`LLVMFunctionTypeKind`]: LLVMTypeKind::LLVMFunctionTypeKind
-    pub fn add_function(&mut self, name: &str, func_ty: Type) -> Function {
+    pub fn add_function(&mut self, name: &str, func_ty: Type<'ctx>) -> Function<'ctx> {
         debug_assert_eq!(
             func_ty.kind(),
             LLVMTypeKind::LLVMFunctionTypeKind,
@@ -32,13 +35,13 @@ impl Module {
         cstr!(name);
         Function(Value(unsafe {
             LLVMAddFunction(self.raw, name, func_ty.0)
-        }))
+        }, PhantomData), self.ctx)
     }
 
-    pub fn get_function(&self, name: &str) -> Option<Function> {
+    pub fn get_function(&self, name: &str) -> Option<Function<'ctx>> {
         cstr!(name);
         let ptr = unsafe { LLVMGetNamedFunction(self.raw, name) };
-        (!ptr.is_null()).then_some(Function(Value(ptr)))
+        (!ptr.is_null()).then_some(Function(Value(ptr, PhantomData), self.ctx))
     }
 
     /// Gets the raw LLVM module reference
@@ -64,7 +67,7 @@ impl Module {
     }
 }
 
-impl Display for Module {
+impl Display for Module<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
             let module_str = LLVMPrintModuleToString(self.raw);
@@ -76,7 +79,7 @@ impl Display for Module {
     }
 }
 
-impl Drop for Module {
+impl Drop for Module<'_> {
     fn drop(&mut self) {
         unsafe { LLVMDisposeModule(self.raw); }
     }

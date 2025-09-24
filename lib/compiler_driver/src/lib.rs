@@ -6,6 +6,7 @@ use std::{
     path::Path,
 };
 
+use codegen_llvm::Codegen;
 use error_manager::ErrorManager;
 use semantic::Semantic;
 use span::source::{FileId, FileName, SourceMap};
@@ -121,14 +122,14 @@ impl Compiler {
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.borrow(), &mut em)?;
 
-        #[cfg(debug_assertions)]
-        eprintln!(
-            "\
-================================================================================
-{:#?}
-================================================================================",
-            hir_sess.get_root()
-        );
+        /* #[cfg(debug_assertions)] */
+        /* eprintln!( */
+        /*     "\ */
+/* ================================================================================ */
+/* {:#?} */
+/* ================================================================================", */
+        /*     hir_sess.get_root() */
+        /* ); */
 
         Some((hir_sess, semantic))
     }
@@ -142,7 +143,8 @@ impl Compiler {
         Some(match emit {
             Emit::Hir => Output::Hir(hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow())),
             Emit::Asm | Emit::Bin | Emit::LlvmIr => {
-                let modules = codegen_llvm::codegen(&hir_sess, &semantic, &self.source.borrow());
+                let codegen = Codegen::new();
+                let modules = codegen.codegen(&hir_sess, &semantic, &self.source.borrow());
                 let mut out = HashMap::new();
                 for (k, v) in modules {
                     out.insert(k, v.to_string());

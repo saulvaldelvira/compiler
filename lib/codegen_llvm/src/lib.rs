@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use hir::expr::CmpOp;
 use hir::node_map::HirNodeKind;
@@ -8,44 +8,82 @@ use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
 use llvm::core::{BasicBlock, Function};
-use llvm::ffi::LLVMIntPredicate;
+use llvm::ffi::{LLVMIntPredicate, LLVMShutdown};
 use llvm::Value;
 use semantic::rules::stmt::HasReturn;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_vec::TinyVec;
 
-pub fn codegen<'hir>(hir: &hir::Session<'hir>, semantic: &semantic::Semantic<'hir>, src: &SourceMap) -> HashMap<FileId, llvm::Module> {
-    let mut ctx = CodegenCtx::new(hir, semantic, src);
-    let root = hir.get_root();
-    root.codegen(&mut ctx);
-    RefCell::into_inner(Arc::into_inner(ctx.modules).unwrap())
+pub struct Codegen {
+    llvm_ctx: llvm::Context
 }
 
-struct CodegenCtx<'cg, 'hir> {
-    curr_mod: Option<llvm::Module>,
-    curr_func: Option<Function>,
-    curr_builder: Option<llvm::Builder>,
+impl Codegen {
+    pub fn new() -> Self {
+        Self { llvm_ctx: llvm::Context::new() }
+    }
+
+    pub fn codegen<'llvm, 'hir>(
+        &'llvm self,
+        hir: &hir::Session<'hir>,
+        semantic: &semantic::Semantic<'hir>,
+        src: &SourceMap,
+    ) -> HashMap<FileId, llvm::Module<'llvm>> {
+        let mut ctx = CodegenState::new(hir, semantic, src, &self.llvm_ctx);
+        let root = hir.get_root();
+        root.codegen(&mut ctx);
+        RefCell::into_inner(Arc::into_inner(ctx.modules).unwrap())
+    }
+}
+
+impl Default for Codegen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for Codegen {
+    fn drop(&mut self) {
+        static SHUTDOWN_ONCE: OnceLock<()> = OnceLock::new();
+        SHUTDOWN_ONCE.get_or_init(|| {
+            unsafe { LLVMShutdown(); }
+        });
+    }
+}
+
+struct CodegenState<'cg, 'llvm, 'hir> {
+    curr_mod: Option<llvm::Module<'llvm>>,
+    curr_func: Option<Function<'llvm>>,
+    curr_builder: Option<llvm::Builder<'llvm>>,
     hir: &'cg hir::Session<'hir>,
 
-    current_loop_end: Option<BasicBlock>,
-    current_loop_cond: Option<BasicBlock>,
+    llvm_ctx: &'llvm llvm::Context,
+
+    current_loop_end: Option<BasicBlock<'llvm>>,
+    current_loop_cond: Option<BasicBlock<'llvm>>,
 
     mangling: Vec<Symbol>,
     semantic: &'cg semantic::Semantic<'hir>,
 
     mangled_syms: Arc<RefCell<HashMap<HirId, String>>>,
-    allocas: HashMap<HirId, Value>,
-    params: HashMap<HirId, Value>,
+    allocas: HashMap<HirId, Value<'llvm>>,
+    params: HashMap<HirId, Value<'llvm>>,
 
     src: &'cg SourceMap,
-    modules: Arc<RefCell<HashMap<FileId, llvm::Module>>>,
+    modules: Arc<RefCell<HashMap<FileId, llvm::Module<'llvm>>>>,
 
-    types: HashMap<TypeId, llvm::Type>,
+    types: HashMap<TypeId, llvm::Type<'llvm>>,
 }
 
-impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
-    pub fn new(hir: &'cg hir::Session<'hir>, semantic: &'cg semantic::Semantic<'hir>, src: &'cg SourceMap) -> Self {
+impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
+    pub fn new(
+        hir: &'cg hir::Session<'hir>,
+        semantic: &'cg semantic::Semantic<'hir>,
+        src: &'cg SourceMap,
+        llvm_ctx: &'llvm llvm::Context
+    ) -> Self
+    {
         Self {
             hir,
             curr_mod: None,
@@ -54,6 +92,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
             mangling: Vec::new(),
             mangled_syms: Default::default(),
             semantic,
+            llvm_ctx,
             src,
             params: HashMap::new(),
             allocas: HashMap::new(),
@@ -64,7 +103,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         }
     }
 
-    pub fn module(&mut self) -> &mut llvm::Module {
+    fn module(&mut self) -> &mut llvm::Module<'llvm> {
         self.curr_mod.as_mut().unwrap()
     }
 
@@ -104,7 +143,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
 
     fn enter_extern(mut self, module: &'hir hir::Module<'hir>) -> Self {
         let name = self.mangle_symbol(module.id, module.name.ident.sym);
-        self.curr_mod = Some(llvm::Module::new(&name));
+        self.curr_mod = Some(self.llvm_ctx.create_module(&name));
         if module.name.ident.sym != "root" {
             self.mangling.push(module.name.ident.sym);
         }
@@ -113,11 +152,11 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
         self
     }
 
-    fn builder(&mut self) -> &mut llvm::Builder { self.curr_builder.as_mut().unwrap() }
+    fn builder(&mut self) -> &mut llvm::Builder<'llvm> { self.curr_builder.as_mut().unwrap() }
 
-    fn function(&mut self) -> &mut Function { self.curr_func.as_mut().unwrap() }
+    fn function(&mut self) -> &mut Function<'llvm> { self.curr_func.as_mut().unwrap() }
 
-    fn address_of(&mut self, id: HirId, name: Symbol) -> Value {
+    fn address_of(&mut self, id: HirId, name: Symbol) -> Value<'llvm> {
         debug_assert!(matches!(self.hir.get_node(&id), HirNodeKind::Param(_) | HirNodeKind::Item(_)));
 
         if let Some(param) = self.params.get(&id).copied() {
@@ -136,7 +175,7 @@ impl<'cg, 'hir> CodegenCtx<'cg, 'hir> {
     }
 }
 
-impl Clone for CodegenCtx<'_, '_> {
+impl Clone for CodegenState<'_, '_, '_> {
     fn clone(&self) -> Self {
         Self {
             curr_mod: None,
@@ -144,6 +183,7 @@ impl Clone for CodegenCtx<'_, '_> {
             curr_builder: None,
             current_loop_cond: None,
             current_loop_end: None,
+            llvm_ctx: self.llvm_ctx,
             mangled_syms: Arc::clone(&self.mangled_syms),
             hir: self.hir,
             semantic: self.semantic,
@@ -157,50 +197,50 @@ impl Clone for CodegenCtx<'_, '_> {
     }
 }
 
-trait Codegen<'hir> {
+trait CG<'hir, 'llvm> {
     type Output;
 
-    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) -> Self::Output;
+    fn codegen(&self, cg: &mut CodegenState<'_, 'llvm, 'hir>) -> Self::Output;
 }
 
-impl<'hir> Codegen<'hir> for &'hir hir::Module<'hir> {
+impl<'hir> CG<'hir, '_> for &'hir hir::Module<'hir> {
     type Output = ();
 
-    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
+    fn codegen(&self, cg: &mut CodegenState<'_, '_, 'hir>) {
         if let Some(id) = self.extern_file {
-            let mut ctx = ctx.clone().enter_extern(self);
+            let mut cg = cg.clone().enter_extern(self);
             for item in self.items {
-                item.codegen(&mut ctx);
+                item.codegen(&mut cg);
             }
-            ctx.modules.borrow_mut().insert(id, ctx.curr_mod.unwrap());
+            cg.modules.borrow_mut().insert(id, cg.curr_mod.unwrap());
         } else {
-            ctx.enter(self);
+            cg.enter(self);
             for item in self.items {
-                item.codegen(ctx);
+                item.codegen(cg);
             }
-            ctx.exit();
+            cg.exit();
         }
     }
 }
 
-trait Address {
-    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value;
+trait Address<'cg> {
+    fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg>;
 }
 
-impl Address for hir::Item<'_> {
-    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value {
+impl<'cg> Address<'cg> for hir::Item<'_> {
+    fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
         match self.kind {
             ItemKind::Variable { name, .. } => {
-                ctx.address_of(self.id, name.ident.sym)
+                cg.address_of(self.id, name.ident.sym)
             }
             ItemKind::Function { .. } => {
-                let name = ctx.get_mangled(self.id).unwrap().to_string();
-                if let Some(func) = ctx.module().get_function(&name) {
-                    func.into_value()
+                let name = cg.get_mangled(self.id).unwrap().clone();
+                if let Some(func) = cg.module().get_function(&name) {
+                    *func.as_value()
                 } else {
-                    let fty = ctx.semantic.type_of(&self.id).unwrap();
-                    let fty = fty.codegen(ctx);
-                    ctx.module().add_function(&name, fty).into_value()
+                    let fty = cg.semantic.type_of(&self.id).unwrap();
+                    let fty = fty.codegen(cg);
+                    *cg.module().add_function(&name, fty).as_value()
                 }
             }
             ItemKind::Use(_) => todo!(),
@@ -210,35 +250,35 @@ impl Address for hir::Item<'_> {
     }
 }
 
-impl Address for hir::Expression<'_> {
-    fn addess(&self, ctx: &mut CodegenCtx) -> llvm::Value {
+impl<'cg> Address<'cg> for hir::Expression<'_> {
+    fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
         use hir::expr::ExpressionKind as EK;
         match &self.kind {
             EK::Variable(path) => {
                 let def = path.def().expect_resolved();
-                match ctx.hir.get_node(&def) {
-                    HirNodeKind::Item(item) => item.addess(ctx),
+                match cg.hir.get_node(&def) {
+                    HirNodeKind::Item(item) => item.address(cg),
                     HirNodeKind::Param(p) => {
-                        ctx.address_of(p.id, p.name.ident.sym)
+                        cg.address_of(p.id, p.name.ident.sym)
                     }
                     _ => unreachable!(),
                 }
             },
             EK::ArrayAccess { arr, index } => {
-                let arr_ptr = arr.addess(ctx);
-                let index = index.value(ctx);
-                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
-                ctx.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
+                let arr_ptr = arr.address(cg);
+                let index = index.value(cg);
+                let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
+                cg.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
             },
             EK::StructAccess { st, field } => {
-                let sty = ctx.semantic.type_of(&st.id).unwrap();
+                let sty = cg.semantic.type_of(&st.id).unwrap();
                 let idx = sty.field_index_of(field.sym).unwrap();
-                let st = st.addess(ctx);
-                let sty = *ctx.types.get(&sty.id).unwrap();
+                let st = st.address(cg);
+                let sty = *cg.types.get(&sty.id).unwrap();
 
-                let zero = Value::const_int(llvm::Type::int_32(), 0);
-                let idx = Value::const_int(llvm::Type::int_32(), idx as u64);
-                ctx.builder().gep(sty, st, &mut [zero, idx], "tmp_gep")
+                let zero = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), 0);
+                let idx = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), idx as u64);
+                cg.builder().gep(sty, st, &mut [zero, idx], "tmp_gep")
 
             }
             _ => unreachable!("Can't get address of {self:?}")
@@ -246,12 +286,12 @@ impl Address for hir::Expression<'_> {
     }
 }
 
-trait CGValue {
-    fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value;
+trait CGValue<'cg> {
+    fn value(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg>;
 }
 
 trait CGExecute {
-    fn execute(&self, ctx: &mut CodegenCtx<'_, '_>);
+    fn execute(&self, cg: &mut CodegenState<'_, '_, '_>);
 }
 
 fn cmp_op_to_int_pred(op: CmpOp) -> LLVMIntPredicate {
@@ -276,82 +316,82 @@ fn cmp_op_to_uint_pred(op: CmpOp) -> LLVMIntPredicate {
     }
 }
 
-impl CGValue for hir::Expression<'_> {
+impl<'cg> CGValue<'cg> for hir::Expression<'_> {
     #[allow(clippy::too_many_lines)]
-    fn value(&self, ctx: &mut CodegenCtx<'_, '_>) -> llvm::Value {
+    fn value(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
         use hir::expr::ExpressionKind as EK;
         use hir::expr::{UnaryOp, LogicalOp, ArithmeticOp, LitValue};
 
         match &self.kind {
             EK::Array(_) => todo!(),
             EK::Unary { op, expr } => {
-                let val = expr.value(ctx);
+                let val = expr.value(cg);
                 match op {
-                    UnaryOp::Not => ctx.builder().not(val, "tmp_not"),
-                    UnaryOp::Neg => ctx.builder().neg(val, "tmp_neg"),
+                    UnaryOp::Not => cg.builder().not(val, "tmp_not"),
+                    UnaryOp::Neg => cg.builder().neg(val, "tmp_neg"),
                 }
             },
             EK::Ref(_) => todo!(),
             EK::Deref(_) => todo!(),
             EK::Logical { left, op, right } => {
-                let left = left.value(ctx);
-                let right = right.value(ctx);
+                let left = left.value(cg);
+                let right = right.value(cg);
                 match op {
-                    LogicalOp::And => ctx.builder().and(left, right, "tmp_and"),
-                    LogicalOp::Or => ctx.builder().or(left, right, "tmp_or"),
+                    LogicalOp::And => cg.builder().and(left, right, "tmp_and"),
+                    LogicalOp::Or => cg.builder().or(left, right, "tmp_or"),
                 }
             }
             EK::Comparison { left, op, right } => {
-                let lty = ctx.semantic.type_of(&left.id).unwrap();
+                let lty = cg.semantic.type_of(&left.id).unwrap();
                 let is_int = lty.is_integer();
                 let is_signed = lty.is_signed();
 
-                let left = left.value(ctx);
-                let right = right.value(ctx);
+                let left = left.value(cg);
+                let right = right.value(cg);
                 if is_int {
                     let pred = if is_signed {
                         cmp_op_to_int_pred(*op)
                     } else {
                         cmp_op_to_uint_pred(*op)
                     };
-                    ctx.builder().signed_integer_cmp(left, right, pred, "tmp_cmp")
+                    cg.builder().signed_integer_cmp(left, right, pred, "tmp_cmp")
                 } else {
                     todo!()
                 }
             }
             EK::Arithmetic { left, op, right } => {
-                let left = left.value(ctx);
-                let right = right.value(ctx);
+                let left = left.value(cg);
+                let right = right.value(cg);
                 match op {
-                    ArithmeticOp::Add => ctx.builder().add(left, right, "tmp_add"),
-                    ArithmeticOp::Sub => ctx.builder().sub(left, right, "tmp_sub"),
-                    ArithmeticOp::Mul => ctx.builder().mul(left, right, "tmp_mul"),
+                    ArithmeticOp::Add => cg.builder().add(left, right, "tmp_add"),
+                    ArithmeticOp::Sub => cg.builder().sub(left, right, "tmp_sub"),
+                    ArithmeticOp::Mul => cg.builder().mul(left, right, "tmp_mul"),
                     ArithmeticOp::Div => todo!(),
                     ArithmeticOp::Mod => todo!(),
                 }
             }
             EK::Ternary { .. } => todo!(),
             EK::Assignment { left, right } => {
-                let left = left.addess(ctx);
-                let right = right.value(ctx);
-                ctx.builder().store(right, left);
+                let left = left.address(cg);
+                let right = right.value(cg);
+                cg.builder().store(right, left);
                 right
             }
             EK::Variable(path) => {
                 let id = path.def().expect_resolved();
-                let node = ctx.hir.get_node(&id);
-                if let HirNodeKind::Param(p) = node {
-                    if let Some(p) = ctx.params.get(&p.id) {
+                let node = cg.hir.get_node(&id);
+                if let HirNodeKind::Param(p) = node
+                    && let Some(p) = cg.params.get(&p.id)
+                {
                         return *p;
-                    }
                 }
                 let addr = match node {
-                    HirNodeKind::Item(item) => item.addess(ctx),
-                    HirNodeKind::Param(param) => ctx.address_of(param.id, param.name.ident.sym),
+                    HirNodeKind::Item(item) => item.address(cg),
+                    HirNodeKind::Param(param) => cg.address_of(param.id, param.name.ident.sym),
                     _ => unreachable!(),
                 };
-                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
-                let name = match ctx.hir.get_node(&id) {
+                let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
+                let name = match cg.hir.get_node(&id) {
                     HirNodeKind::Item(item) => item.get_name(),
                     HirNodeKind::Param(param) => param.name.ident.sym,
                     _ => unreachable!()
@@ -359,23 +399,26 @@ impl CGValue for hir::Expression<'_> {
                 let name = name.borrow(|name| {
                     format!("load_{name}")
                 });
-                ctx.builder().load(addr, ty, &name)
+                cg.builder().load(addr, ty, &name)
             }
             EK::Literal(val) => {
                 match val {
-                    LitValue::Int(ival) => llvm::Value::const_int32(*ival as u64),
-                    LitValue::Float(f) => llvm::Value::const_f64(*f),
-                    LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val)),
+                    LitValue::Int(ival) => {
+                        let bytes = i64::from(*ival).to_le_bytes();
+                        llvm::Value::const_int32(u64::from_le_bytes(bytes), cg.llvm_ctx)
+                    },
+                    LitValue::Float(f) => llvm::Value::const_f64(*f, cg.llvm_ctx),
+                    LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val), cg.llvm_ctx),
                     LitValue::Str(_) => todo!(),
                     LitValue::Char(_) => todo!(),
                 }
             }
             EK::Call { callee, args } => {
-                let fty = ctx.semantic.type_of(&callee.id).unwrap();
-                let func_ty = fty.codegen(ctx);
-                let func = callee.addess(ctx);
+                let fty = cg.semantic.type_of(&callee.id).unwrap();
+                let func_ty = fty.codegen(cg);
+                let func = callee.address(cg);
                 let mut args: TinyVec<_, 8> = args.iter().map(|expr| {
-                    expr.value(ctx)
+                    expr.value(cg)
                 }).collect();
 
                 let name = if fty.as_function_type().unwrap().1.is_empty_type() {
@@ -383,313 +426,313 @@ impl CGValue for hir::Expression<'_> {
                 } else {
                     "tmp_call"
                 };
-                ctx.builder().call(func_ty, func, &mut args, name)
+                cg.builder().call(func_ty, func, &mut args, name)
             }
             EK::Cast { expr, to } => {
                 todo!("{expr:?}, {to:?}")
             }
             EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
             {
-                let gep = self.addess(ctx);
-                let ty = ctx.semantic.type_of(&self.id).unwrap().codegen(ctx);
-                ctx.builder().load(gep, ty, "tmp_load")
+                let gep = self.address(cg);
+                let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
+                cg.builder().load(gep, ty, "tmp_load")
             },
         }
     }
 }
 
 impl CGExecute for hir::Expression<'_> {
-    fn execute(&self, ctx: &mut CodegenCtx<'_, '_>) {
+    fn execute(&self, cg: &mut CodegenState<'_, '_, '_>) {
         use hir::expr::ExpressionKind as EK;
 
         match &self.kind {
-            EK::Array(expressions) => expressions.iter().for_each(|expr| expr.execute(ctx)),
-            EK::Unary { expr, .. } => expr.execute(ctx),
+            EK::Array(expressions) => expressions.iter().for_each(|expr| expr.execute(cg)),
+            EK::Unary { expr, .. } => expr.execute(cg),
             EK::Ref(expression) | EK::Deref(expression) => {
-                expression.execute(ctx);
+                expression.execute(cg);
             }
             EK::Logical { left, right, .. } |
             EK::Comparison { left, right, .. } |
             EK::Arithmetic { left, right, .. } => {
-                left.execute(ctx);
-                right.execute(ctx);
+                left.execute(cg);
+                right.execute(cg);
             }
             EK::Ternary { cond, if_true, if_false } => {
-                cond.execute(ctx);
-                if_true.execute(ctx);
-                if_false.execute(ctx);
+                cond.execute(cg);
+                if_true.execute(cg);
+                if_false.execute(cg);
             }
             EK::Assignment { .. } | EK::Call { .. } => {
-                self.value(ctx);
+                self.value(cg);
             }
             EK::Variable(_) | EK::Literal(_) => {},
             EK::Cast { expr, .. } => {
-                expr.execute(ctx);
+                expr.execute(cg);
             }
-            EK::ArrayAccess { arr, .. } => arr.execute(ctx),
-            EK::StructAccess { st, .. } => st.execute(ctx),
+            EK::ArrayAccess { arr, .. } => arr.execute(cg),
+            EK::StructAccess { st, .. } => st.execute(cg),
         }
     }
 }
 
-impl<'hir> Codegen<'hir> for &'hir hir::Statement<'hir> {
+impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
     type Output = ();
 
     #[allow(clippy::too_many_lines)]
-    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
+    fn codegen(&self, cg: &mut CodegenState<'_, 'cg, 'hir>) {
         match &self.kind {
             StatementKind::Expr(expr) => {
-                expr.execute(ctx);
+                expr.execute(cg);
             },
             StatementKind::Block(stmts) => {
                 for stmt in *stmts {
-                    stmt.codegen(ctx);
+                    stmt.codegen(cg);
                 };
             },
             StatementKind::Return(expr) => {
-                let val = expr.map(|expr| expr.value(ctx));
-                ctx.builder().ret(val);
+                let val = expr.map(|expr| expr.value(cg));
+                cg.builder().ret(val);
             },
             StatementKind::If { cond, if_true, if_false } => {
-                let mut if_block = BasicBlock::new("if.then");
-                let mut else_block = BasicBlock::new("if.else");
-                let mut end_block = BasicBlock::new("if.end");
+                let mut if_block = cg.llvm_ctx.create_basic_block("if.then");
+                let mut else_block = cg.llvm_ctx.create_basic_block("if.else");
+                let mut end_block = cg.llvm_ctx.create_basic_block("if.end");
 
-                let cond = cond.value(ctx);
-                ctx.builder().cond_br(cond, &if_block, &else_block);
+                let cond = cond.value(cg);
+                cg.builder().cond_br(cond, &if_block, &else_block);
 
-                ctx.function().append_existing_basic_block(&if_block);
+                cg.function().append_existing_basic_block(&if_block);
 
-                ctx.builder().position_at_end(&mut if_block);
+                cg.builder().position_at_end(&mut if_block);
 
-                if_true.codegen(ctx);
-                ctx.builder().branch(&mut end_block);
+                if_true.codegen(cg);
+                cg.builder().branch(&mut end_block);
 
-                ctx.function().append_existing_basic_block(&else_block);
-                ctx.builder().position_at_end(&mut else_block);
+                cg.function().append_existing_basic_block(&else_block);
+                cg.builder().position_at_end(&mut else_block);
                 if let Some(if_false) = if_false {
-                    if_false.codegen(ctx);
+                    if_false.codegen(cg);
                 }
-                ctx.builder().branch(&mut end_block);
+                cg.builder().branch(&mut end_block);
 
-                ctx.function().append_existing_basic_block(&end_block);
-                ctx.builder().position_at_end(&mut end_block);
+                cg.function().append_existing_basic_block(&end_block);
+                cg.builder().position_at_end(&mut end_block);
 
                 if self.has_return() {
-                    ctx.builder().build_unreachable();
+                    cg.builder().build_unreachable();
                 }
             }
             StatementKind::While { cond, body } => {
-                let mut loop_cond = BasicBlock::new("while.cond");
-                let mut loop_body = BasicBlock::new("while.body");
-                let mut loop_end = BasicBlock::new("while.end");
+                let mut loop_cond = cg.llvm_ctx.create_basic_block("while.cond");
+                let mut loop_body = cg.llvm_ctx.create_basic_block("while.body");
+                let mut loop_end = cg.llvm_ctx.create_basic_block("while.end");
 
-                let old_loop_cond = ctx.current_loop_cond.replace(loop_cond.clone());
-                let old_loop_end = ctx.current_loop_cond.replace(loop_end.clone());
+                let old_loop_cond = cg.current_loop_cond.replace(loop_cond);
+                let old_loop_end = cg.current_loop_cond.replace(loop_end);
 
-                ctx.builder().branch(&mut loop_cond);
-                ctx.function().append_existing_basic_block(&loop_cond);
-                ctx.builder().position_at_end(&mut loop_cond);
+                cg.builder().branch(&mut loop_cond);
+                cg.function().append_existing_basic_block(&loop_cond);
+                cg.builder().position_at_end(&mut loop_cond);
 
-                let cond = cond.value(ctx);
-                ctx.builder().cond_br(cond, &loop_body, &loop_end);
+                let cond = cond.value(cg);
+                cg.builder().cond_br(cond, &loop_body, &loop_end);
 
-                ctx.function().append_existing_basic_block(&loop_body);
-                ctx.builder().position_at_end(&mut loop_body);
-                body.codegen(ctx);
-                ctx.builder().branch(&mut loop_cond);
+                cg.function().append_existing_basic_block(&loop_body);
+                cg.builder().position_at_end(&mut loop_body);
+                body.codegen(cg);
+                cg.builder().branch(&mut loop_cond);
 
-                ctx.function().append_existing_basic_block(&loop_end);
-                ctx.builder().position_at_end(&mut loop_end);
+                cg.function().append_existing_basic_block(&loop_end);
+                cg.builder().position_at_end(&mut loop_end);
 
-                ctx.current_loop_cond = old_loop_cond;
-                ctx.current_loop_end = old_loop_end;
+                cg.current_loop_cond = old_loop_cond;
+                cg.current_loop_end = old_loop_end;
             }
             StatementKind::For { init, cond, inc, body } => {
 
                 if let Some(init) = init {
-                    let mut for_init = BasicBlock::new("for.init");
-                    ctx.builder().branch(&mut for_init);
-                    ctx.function().append_existing_basic_block(&for_init);
-                    ctx.builder().position_at_end(&mut for_init);
-                    init.codegen(ctx);
+                    let mut for_init = cg.llvm_ctx.create_basic_block("for.init");
+                    cg.builder().branch(&mut for_init);
+                    cg.function().append_existing_basic_block(&for_init);
+                    cg.builder().position_at_end(&mut for_init);
+                    init.codegen(cg);
                 }
 
 
-                let mut for_cond = BasicBlock::new("for.cond");
-                let mut for_body = BasicBlock::new("for.body");
-                let mut for_end = BasicBlock::new("for.end");
+                let mut for_cond = cg.llvm_ctx.create_basic_block("for.cond");
+                let mut for_body = cg.llvm_ctx.create_basic_block("for.body");
+                let mut for_end = cg.llvm_ctx.create_basic_block("for.end");
                 let mut for_inc = None;
 
-                let old_end = ctx.current_loop_end.replace(for_end);
+                let old_end = cg.current_loop_end.replace(for_end);
                 let old_cond = if inc.is_some() {
-                    for_inc = Some(ctx.function().append_basic_block("for.inc"));
-                    ctx.current_loop_cond.replace(for_inc.unwrap())
+                    for_inc = Some(cg.function().append_basic_block("for.inc"));
+                    cg.current_loop_cond.replace(for_inc.unwrap())
                 } else {
-                    ctx.current_loop_cond.replace(for_cond)
+                    cg.current_loop_cond.replace(for_cond)
                 };
 
-                ctx.builder().branch(&mut for_cond);
-                ctx.function().append_existing_basic_block(&for_cond);
-                ctx.builder().position_at_end(&mut for_cond);
+                cg.builder().branch(&mut for_cond);
+                cg.function().append_existing_basic_block(&for_cond);
+                cg.builder().position_at_end(&mut for_cond);
 
                 if let Some(cond) = cond {
-                    let cond = cond.value(ctx);
-                    ctx.builder().cond_br(cond, &for_body, &for_end);
+                    let cond = cond.value(cg);
+                    cg.builder().cond_br(cond, &for_body, &for_end);
                 } else {
-                    ctx.builder().branch(&mut for_body);
+                    cg.builder().branch(&mut for_body);
                 }
 
-                ctx.function().append_existing_basic_block(&for_body);
-                ctx.builder().position_at_end(&mut for_body);
-                body.codegen(ctx);
+                cg.function().append_existing_basic_block(&for_body);
+                cg.builder().position_at_end(&mut for_body);
+                body.codegen(cg);
                 if let Some(inc) = inc {
-                    ctx.builder().branch(&mut for_inc.unwrap());
-                    ctx.builder().position_at_end(&mut for_inc.unwrap());
-                    inc.value(ctx);
+                    cg.builder().branch(&mut for_inc.unwrap());
+                    cg.builder().position_at_end(&mut for_inc.unwrap());
+                    inc.value(cg);
                 }
-                ctx.builder().branch(&mut for_cond);
+                cg.builder().branch(&mut for_cond);
 
-                ctx.function().append_existing_basic_block(&for_end);
-                ctx.builder().position_at_end(&mut for_end);
+                cg.function().append_existing_basic_block(&for_end);
+                cg.builder().position_at_end(&mut for_end);
 
-                ctx.current_loop_cond = old_cond;
-                ctx.current_loop_end = old_end;
+                cg.current_loop_cond = old_cond;
+                cg.current_loop_end = old_end;
             }
             StatementKind::Empty => {}
             StatementKind::Break => {
-                let mut b = ctx.current_loop_end.unwrap();
-                ctx.builder().branch(&mut b);
+                let mut b = cg.current_loop_end.unwrap();
+                cg.builder().branch(&mut b);
             }
             StatementKind::Continue => {
-                let mut b = ctx.current_loop_cond.unwrap();
-                ctx.builder().branch(&mut b);
+                let mut b = cg.current_loop_cond.unwrap();
+                cg.builder().branch(&mut b);
             },
             StatementKind::Print(_) => todo!(),
             StatementKind::Read(_) => todo!(),
             StatementKind::Item(item) => {
-                item.codegen(ctx);
+                item.codegen(cg);
             }
         }
     }
 }
 
-impl<'hir> Codegen<'hir> for &'hir hir::Item<'hir> {
+impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
     type Output = ();
 
-    fn codegen(&self, ctx: &mut CodegenCtx<'_, 'hir>) {
+    fn codegen(&self, cg: &mut CodegenState<'_, '_, 'hir>) {
         match self.kind {
-            hir::ItemKind::Mod(module) => module.codegen(ctx),
+            hir::ItemKind::Mod(module) => module.codegen(cg),
             hir::ItemKind::Variable { name, constness, init, .. } => {
                 match constness {
                     Constness::Const => todo!(),
                     Constness::Default => {
-                        let ty = ctx.semantic.type_of(&self.id).unwrap();
-                        let ty = ty.codegen(ctx);
+                        let ty = cg.semantic.type_of(&self.id).unwrap();
+                        let ty = ty.codegen(cg);
                         name.ident.sym.borrow(|name| {
-                            let alloca = ctx.builder().alloca(ty, name);
-                            ctx.allocas.insert(self.id, alloca);
+                            let alloca = cg.builder().alloca(ty, name);
+                            cg.allocas.insert(self.id, alloca);
                             if let Some(init) = init {
-                                let initializer = init.value(ctx);
-                                ctx.builder().store(initializer, alloca);
+                                let initializer = init.value(cg);
+                                cg.builder().store(initializer, alloca);
                             }
                         });
                     },
                 }
             },
             hir::ItemKind::Function { name, params, ret_ty, body } =>
-                codegen_function(ctx, self, name, params, ret_ty, body),
+                codegen_function(cg, self, name, params, ret_ty, body),
             hir::ItemKind::Struct { .. } => {
-                let struct_type = ctx.semantic.type_of(&self.id).unwrap();
+                let struct_type = cg.semantic.type_of(&self.id).unwrap();
                 let (name, fields) = struct_type.as_struct_type().unwrap();
-                let name = ctx.mangle_symbol(self.id, name);
+                let name = cg.mangle_symbol(self.id, name);
                 let mut fields: TinyVec<_, 8> = fields.iter().map(|f| {
-                    f.ty.codegen(ctx)
+                    f.ty.codegen(cg)
                 }).collect();
-                let s = llvm::Type::struct_named(&name, &mut fields, false);
-                ctx.types.insert(struct_type.id, s);
+                let s = llvm::Type::struct_named(&name, &mut fields, false, cg.llvm_ctx);
+                cg.types.insert(struct_type.id, s);
             }
             hir::ItemKind::Use(_) => {},
         }
     }
 }
 
-impl Codegen<'_> for semantic::Ty<'_> {
-    type Output = llvm::Type;
+impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
+    type Output = llvm::Type<'cg>;
 
-    fn codegen(&self, ctx: &mut CodegenCtx) -> Self::Output {
+    fn codegen(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> Self::Output {
         match &self.kind {
             TypeKind::Primitive(prim) => match prim {
-                PrimitiveType::Int => llvm::Type::int_32(),
-                PrimitiveType::Float => llvm::Type::float_64(),
-                PrimitiveType::Bool => llvm::Type::int_1(),
+                PrimitiveType::Int => llvm::Type::int_32(cg.llvm_ctx),
+                PrimitiveType::Float => llvm::Type::float_64(cg.llvm_ctx),
+                PrimitiveType::Bool => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Char => todo!(),
-                PrimitiveType::Empty => llvm::Type::void(),
+                PrimitiveType::Empty => llvm::Type::void(cg.llvm_ctx),
             },
             TypeKind::Function { params, ret_ty } => {
                 let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {
-                    param.codegen(ctx)
+                    param.codegen(cg)
                 }).collect();
-                let ret = ret_ty.codegen(ctx);
+                let ret = ret_ty.codegen(cg);
 
                 llvm::Type::function(ret, &mut params_tys, false)
             },
             TypeKind::Ref(_) => todo!(),
             TypeKind::Array(ty, len) => {
-                llvm::Type::array(ty.codegen(ctx), *len as _)
+                llvm::Type::array(ty.codegen(cg), *len as _)
             }
             TypeKind::Struct { .. } => {
-                *ctx.types.get(&self.id).unwrap()
+                *cg.types.get(&self.id).unwrap()
             }
         }
     }
 }
 
 fn codegen_function<'hir>(
-    ctx: &mut CodegenCtx<'_, 'hir>,
+    cg: &mut CodegenState<'_, '_, 'hir>,
     item: &'hir hir::Item<'hir>,
     name: &PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
     body: &'hir[Statement<'hir>],
 ) {
-    let ty = ctx.semantic.type_of(&item.id).unwrap();
-    let fty = ty.codegen(ctx);
+    let ty = cg.semantic.type_of(&item.id).unwrap();
+    let fty = ty.codegen(cg);
 
-    let name = ctx.mangle_symbol(item.id, name.ident.sym).to_string();
-    let mut function = ctx.module().add_function(&name, fty);
+    let name = cg.mangle_symbol(item.id, name.ident.sym).clone();
+    let mut function = cg.module().add_function(&name, fty);
 
-    ctx.allocas.clear();
-    ctx.params.clear();
+    cg.allocas.clear();
+    cg.params.clear();
 
     let mut entry = function.append_basic_block("entry");
 
     {
-        let mut builder = llvm::Builder::new();
+        let mut builder = cg.llvm_ctx.create_builder();
         builder.position_at_end(&mut entry);
 
         for i in 0..function.n_params() {
             let param = function.param(i);
-            ctx.params.insert(params[i as usize].id, param);
+            cg.params.insert(params[i as usize].id, param);
         }
 
-        debug_assert!(ctx.curr_builder.is_none());
-        ctx.curr_builder = Some(builder);
+        debug_assert!(cg.curr_builder.is_none());
+        cg.curr_builder = Some(builder);
 
-        let old_f = ctx.curr_func.replace(function);
+        let old_f = cg.curr_func.replace(function);
 
         for stmt in body {
-            stmt.codegen(ctx);
+            stmt.codegen(cg);
         }
 
         if ret_ty.is_empty() {
-            ctx.builder().ret(None);
+            cg.builder().ret(None);
         }
 
-        ctx.curr_builder.take();
-        ctx.curr_func = old_f;
+        cg.curr_builder.take();
+        cg.curr_func = old_f;
     }
 
-    ctx.allocas.clear();
-    ctx.params.clear();
+    cg.allocas.clear();
+    cg.params.clear();
 }

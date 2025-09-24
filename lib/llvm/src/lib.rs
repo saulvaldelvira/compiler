@@ -23,8 +23,56 @@ macro_rules! cstr {
 }
 
 pub mod core;
-pub use core::{Builder, Value, Type, Module};
+pub use core::{Builder, Value, Type, Module, BasicBlock};
+
+use crate::ffi::{LLVMContextCreate, LLVMContextDispose, LLVMContextRef, LLVMGetGlobalContext};
 
 pub mod analysis;
 pub mod bitwriter;
 pub mod linker;
+
+#[derive(Debug)]
+pub struct Context {
+    pub raw: LLVMContextRef,
+}
+
+impl Context {
+
+    pub fn global() -> Self {
+        Self::from(unsafe { LLVMGetGlobalContext() })
+    }
+
+    pub fn new() -> Self {
+        Self { raw: unsafe { LLVMContextCreate() } }
+    }
+
+    pub fn create_builder(&self) -> Builder<'_> {
+        Builder::new(self)
+    }
+
+    pub fn create_module(&self, name: &str) -> Module<'_> {
+        Module::new(name, self)
+    }
+
+    pub fn create_basic_block(&self, name: &str) -> BasicBlock<'_> {
+        BasicBlock::new(name, self)
+    }
+}
+
+impl From<LLVMContextRef> for Context {
+    fn from(value: LLVMContextRef) -> Self {
+        Self { raw: value }
+    }
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for Context {
+    fn drop(&mut self) {
+        unsafe { LLVMContextDispose(self.raw); }
+    }
+}
