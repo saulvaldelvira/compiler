@@ -7,8 +7,8 @@ use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
-use llvm::core::{BasicBlock, Function};
-use llvm::ffi::{LLVMIntPredicate, LLVMShutdown};
+use llvm::core::{BasicBlock, Function, Global};
+use llvm::ffi::{LLVMIntPredicate, LLVMRealPredicate, LLVMShutdown};
 use llvm::Value;
 use semantic::rules::stmt::HasReturn;
 use semantic::{PrimitiveType, TypeId, TypeKind};
@@ -67,6 +67,7 @@ struct CodegenState<'cg, 'llvm, 'hir> {
     semantic: &'cg semantic::Semantic<'hir>,
 
     mangled_syms: Arc<RefCell<HashMap<HirId, String>>>,
+    globals: Arc<RefCell<HashMap<HirId, Value<'llvm>>>>,
     allocas: HashMap<HirId, Value<'llvm>>,
     params: HashMap<HirId, Value<'llvm>>,
 
@@ -96,6 +97,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
             src,
             params: HashMap::new(),
             allocas: HashMap::new(),
+            globals: Default::default(),
             modules: Default::default(),
             types: Default::default(),
             current_loop_end: None,
@@ -116,8 +118,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
 
         self.mangled_syms.borrow_mut().entry(id).or_insert_with(|| {
             let mut mangled = String::new();
-            let symbols = self.mangling.iter()
-                .chain([&name]);
+            let symbols = self.mangling.iter().chain([&name]);
 
             for (i, pref) in symbols.enumerate() {
                 if i > 0 {
@@ -131,10 +132,8 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
         .clone()
     }
 
-    fn enter(&mut self, module: &'hir hir::Module<'hir>) {
-        if module.name.ident.sym != "root" {
-            self.mangling.push(module.name.ident.sym);
-        }
+    fn enter(&mut self, sym: Symbol) {
+        self.mangling.push(sym);
     }
 
     fn exit(&mut self) {
@@ -145,7 +144,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
         let name = self.mangle_symbol(module.id, module.name.ident.sym);
         self.curr_mod = Some(self.llvm_ctx.create_module(&name));
         if module.name.ident.sym != "root" {
-            self.mangling.push(module.name.ident.sym);
+            self.enter(module.name.ident.sym);
         }
         self.curr_func = None;
         self.curr_builder = None;
@@ -169,9 +168,41 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
             self.allocas.insert(id, alloca);
             self.params.remove(&id);
             alloca
-        } else {
+        }
+        else if let Some(global) = self.get_global_value(id) {
+            global
+        }
+        else {
             *self.allocas.get(&id).unwrap()
         }
+    }
+
+    fn global_var(&mut self, vdecl: &hir::Item<'_>) -> Global<'llvm> {
+        let ItemKind::Variable { name, init, constness, .. } = vdecl.kind else {
+            unreachable!()
+        };
+
+        let name = self.mangle_symbol(vdecl.id, name.ident.sym);
+
+        let ty = self.semantic.type_of(&vdecl.id).unwrap().codegen(self);
+        let mut global = self.module().add_global(ty, &name);
+
+        if let Some(init) = init {
+            let init = init.value(self);
+            global.set_intializer(init);
+        }
+
+        global.set_constant(
+            matches!(constness, Constness::Const)
+        );
+
+        self.globals.borrow_mut().insert(vdecl.id, *global.as_value());
+
+        global
+    }
+
+    fn get_global_value(&self, id: HirId) -> Option<Value<'llvm>> {
+        self.globals.borrow().get(&id).copied()
     }
 }
 
@@ -192,6 +223,7 @@ impl Clone for CodegenState<'_, '_, '_> {
             allocas: HashMap::new(),
             mangling: self.mangling.clone(),
             modules: Arc::clone(&self.modules),
+            globals: Arc::clone(&self.globals),
             types: self.types.clone(),
         }
     }
@@ -214,7 +246,10 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Module<'hir> {
             }
             cg.modules.borrow_mut().insert(id, cg.curr_mod.unwrap());
         } else {
-            cg.enter(self);
+            let sym = self.name.ident.sym;
+            if sym != "root" {
+                cg.enter(sym);
+            }
             for item in self.items {
                 item.codegen(cg);
             }
@@ -316,6 +351,17 @@ fn cmp_op_to_uint_pred(op: CmpOp) -> LLVMIntPredicate {
     }
 }
 
+fn cmp_op_to_real_pred(op: CmpOp) -> LLVMRealPredicate {
+    match op {
+        CmpOp::Gt => LLVMRealPredicate::LLVMRealOGT,
+        CmpOp::Ge => LLVMRealPredicate::LLVMRealOGE,
+        CmpOp::Lt => LLVMRealPredicate::LLVMRealOLT,
+        CmpOp::Le => LLVMRealPredicate::LLVMRealOLE,
+        CmpOp::Eq => LLVMRealPredicate::LLVMRealOEQ,
+        CmpOp::Neq => LLVMRealPredicate::LLVMRealONE,
+    }
+}
+
 impl<'cg> CGValue<'cg> for hir::Expression<'_> {
     #[allow(clippy::too_many_lines)]
     fn value(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
@@ -354,20 +400,47 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     } else {
                         cmp_op_to_uint_pred(*op)
                     };
-                    cg.builder().signed_integer_cmp(left, right, pred, "tmp_cmp")
+                    cg.builder().integer_cmp(left, right, pred, "tmp_cmp")
                 } else {
-                    todo!()
+                    let pred = cmp_op_to_real_pred(*op);
+                    cg.builder().real_cmp(left, right, pred, "tmp_cmp")
                 }
             }
             EK::Arithmetic { left, op, right } => {
-                let left = left.value(cg);
-                let right = right.value(cg);
+                let lhs = left.value(cg);
+                let rhs = right.value(cg);
                 match op {
-                    ArithmeticOp::Add => cg.builder().add(left, right, "tmp_add"),
-                    ArithmeticOp::Sub => cg.builder().sub(left, right, "tmp_sub"),
-                    ArithmeticOp::Mul => cg.builder().mul(left, right, "tmp_mul"),
-                    ArithmeticOp::Div => todo!(),
-                    ArithmeticOp::Mod => todo!(),
+                    ArithmeticOp::Add => cg.builder().add(lhs, rhs, "tmp_add"),
+                    ArithmeticOp::Sub => cg.builder().sub(lhs, rhs, "tmp_sub"),
+                    ArithmeticOp::Mul => cg.builder().mul(lhs, rhs, "tmp_mul"),
+                    ArithmeticOp::Div => {
+                        let lty = cg.semantic.type_of(&left.id).unwrap();
+                        let is_int = lty.is_integer();
+                        let is_signed = lty.is_signed();
+                        if is_int {
+                            if is_signed {
+                                cg.builder().sint_div(lhs, rhs, "tmp_div")
+                            } else {
+                                cg.builder().uint_div(lhs, rhs, "tmp_div")
+                            }
+                        } else {
+                            cg.builder().fdiv(lhs, rhs, "tmp_div")
+                        }
+                    }
+                    ArithmeticOp::Mod => {
+                        let lty = cg.semantic.type_of(&left.id).unwrap();
+                        let is_int = lty.is_integer();
+                        let is_signed = lty.is_signed();
+                        if is_int {
+                            if is_signed {
+                                cg.builder().sint_rem(lhs, rhs, "tmp_rem")
+                            } else {
+                                cg.builder().uint_rem(lhs, rhs, "tmp_rem")
+                            }
+                        } else {
+                            cg.builder().frem(lhs, rhs, "tmp_rem")
+                        }
+                    }
                 }
             }
             EK::Ternary { .. } => todo!(),
@@ -625,8 +698,14 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
             hir::ItemKind::Mod(module) => module.codegen(cg),
             hir::ItemKind::Variable { name, constness, init, .. } => {
                 match constness {
-                    Constness::Const => todo!(),
+                    Constness::Const => {
+                        cg.global_var(self);
+                    }
                     Constness::Default => {
+                        if cg.curr_func.is_none() {
+                            cg.global_var(self);
+                            return
+                        }
                         let ty = cg.semantic.type_of(&self.id).unwrap();
                         let ty = ty.codegen(cg);
                         name.ident.sym.borrow(|name| {
@@ -699,8 +778,11 @@ fn codegen_function<'hir>(
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
 
-    let name = cg.mangle_symbol(item.id, name.ident.sym).clone();
-    let mut function = cg.module().add_function(&name, fty);
+    let mangled_name = cg.mangle_symbol(item.id, name.ident.sym).clone();
+
+    cg.enter(name.ident.sym);
+
+    let mut function = cg.module().add_function(&mangled_name, fty);
 
     cg.allocas.clear();
     cg.params.clear();
@@ -733,6 +815,7 @@ fn codegen_function<'hir>(
         cg.curr_func = old_f;
     }
 
+    cg.exit();
     cg.allocas.clear();
     cg.params.clear();
 }

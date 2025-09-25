@@ -5,7 +5,7 @@ use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LL
 use crate::Context;
 
 mod module;
-pub use module::Module;
+pub use module::{Module, Global};
 
 mod builder;
 pub use builder::Builder;

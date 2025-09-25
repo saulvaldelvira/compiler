@@ -2,7 +2,7 @@ use core::ffi::c_char;
 use core::marker::PhantomData;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildSub, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
 use crate::{Context, Type};
 
 pub struct Builder<'ctx> {
@@ -76,6 +76,60 @@ impl<'ctx> Builder<'ctx> {
         self.binop(left, right, name, LLVMBuildOr)
     }
 
+    pub fn uint_div(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildUDiv)
+    }
+
+    pub fn sint_div(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildSDiv)
+    }
+
+    pub fn uint_rem(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildURem)
+    }
+
+    pub fn sint_rem(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildSRem)
+    }
+
+    pub fn fdiv(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildFDiv)
+    }
+
+    pub fn frem(&mut self,
+        left: Value<'ctx>,
+        right: Value<'ctx>,
+        name: &str
+    ) -> Value<'ctx>
+    {
+        self.binop(left, right, name, LLVMBuildFRem)
+    }
+
     pub fn neg(&mut self,
         value: Value<'ctx>,
         name: &str
@@ -87,7 +141,7 @@ impl<'ctx> Builder<'ctx> {
         }, PhantomData)
     }
 
-    pub fn signed_integer_cmp(&mut self,
+    pub fn integer_cmp(&mut self,
         left: Value,
         right: Value,
         int_pred: LLVMIntPredicate,
@@ -97,6 +151,19 @@ impl<'ctx> Builder<'ctx> {
         cstr!(name);
         Value(unsafe {
             LLVMBuildICmp(self.raw, int_pred, left.0, right.0, name)
+        }, PhantomData)
+    }
+
+    pub fn real_cmp(&mut self,
+        left: Value,
+        right: Value,
+        real_pred: LLVMRealPredicate,
+        name: &str,
+    ) -> Value<'ctx>
+    {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildFCmp(self.raw, real_pred, left.0, right.0, name)
         }, PhantomData)
     }
 

@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use core::ptr;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMAddGlobal, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMTypeKind};
 use crate::Context;
 
 pub struct Module<'ctx> {
@@ -65,6 +65,13 @@ impl<'ctx> Module<'ctx> {
 
         ret
     }
+
+    pub fn add_global(&mut self, ty: Type<'ctx>, name: &str) -> Global<'ctx> {
+        cstr!(name);
+        Global(Value(unsafe {
+            LLVMAddGlobal(self.raw, ty.raw(), name)
+        }, PhantomData))
+    }
 }
 
 impl Display for Module<'_> {
@@ -76,6 +83,21 @@ impl Display for Module<'_> {
             LLVMDisposeMessage(module_str);
             Ok(())
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Global<'ctx>(Value<'ctx>);
+
+impl<'ctx> Global<'ctx> {
+    pub fn as_value(&self) -> &Value<'ctx> { &self.0 }
+
+    pub fn set_constant(&mut self, is_constant: bool) {
+        unsafe { LLVMSetGlobalConstant(self.0.0, is_constant as _);}
+    }
+
+    pub fn set_intializer(&mut self, val: Value<'ctx>) {
+        unsafe { LLVMSetInitializer(self.0.0, val.0); }
     }
 }
 
