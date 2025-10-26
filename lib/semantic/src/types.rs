@@ -110,7 +110,7 @@ impl<'ty> TypeKind<'ty> {
     }
 
     pub fn can_cast(&self, o: &TypeKind<'ty>) -> bool {
-        matches!((self, o), (Self::Primitive(_), Self::Primitive(_)))
+        matches!((self, o), (Self::Primitive(_) | Self::Ref(_), Self::Primitive(_) | Self::Ref(_)))
     }
 }
 

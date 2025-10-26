@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::walk_use;
+use hir::visitor::{walk_use, walk_variable_definition};
 use hir::{Item, PathDef};
 use hir::{
     Expression, Type,
@@ -344,11 +344,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_variable_definition(&mut self,
         base: &'hir Item<'hir>,
-        _name: &'hir PathDef,
+        name: &'hir PathDef,
         ty: Option<&'hir Type<'hir>>,
-        _init: Option<&'hir Expression<'hir>>,
-        _constness: hir::Constness,
+        init: Option<&'hir Expression<'hir>>,
+        constness: hir::Constness,
     ) -> Self::Result {
+        walk_variable_definition(self, base, name, ty, init, constness);
         let ty = ty.expect("TODO: Infer types");
         let ty = self.lowerer.lower_hir_type(ty);
         self.semantic.set_type_of(base.id, ty.id);

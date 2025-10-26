@@ -323,7 +323,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
 
         let mut errored = false;
 
-        if !matches!(from_ty.kind, TypeKind::Primitive(_)) {
+        if !matches!(from_ty.kind, TypeKind::Primitive(_) | TypeKind::Ref(_)) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::NonPrimitiveCast(from_ty.kind.to_string()),
                 span: self.span,
@@ -331,7 +331,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
             errored = true;
         }
 
-        if !matches!(self.to.kind, TypeKind::Primitive(_)) {
+        if !matches!(self.to.kind, TypeKind::Primitive(_) | TypeKind::Ref(_)) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::NonPrimitiveCast(self.to.kind.to_string()),
                 span: self.span,

@@ -188,8 +188,10 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
         let mut global = self.module().add_global(ty, &name);
 
         if let Some(init) = init {
+            let old_b = self.curr_builder.replace(self.llvm_ctx.create_builder());
             let init = init.value(self);
             global.set_intializer(init);
+            self.curr_builder = old_b;
         }
 
         global.set_constant(
@@ -508,8 +510,12 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                 };
                 cg.builder().call(func_ty, func, &mut args, name)
             }
-            EK::Cast { expr, to } => {
-                todo!("{expr:?}, {to:?}")
+            EK::Cast { expr, .. } => {
+                // TODO: There are other types of casts. Look them up!
+                let value = expr.value(cg);
+                let to = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
+                cg.builder().cast(&value, &to, "tmp_cast")
+
             }
             EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
             {
