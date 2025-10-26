@@ -1,7 +1,7 @@
 use core::ffi::c_int;
 use core::marker::PhantomData;
 
-use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
+use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
 use crate::Context;
 
 mod module;
@@ -79,6 +79,15 @@ impl<'ctx> Type<'ctx> {
             LLVMStructSetBody(sty, types, count, packed as i32);
             Self(sty, PhantomData)
         }
+    }
+
+    pub fn pointer(ty: Type<'ctx>) -> Type<'ctx> {
+        unsafe { Type(LLVMPointerType(ty.0, 0), PhantomData) }
+    }
+
+    #[must_use]
+    pub fn pointee_type(&self) -> Type<'ctx> {
+        unsafe { Type(LLVMGetElementType(self.0), PhantomData) }
     }
 
     pub fn size_of(&self) -> Value<'ctx> {

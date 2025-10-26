@@ -315,7 +315,8 @@ impl<'cg> Address<'cg> for hir::Expression<'_> {
                 let idx = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), idx as u64);
                 cg.builder().gep(sty, st, &mut [zero, idx], "tmp_gep")
 
-            }
+            },
+            EK::Deref(expr) => expr.value(cg),
             _ => unreachable!("Can't get address of {self:?}")
         }
     }
@@ -377,8 +378,14 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     UnaryOp::Neg => cg.builder().neg(val, "tmp_neg"),
                 }
             },
-            EK::Ref(_) => todo!(),
-            EK::Deref(_) => todo!(),
+            EK::Ref(expr) => {
+                expr.address(cg)
+            }
+            EK::Deref(expr) => {
+                let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
+                let expr = expr.value(cg);
+                cg.builder().load(expr, ty, "tmp_deref")
+            }
             EK::Logical { left, op, right } => {
                 let left = left.value(cg);
                 let right = right.value(cg);
@@ -756,7 +763,9 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
 
                 llvm::Type::function(ret, &mut params_tys, false)
             },
-            TypeKind::Ref(_) => todo!(),
+            TypeKind::Ref(to) => {
+                llvm::Type::pointer(to.codegen(cg))
+            }
             TypeKind::Array(ty, len) => {
                 llvm::Type::array(ty.codegen(cg), *len as _)
             }
