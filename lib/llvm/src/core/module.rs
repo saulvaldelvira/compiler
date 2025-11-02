@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use core::ptr;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMAddGlobal, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMAddGlobal, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMLinkage, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMTypeKind};
 use crate::Context;
 
 pub struct Module<'ctx> {
@@ -98,6 +98,10 @@ impl<'ctx> Global<'ctx> {
 
     pub fn set_intializer(&mut self, val: Value<'ctx>) {
         unsafe { LLVMSetInitializer(self.0.0, val.0); }
+    }
+
+    pub fn set_linkage(&mut self, linkage: LLVMLinkage) {
+        unsafe { LLVMSetLinkage(self.0.0, linkage); }
     }
 }
 

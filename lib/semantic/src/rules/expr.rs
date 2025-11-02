@@ -80,7 +80,7 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
         let arr_ty = sem.type_of(&self.arr.id);
         let index_ty = sem.type_of(&self.index.id);
 
-        if arr_ty.is_some_and(|arr| !matches!(arr.kind, TypeKind::Array(_, _))) {
+        if arr_ty.is_some_and(|arr| !matches!(arr.kind, TypeKind::Array(_, _) | TypeKind::Ref(_))) {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::IndexToNonArray,
                 span: self.arr.span,
@@ -98,8 +98,8 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
 
         match arr_ty {
             Some(Ty {
-                kind: TypeKind::Array(of, _),
-                ..
+                kind: TypeKind::Array(of, _)
+                    | TypeKind::Ref(of), ..
             }) => Some(of.id),
             _ => None,
         }

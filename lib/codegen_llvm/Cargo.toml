@@ -8,8 +8,10 @@ llvm = { path = "../llvm" }
 hir = { path = "../hir" }
 semantic = { path = "../semantic" }
 tiny-vec.workspace = true
+tiny-str.workspace = true
 interner = { path = "../interner" }
 span = { path = "../span" }
+lexer = { path = "../lexer" }
 
 [dev-dependencies]
 compiler_driver =  { path = "../compiler_driver" }

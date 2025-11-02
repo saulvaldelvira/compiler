@@ -266,7 +266,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
             LitValue::Float(_) => Type::float(),
             LitValue::Bool(_) => Type::bool(),
             LitValue::Char(_) => Type::char(),
-            LitValue::Str(_) => todo!(),
+            LitValue::Str(_) => {
+                let ctype = self.semantic.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Char));
+                let ty = self.semantic.get_or_intern_type(semantic::TypeKind::Ref(ctype));
+                self.semantic.set_type_of(expr.id, ty.id);
+                return;
+            }
         };
         let ty = self.lowerer.lower_hir_type(ty);
         self.semantic.set_type_of(expr.id, ty.id);

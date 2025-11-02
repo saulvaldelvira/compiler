@@ -7,12 +7,14 @@ use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
 use interner::Symbol;
+use lexer::unescaped::Unescaped;
 use llvm::core::{BasicBlock, Function, Global};
-use llvm::ffi::{LLVMIntPredicate, LLVMRealPredicate, LLVMShutdown};
+use llvm::ffi::{LLVMIntPredicate, LLVMLinkage, LLVMRealPredicate, LLVMShutdown};
 use llvm::Value;
 use semantic::rules::stmt::HasReturn;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
+use tiny_str::TinyString;
 use tiny_vec::TinyVec;
 
 pub struct Codegen {
@@ -313,7 +315,13 @@ impl<'cg> Address<'cg> for hir::Expression<'_> {
                 }
             },
             EK::ArrayAccess { arr, index } => {
-                let arr_ptr = arr.address(cg);
+                let arr_ty = cg.semantic.type_of(&arr.id).unwrap();
+                let arr_ptr = if arr_ty.is_pointer() {
+                    arr.value(cg)
+                } else {
+                    arr.address(cg)
+                };
+
                 let index = index.value(cg);
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
                 cg.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
@@ -502,8 +510,20 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     },
                     LitValue::Float(f) => llvm::Value::const_f64(*f, cg.llvm_ctx),
                     LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val), cg.llvm_ctx),
-                    LitValue::Str(_) => todo!(),
-                    LitValue::Char(_) => todo!(),
+                    LitValue::Str(s) => s.borrow(|literal| {
+                        let literal = &literal[1..literal.len() - 1];
+                        let literal: TinyString = Unescaped::from(literal).collect();
+                        let s = llvm::Value::const_string(&literal, true, cg.llvm_ctx);
+                        let ty = s.get_type();
+                        let mut global = cg.curr_mod.as_mut().unwrap().add_global(ty, "LitStr");
+                        global.set_intializer(s);
+                        global.set_constant(true);
+                        global.set_linkage(LLVMLinkage::LLVMLinkerPrivateLinkage);
+                        let val = *global.as_value();
+                        let zero = llvm::Value::const_int(llvm::Type::int_32(cg.llvm_ctx), 0);
+                        cg.builder().gep(ty, val, &mut [zero, zero][..], "lit_ptr")
+                    }),
+                    LitValue::Char(val) => llvm::Value::const_int1(u64::from(*val), cg.llvm_ctx),
                 }
             }
             EK::Call { callee, args } => {
@@ -524,9 +544,16 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
             EK::Cast { expr, .. } => {
                 // TODO: There are other types of casts. Look them up!
                 let value = expr.value(cg);
-                let to = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
-                cg.builder().cast(&value, &to, "tmp_cast")
+                let src_ty = cg.semantic.type_of(&expr.id).unwrap();
+                let dst_ty = cg.semantic.type_of(&self.id).unwrap();
 
+                let to = dst_ty.codegen(cg);
+
+                if src_ty.is_integer() && dst_ty.is_integer() {
+                   cg.builder().int_cast(&value, &to, dst_ty.is_signed(), "tmp_cast")
+                } else {
+                    cg.builder().bit_cast(&value, &to, "tmp_cast")
+                }
             }
             EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
             {
@@ -769,7 +796,7 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
                 PrimitiveType::Int => llvm::Type::int_32(cg.llvm_ctx),
                 PrimitiveType::Float => llvm::Type::float_64(cg.llvm_ctx),
                 PrimitiveType::Bool => llvm::Type::int_1(cg.llvm_ctx),
-                PrimitiveType::Char => todo!(),
+                PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Empty => llvm::Type::void(cg.llvm_ctx),
             },
             TypeKind::Function { params, ret_ty } => {

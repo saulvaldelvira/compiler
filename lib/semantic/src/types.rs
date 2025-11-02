@@ -139,7 +139,7 @@ impl<'ty> Ty<'ty> {
 
     #[inline]
     pub const fn is_integer(&self) -> bool {
-        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int | PrimitiveType::Bool))
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int | PrimitiveType::Bool | PrimitiveType::Char))
     }
 
     #[inline]
@@ -161,6 +161,11 @@ impl<'ty> Ty<'ty> {
             TypeKind::Struct { name, fields } => Some((name, fields)),
             _ => None,
         }
+    }
+
+    #[inline]
+    pub const fn is_pointer(&self) -> bool {
+        matches!(self.kind, TypeKind::Ref(_))
     }
 
     pub fn field_index_of(&self, name: Symbol) -> Option<usize> {

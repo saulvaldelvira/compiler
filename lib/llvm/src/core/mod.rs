@@ -1,7 +1,7 @@
 use core::ffi::c_int;
 use core::marker::PhantomData;
 
-use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
+use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMConstString, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
 use crate::Context;
 
 mod module;
@@ -154,6 +154,14 @@ impl<'ctx> Value<'ctx> {
 
     pub fn const_f32(val: f32, ctx: &'ctx Context) -> Self {
         Self::const_float(Type::float_32(ctx), val as f64)
+    }
+
+    pub fn const_string(contents: &str, null_terminate: bool, _ctx: &'ctx Context) -> Self {
+        let size = contents.len();
+        cstr!(contents);
+        Self(unsafe {
+            LLVMConstString(contents, size as u32, !null_terminate as c_int)
+        }, PhantomData)
     }
 
     pub fn set_name(&mut self, name: &str) {
