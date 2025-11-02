@@ -280,9 +280,20 @@ impl<'cg> Address<'cg> for hir::Item<'_> {
                     *cg.module().add_function(&name, fty).as_value()
                 }
             }
-            ItemKind::Use(_) => todo!(),
-            ItemKind::Mod(_) => todo!(),
-            ItemKind::Struct { .. } => todo!(),
+            ItemKind::Use(u) => {
+                let id = u.def().expect_resolved();
+                let node = cg.hir.get_node(&id);
+                match node {
+                    HirNodeKind::Expr(expression) => expression.address(cg),
+                    HirNodeKind::Item(item) => item.address(cg),
+                    HirNodeKind::Param(_) | HirNodeKind::PathDef(_) |
+                    HirNodeKind::Stmt(_) | HirNodeKind::Field(_) |
+                    HirNodeKind::Ty(_) | HirNodeKind::Module(_)
+                        => unreachable!("Can't get address of node with kind: {}", node.get_name())
+                }
+            }
+            ItemKind::Mod(_) => unreachable!("Can't get address of a module"),
+            ItemKind::Struct { .. } => unreachable!("Can't get address of a struct definition"),
         }
     }
 }

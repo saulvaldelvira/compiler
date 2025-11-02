@@ -50,6 +50,19 @@ impl<'hir> HirNodeKind<'hir> {
             HirNodeKind::Module(module) => module.span,
         })
     }
+
+    pub fn get_name(&self) -> &'static str {
+        match self {
+            HirNodeKind::Expr(_) => "Expr",
+            HirNodeKind::Item(_) => "Item",
+            HirNodeKind::Param(_) => "Param",
+            HirNodeKind::PathDef(_) => "PathDef",
+            HirNodeKind::Stmt(_) => "Stmt",
+            HirNodeKind::Field(_) => "Field",
+            HirNodeKind::Ty(_) => "Ty",
+            HirNodeKind::Module(_) => "Module",
+        }
+    }
 }
 
 impl<'hir> From<&'hir Expression<'hir>> for HirNodeKind<'hir> {

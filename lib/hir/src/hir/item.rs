@@ -6,7 +6,7 @@ use span::source::FileId;
 use span::Span;
 
 use super::{Constness, Expression, Statement, types::Type};
-use crate::Path;
+use crate::{NodeRef, Path};
 use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind, path::PathDef};
 
 #[derive(Debug, Clone)]
@@ -22,6 +22,11 @@ impl<'hir> UseItem<'hir> {
 
     pub fn get_name(&self) -> Symbol {
         self.new_name.ident.sym
+    }
+
+    #[inline]
+    pub fn def(&self) -> &NodeRef<HirId> {
+        self.path.def()
     }
 }
 
