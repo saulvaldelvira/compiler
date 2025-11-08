@@ -89,12 +89,13 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 HIK::Variable { ty, constness, init, name }
             }
             IK::Function {
+                kw_extern,
                 body,
                 params,
                 return_type,
                 ..
             } => {
-                let body = self.lower_statements(&body.val);
+                let body = body.as_ref().map(|body| self.lower_statements(&body.val));
                 let params = self.lower_params(params);
                 let ret_ty = return_type
                     .as_ref()
@@ -102,6 +103,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                         hir::Type::empty,
                         |rt| self.lower_type(rt));
                 HIK::Function {
+                    is_extern: kw_extern.is_some(),
                     name,
                     params,
                     body,

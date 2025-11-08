@@ -183,6 +183,9 @@ pub enum TokenKind {
 
     /// '%'
     Modulo,
+
+    /// "extern"
+    Extern,
 }
 
 /// A token consist on a discriminator [`TokenKind`] and a [Span]

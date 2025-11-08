@@ -58,10 +58,11 @@ pub enum ItemKind<'hir> {
         constness: Constness,
     },
     Function {
+        is_extern: bool,
         name: &'hir PathDef,
         params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: &'hir [Statement<'hir>],
+        body: Option<&'hir [Statement<'hir>]>,
     },
     Struct {
         name: &'hir PathDef,

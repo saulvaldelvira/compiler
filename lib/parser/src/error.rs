@@ -14,6 +14,7 @@ pub enum ParseErrorKind {
         expected: &'static str,
         found: String,
     },
+    ExternFnDefined,
     InvalidBinaryOp(TokenKind),
     InvalidUnaryOp(TokenKind),
     InvalidEscape(String),
@@ -45,6 +46,7 @@ impl error_manager::Error for ParseError {
             ParseErrorKind::CantPeek => write!(out, "Can't peek"),
             ParseErrorKind::NoPreviousToken => write!(out, "No previous token"),
             ParseErrorKind::LexemParseError => write!(out, "Error parsing lexem"),
+            ParseErrorKind::ExternFnDefined => write!(out, "Expected semicollon after \"extern\" function declaration"),
         }
     }
 }

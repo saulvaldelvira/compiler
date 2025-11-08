@@ -402,11 +402,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_function_definition(
         &mut self,
+        _is_extern: bool,
         def: &'hir hir::Item<'hir>,
         name: &'hir PathDef,
         params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: &'hir [hir::Statement<'hir>],
+        body: Option<&'hir [hir::Statement<'hir>]>,
     ) -> Self::Result {
         {
             let params = params.iter().map(|p| p.ty);
@@ -420,12 +421,15 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
         walk_function_definition(self, def, name, params, ret_ty, body);
 
-        CheckFunctionReturns {
-            def,
-            body,
-            span: def.span,
+        if let Some(body) = body {
+            CheckFunctionReturns {
+                def,
+                body,
+                span: def.span,
+            }
+            .apply(self.semantic, self.em);
         }
-        .apply(self.semantic, self.em);
+
     }
 
     fn visit_expression_as_stmt(

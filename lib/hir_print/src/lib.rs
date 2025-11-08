@@ -120,11 +120,13 @@ impl HirPrinter<'_, '_> {
 
                     ul.push(Node::collapse("params", Node::Ul(p)));
                 }
-                let mut b = vec![];
-                for stmt in *body {
-                    b.push(self.serialize_stmt(stmt));
+                if let Some(body) = body {
+                    let mut b = vec![];
+                    for stmt in *body {
+                        b.push(self.serialize_stmt(stmt));
+                    }
+                    ul.push(Node::collapse("body", Node::Ul(b)));
                 }
-                ul.push(Node::collapse("body", Node::Ul(b)));
             }
             ItemKind::Struct { fields, .. } => {
                 let mut flist = vec![];

@@ -9,6 +9,7 @@ use ast::{
 use error_manager::ErrorManager;
 use lexer::token::TokenKind;
 use span::source::{FileId, FileName};
+use span::Span;
 
 use crate::{error::ParseErrorKind, Parser, Result};
 
@@ -126,8 +127,9 @@ impl Parser<'_, '_> {
     }
 
     fn try_function(&mut self) -> Option<Result<Item>> {
+        let extern_span = self.match_type(TokenKind::Extern).then(|| self.previous_span().unwrap());
         if self.match_type(TokenKind::Fn) {
-            Some(self.function())
+            Some(self.function(extern_span))
         } else {
             None
         }
@@ -192,7 +194,7 @@ impl Parser<'_, '_> {
         let span = name.span.join(&ty.span);
         Ok(Param { span, ty, name })
     }
-    fn function(&mut self) -> Result<Item> {
+    fn function(&mut self, extern_span: Option<Span>) -> Result<Item> {
         let kw_fn = self.previous_span()?;
 
         let name = self.consume_ident_spanned()?;
@@ -218,17 +220,37 @@ impl Parser<'_, '_> {
             None
         };
 
-        let body = self.block(Self::statement)?;
+        let mut semicolon = None;
+        let mut body = None;
+        let span;
 
-        let span = kw_fn.join(&body.close_brace);
+        if let Some(ext) = extern_span {
+            let scspan = match self.consume(TokenKind::Semicolon) {
+                Ok(sc) => sc.span,
+                Err(er) => {
+                    if self.peek().is_ok_and(|t| t.kind == TokenKind::LeftBrace) {
+                        return Err(ParseErrorKind::ExternFnDefined)
+                    }
+                    return Err(er)
+                }
+            };
+            span = ext.join(&scspan);
+            semicolon = Some(scspan);
+        } else {
+            let block = self.block(Self::statement)?;
+            span = kw_fn.join(&block.close_brace);
+            body = Some(block);
+        }
 
         Ok(Item {
             kind: ItemKind::Function {
+                kw_extern: extern_span,
                 kw_fn,
                 name,
                 params: params.into_boxed_slice(),
                 return_type,
                 body,
+                semicolon
             },
             span,
         })

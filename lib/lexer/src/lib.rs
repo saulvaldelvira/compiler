@@ -65,6 +65,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("while", TokenKind::While);
             map.insert("break", TokenKind::Break);
             map.insert("continue", TokenKind::Continue);
+            map.insert("extern", TokenKind::Extern);
             map
         })
         .get(ident)

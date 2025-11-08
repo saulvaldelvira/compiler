@@ -140,11 +140,12 @@ pub trait Visitor<'hir> {
 
     fn visit_function_definition(
         &mut self,
+        _is_extern: bool,
         base: &'hir Item<'hir>,
         name: &'hir PathDef,
         params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: &'hir [Statement<'hir>],
+        body: Option<&'hir [Statement<'hir>]>,
     ) -> Self::Result {
         walk_function_definition(self, base, name, params, ret_ty, body)
     }
@@ -365,11 +366,12 @@ where
         ItemKind::Variable { name, ty, init, constness } => v.visit_variable_definition(item, name, *ty, *init, *constness),
         ItemKind::Use(u) => v.visit_use(item, u),
         ItemKind::Function {
+            is_extern,
             name,
             params,
             body,
             ret_ty,
-        } => v.visit_function_definition(item, name, params, ret_ty, body),
+        } => v.visit_function_definition(*is_extern, item, name, params, ret_ty, *body),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
     }
@@ -398,7 +400,7 @@ pub fn walk_function_definition<'hir, V>(
     name: &'hir PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: &'hir [Statement<'hir>],
+    body: Option<&'hir [Statement<'hir>]>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -408,8 +410,10 @@ where
     for p in params {
         v.visit_param(p);
     }
-    for stmt in body {
-        v.visit_statement(stmt);
+    if let Some(body) = body {
+        for stmt in body {
+            v.visit_statement(stmt);
+        }
     }
     v.visit_type(ret_ty);
     v.get_ctx().exit_function();

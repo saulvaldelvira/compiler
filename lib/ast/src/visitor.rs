@@ -71,8 +71,10 @@ where
             if let Some(rty) = return_type {
                 v.visit_type(rty);
             }
-            for stmt in &body.val {
-                v.visit_statement(stmt);
+            if let Some(body) = body {
+                for stmt in &body.val {
+                    v.visit_statement(stmt);
+                }
             }
             V::Result::output()
         }

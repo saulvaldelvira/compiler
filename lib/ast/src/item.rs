@@ -37,11 +37,13 @@ pub enum ItemKind {
         semicolon: Span,
     },
     Function {
+        kw_extern: Option<Span>,
         kw_fn: Span,
         name: Spanned<Symbol>,
         params: Box<[Param]>,
         return_type: Option<Type>,
-        body: Block<Statement>,
+        body: Option<Block<Statement>>,
+        semicolon: Option<Span>,
     },
     Struct {
         kw_struct: Span,

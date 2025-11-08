@@ -258,11 +258,12 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
     fn visit_function_definition(
         &mut self,
+        _is_extern: bool,
         base: &'hir hir::Item<'hir>,
         name: &'hir hir::PathDef,
         params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir hir::Type<'hir>,
-        body: &'hir [hir::Statement<'hir>],
+        body: Option<&'hir [hir::Statement<'hir>]>,
     ) -> Self::Result {
         self.define(name.ident.sym, base.id);
         self.ctx.st.enter_scope();

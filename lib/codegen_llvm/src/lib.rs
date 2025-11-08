@@ -770,8 +770,8 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                     },
                 }
             },
-            hir::ItemKind::Function { name, params, ret_ty, body } =>
-                codegen_function(cg, self, name, params, ret_ty, body),
+            hir::ItemKind::Function { is_extern, name, params, ret_ty, body } =>
+                codegen_function(cg, self, is_extern, name, params, ret_ty, body),
             hir::ItemKind::Struct { .. } => {
                 let struct_type = cg.semantic.type_of(&self.id).unwrap();
                 let (name, fields) = struct_type.as_struct_type().unwrap();
@@ -823,19 +823,21 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
 fn codegen_function<'hir>(
     cg: &mut CodegenState<'_, '_, 'hir>,
     item: &'hir hir::Item<'hir>,
+    is_extern: bool,
     name: &PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: &'hir[Statement<'hir>],
+    body: Option<&'hir[Statement<'hir>]>,
 ) {
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
 
     let mangled_name = cg.mangle_symbol(item.id, name.ident.sym).clone();
 
-    cg.enter(name.ident.sym);
-
     let mut function = cg.module().add_function(&mangled_name, fty);
+    if is_extern { return; }
+
+    cg.enter(name.ident.sym);
 
     cg.allocas.clear();
     cg.params.clear();
@@ -856,7 +858,7 @@ fn codegen_function<'hir>(
 
         let old_f = cg.curr_func.replace(function);
 
-        for stmt in body {
+        for stmt in body.expect("A non-extern function MUST have a block") {
             stmt.codegen(cg);
         }
 
