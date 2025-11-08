@@ -19,11 +19,19 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
     match ty.kind {
         TypeKind::Primitive(prim) => {
             write!(out, "{}", match prim {
-                PrimitiveType::Int |
+                PrimitiveType::I16 |
                 PrimitiveType::Bool => "int",
                 PrimitiveType::Char => "char",
-                PrimitiveType::Float => "float",
+                PrimitiveType::F32 => "float",
                 PrimitiveType::Empty => unreachable!(),
+                PrimitiveType::I8 |
+                PrimitiveType::I32 |
+                PrimitiveType::I64 |
+                PrimitiveType::U8 |
+                PrimitiveType::U16 |
+                PrimitiveType::U32 |
+                PrimitiveType::U64 |
+                PrimitiveType::F64 => panic!("Unsupported numeric type"),
             })
         }
         TypeKind::Ref(_) => todo!(),

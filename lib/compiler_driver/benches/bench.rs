@@ -1,5 +1,4 @@
 #![feature(test)]
-use std::fs;
 use std::rc::Rc;
 
 use compiler_driver::{Compiler, Emit};
@@ -9,23 +8,23 @@ extern crate test;
 
 const INPUT: &str = "
     mod abc {
-        fn lol() -> int {
+        fn lol() -> i32 {
             return 1;
         }
 
         mod def {
-            fn jej(i: int, c: char) -> bool {
+            fn jej(i: i32, c: char) -> bool {
                 return false;
             }
         }
 
         mod abc2 {
-            fn lol() -> int {
+            fn lol() -> i32 {
                 return 1;
             }
 
             mod def {
-                fn jej(i: int, c: char) -> bool {
+                fn jej(i: i32, c: char) -> bool {
                     return false;
                 }
             }
@@ -42,11 +41,12 @@ const INPUT: &str = "
     }
 
     fn main() {
-        let a: int = abc::lol();
+        let a: i32 = abc::lol();
+
 
         if (abc::pium()) {
             while (abc::def::jej(a, '2')) {
-                print 'a';
+
             }
         } else {
 
@@ -60,7 +60,7 @@ fn bench_compilation(b: &mut Bencher) {
         let mut source = SourceMap::default();
         source.add_file(FileName::Annon, Rc::from(INPUT));
         let comp = Compiler::new(source);
-        comp.process(Emit::Mapl);
+        comp.process(Emit::LlvmIr);
     });
 }
 
@@ -72,12 +72,12 @@ fn bench_huge(b: &mut Bencher) {
         src = format!("\n mod _nested_module_A{i}_ {{ \n {src} \n }}  {INPUT} ").into();
     }
 
-    fs::write("/tmp/s", &*src).unwrap();
+    /* fs::write("/tmp/s", &*src).unwrap(); */
 
     b.iter(|| {
         let mut source = SourceMap::default();
         source.add_file(FileName::Annon, Rc::clone(&src));
         let comp = Compiler::new(source);
-        comp.process(Emit::Mapl);
+        comp.process(Emit::LlvmIr);
     });
 }

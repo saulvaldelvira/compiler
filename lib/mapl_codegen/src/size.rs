@@ -12,11 +12,19 @@ pub trait SizeOf {
 impl SizeOf for PrimitiveType {
     fn size_of(&self) -> u64 {
         match self {
-            PrimitiveType::Int |
+            PrimitiveType::I16 |
             PrimitiveType::Bool => 2,
             PrimitiveType::Char => 1,
-            PrimitiveType::Float => 4,
+            PrimitiveType::F32 => 4,
             PrimitiveType::Empty => 0,
+            PrimitiveType::I8 |
+            PrimitiveType::I32 |
+            PrimitiveType::I64 |
+            PrimitiveType::U8 |
+            PrimitiveType::U16 |
+            PrimitiveType::U32 |
+            PrimitiveType::U64 |
+            PrimitiveType::F64 => panic!("Unsupported numeric type"),
         }
     }
 }
@@ -25,7 +33,7 @@ impl SizeOf for Ty<'_> {
     fn size_of(&self) -> u64 {
         match self.kind {
             TypeKind::Primitive(p) => p.size_of(),
-            TypeKind::Ref(_) => PrimitiveType::Int.size_of(),
+            TypeKind::Ref(_) => PrimitiveType::I16.size_of(),
             TypeKind::Array(ty, len) => ty.size_of() * u64::from(len),
             TypeKind::Struct { fields, .. } => fields.iter().map(|f| f.ty.size_of()).sum(),
             TypeKind::Function { .. } => todo!(),

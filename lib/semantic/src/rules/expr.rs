@@ -88,7 +88,7 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
         }
 
         if let Some(ind) = index_ty {
-            if !matches!(ind.kind, TypeKind::Primitive(PrimitiveType::Int)) {
+            if !ind.is_integer() {
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::NonIntegerIndex,
                     span: self.index.span,
@@ -291,7 +291,7 @@ impl SemanticRule<'_> for ValidateCall<'_> {
                 let l = format!("{}", expected_param.kind);
                 let r = format!("{}", src_ty.kind);
                 em.emit_error(SemanticError {
-                    kind: SemanticErrorKind::CantPromote(l, r),
+                    kind: SemanticErrorKind::CantPromote(r, l),
                     span: src_param.span,
                 });
                 error = true;

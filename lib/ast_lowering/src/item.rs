@@ -100,8 +100,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let params = self.lower_params(params);
                 let ret_ty = return_type
                     .as_ref()
-                    .map_or_else(
-                        hir::Type::empty,
+                    .map_or(
+                        &hir::Type::EMPTY,
                         |rt| self.lower_type(rt));
                 HIK::Function {
                     is_extern: kw_extern.is_some(),

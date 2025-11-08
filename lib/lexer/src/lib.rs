@@ -49,10 +49,20 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("if", TokenKind::If);
             map.insert("print", TokenKind::Print);
             map.insert("read", TokenKind::Read);
-            map.insert("int", TokenKind::Int);
+
+            map.insert("i8", TokenKind::I8);
+            map.insert("i16", TokenKind::I16);
+            map.insert("i32", TokenKind::I32);
+            map.insert("i64", TokenKind::I64);
+            map.insert("u8", TokenKind::U8);
+            map.insert("u16", TokenKind::U16);
+            map.insert("u32", TokenKind::U32);
+            map.insert("u64", TokenKind::U64);
+            map.insert("f32", TokenKind::F32);
+            map.insert("f64", TokenKind::F64);
             map.insert("char", TokenKind::Char);
-            map.insert("float", TokenKind::Float);
             map.insert("bool", TokenKind::Bool);
+
             map.insert("return", TokenKind::Return);
             map.insert("super", TokenKind::Super);
             map.insert("this", TokenKind::This);

@@ -10,22 +10,38 @@ pub struct TypeId(pub(crate) usize);
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum PrimitiveType {
-    Int,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
     Char,
-    Float,
+    F32,
+    F64,
     Bool,
     Empty,
 }
 
 impl Display for PrimitiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            PrimitiveType::Int => "int",
-            PrimitiveType::Char => "char",
-            PrimitiveType::Float => "float",
-            PrimitiveType::Bool => "bool",
-            PrimitiveType::Empty => "()",
-        })
+        match self {
+            Self::Char => write!(f, "char"),
+            Self::Bool => write!(f, "bool"),
+            Self::Empty => write!(f, "()"),
+            Self::I8 => write!(f, "i8"),
+            Self::I16 => write!(f, "i16"),
+            Self::I32 => write!(f, "i32"),
+            Self::I64 => write!(f, "i64"),
+            Self::U8 => write!(f, "u8"),
+            Self::U16 => write!(f, "u16"),
+            Self::U32 => write!(f, "u32"),
+            Self::U64 => write!(f, "u64"),
+            Self::F32 => write!(f, "f32"),
+            Self::F64 => write!(f, "f64"),
+        }
     }
 }
 
@@ -33,11 +49,19 @@ impl From<&hir::types::PrimitiveType> for PrimitiveType {
     fn from(value: &hir::types::PrimitiveType) -> Self {
         use hir::types::PrimitiveType as Prim;
         match value {
-            Prim::Int => Self::Int,
             Prim::Char => Self::Char,
-            Prim::Float => Self::Float,
             Prim::Bool => Self::Bool,
             Prim::Empty => Self::Empty,
+            Prim::I8 => Self::I8,
+            Prim::I16 => Self::I16,
+            Prim::I32 => Self::I32,
+            Prim::I64 => Self::I64,
+            Prim::U8 => Self::U8,
+            Prim::U16 => Self::U16,
+            Prim::U32 => Self::U32,
+            Prim::U64 => Self::U64,
+            Prim::F32 => Self::F32,
+            Prim::F64 => Self::F64,
         }
     }
 }
@@ -97,7 +121,11 @@ impl<'ty> TypeKind<'ty> {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
-            TypeKind::Primitive(PrimitiveType::Float | PrimitiveType::Int)
+            TypeKind::Primitive(
+                PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64 |
+                PrimitiveType::U8 | PrimitiveType::U16 | PrimitiveType::U32 | PrimitiveType::U64 |
+                PrimitiveType::F32 | PrimitiveType::F64
+            )
         )
     }
 
@@ -143,12 +171,18 @@ impl<'ty> Ty<'ty> {
 
     #[inline]
     pub const fn is_integer(&self) -> bool {
-        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int | PrimitiveType::Bool | PrimitiveType::Char))
+        matches!(
+            self.kind,
+            TypeKind::Primitive(
+                PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64 |
+                PrimitiveType::U8 | PrimitiveType::U16 | PrimitiveType::U32 | PrimitiveType::U64
+            )
+        )
     }
 
     #[inline]
     pub const fn is_signed(&self) -> bool {
-        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Int))
+        matches!(self.kind, TypeKind::Primitive(PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64))
     }
 
     #[inline]

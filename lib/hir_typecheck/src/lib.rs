@@ -262,10 +262,10 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     ) -> Self::Result {
         use hir::expr::LitValue;
         let ty = match lit {
-            LitValue::Int(_) => Type::int(),
-            LitValue::Float(_) => Type::float(),
-            LitValue::Bool(_) => Type::bool(),
-            LitValue::Char(_) => Type::char(),
+            LitValue::Int(_) => &Type::I32,
+            LitValue::Float(_) => &Type::F32,
+            LitValue::Bool(_) => &Type::BOOL,
+            LitValue::Char(_) => &Type::CHAR,
             LitValue::Str(_) => {
                 let ctype = self.semantic.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Char));
                 let ty = self.semantic.get_or_intern_type(semantic::TypeKind::Ref(ctype));

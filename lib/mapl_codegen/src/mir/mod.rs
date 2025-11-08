@@ -150,11 +150,19 @@ impl From<&'_ Ty<'_>> for MaplType {
         match &value.kind {
             TypeKind::Primitive(primitive_type) => {
                 match primitive_type {
-                    PrimitiveType::Int |
+                    PrimitiveType::I16 |
                     PrimitiveType::Bool => MaplType::Int,
                     PrimitiveType::Char => MaplType::Byte,
-                    PrimitiveType::Float => MaplType::Float,
+                    PrimitiveType::F32 => MaplType::Float,
                     PrimitiveType::Empty => todo!(),
+                    PrimitiveType::I8 |
+                    PrimitiveType::I32 |
+                    PrimitiveType::I64 |
+                    PrimitiveType::U8 |
+                    PrimitiveType::U16 |
+                    PrimitiveType::U32 |
+                    PrimitiveType::U64 |
+                    PrimitiveType::F64 => panic!("Unsupported numeric type"),
                 }
             }
             TypeKind::Ref(_) => MaplType::Int,

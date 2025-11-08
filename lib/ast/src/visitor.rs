@@ -36,12 +36,10 @@ where
     match &ty.kind {
         TypeKind::Array { ty, .. } => v.visit_type(ty),
         TypeKind::Ref { of, .. } => v.visit_type(of),
-        TypeKind::Int(_)
-        | TypeKind::Float(_)
-        | TypeKind::Bool(_)
-        | TypeKind::Char(_)
-        | TypeKind::Path(_)
-        | TypeKind::Empty(_) => V::Result::output(),
+        TypeKind::I8(_) | TypeKind::I16(_) | TypeKind::I32(_) | TypeKind::I64(_) |
+        TypeKind::U8(_) | TypeKind::U16(_) | TypeKind::U32(_) | TypeKind::U64(_) |
+        TypeKind::F32(_) | TypeKind::F64(_) | TypeKind::Bool(_) | TypeKind::Char(_) |
+        TypeKind::Path(_) | TypeKind::Empty(_) => V::Result::output(),
     }
 }
 

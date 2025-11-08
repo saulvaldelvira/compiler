@@ -8,10 +8,10 @@ use semantic::{Semantic, TypeLowering};
 fn unique_types() {
     let hir_sess = hir::Session::default();
 
-    let int = hir_sess.alloc(Type::new(TypeKind::Primitive(PrimitiveType::Int)));
+    let int = hir_sess.alloc(Type::new(TypeKind::Primitive(PrimitiveType::I32)));
 
     let params = [
-        TypeKind::Primitive(PrimitiveType::Int),
+        TypeKind::Primitive(PrimitiveType::I32),
         TypeKind::Primitive(PrimitiveType::Char),
     ];
 
@@ -37,6 +37,6 @@ fn unique_types() {
     assert_eq!(int.id, func_int.id);
 
     let manual_int =
-        sem.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Int));
+        sem.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::I32));
     assert_eq!(int.id, manual_int.id);
 }

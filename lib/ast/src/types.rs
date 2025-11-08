@@ -6,8 +6,16 @@ use crate::Path;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {
-    Int(Span),
-    Float(Span),
+    I8(Span),
+    I16(Span),
+    I32(Span),
+    I64(Span),
+    U8(Span),
+    U16(Span),
+    U32(Span),
+    U64(Span),
+    F32(Span),
+    F64(Span),
     Bool(Span),
     Char(Span),
     Array {

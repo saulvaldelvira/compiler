@@ -793,8 +793,16 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
     fn codegen(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> Self::Output {
         match &self.kind {
             TypeKind::Primitive(prim) => match prim {
-                PrimitiveType::Int => llvm::Type::int_32(cg.llvm_ctx),
-                PrimitiveType::Float => llvm::Type::float_64(cg.llvm_ctx),
+                PrimitiveType::I8 => llvm::Type::int(8, cg.llvm_ctx),
+                PrimitiveType::I16 => llvm::Type::int(16, cg.llvm_ctx),
+                PrimitiveType::I32 => llvm::Type::int(32, cg.llvm_ctx),
+                PrimitiveType::I64 => llvm::Type::int(64, cg.llvm_ctx),
+                PrimitiveType::U8 => llvm::Type::int(8, cg.llvm_ctx),
+                PrimitiveType::U16 => llvm::Type::int(16, cg.llvm_ctx),
+                PrimitiveType::U32 => llvm::Type::int(32, cg.llvm_ctx),
+                PrimitiveType::U64 => llvm::Type::int(64, cg.llvm_ctx),
+                PrimitiveType::F32 => llvm::Type::float_32(cg.llvm_ctx),
+                PrimitiveType::F64 => llvm::Type::float_64(cg.llvm_ctx),
                 PrimitiveType::Bool => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Empty => llvm::Type::void(cg.llvm_ctx),

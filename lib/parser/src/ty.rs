@@ -35,15 +35,20 @@ impl Parser<'_, '_> {
                 })
             }};
         }
-        if self.match_type(TokenKind::Int) {
-            ty!(TypeKind::Int)
-        } else if self.match_type(TokenKind::Float) {
-            ty!(TypeKind::Float)
-        } else if self.match_type(TokenKind::Char) {
-            ty!(TypeKind::Char)
-        } else if self.match_type(TokenKind::Bool) {
-            ty!(TypeKind::Bool)
-        } else if self.check(TokenKind::Identifier) {
+        macro_rules! primitives {
+            ($first:ident $(,)? $($n:ident),* $(,)?) => {
+                if self.match_type(TokenKind::$first) {
+                    return ty!(TypeKind::$first)
+                } $(
+                    else if self.match_type(TokenKind::$n) {
+                        return ty!(TypeKind::$n)
+                    }
+                )*
+            };
+        }
+        primitives!(I8, I16, I32, I64, U8, U16, U32, U64, F32, F64, Char, Bool);
+
+        if self.check(TokenKind::Identifier) {
             let p = self.path()?;
             let span = p.span;
             Ok(Type {

@@ -97,14 +97,17 @@ pub enum TokenKind {
     /// '\\?.'
     CharLiteral,
 
-    /// "int"
-    Int,
+    // Int types
+    I8, I16, I32, I64,
+
+    // Uint types
+    U8, U16, U32, U64,
+
+    // Float types
+    F32, F64,
 
     /// "char"
     Char,
-
-    /// "float"
-    Float,
 
     /// "bool"
     Bool,

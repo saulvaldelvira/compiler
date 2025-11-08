@@ -31,19 +31,19 @@ fn simple_main_undefined() {
 #[test]
 fn simple_redefinition() {
     let input: &str = "
-        let a: int;
+        let a: i32;
         struct S {
-            a: int, // OK
+            a: i32, // OK
             b: char,
             a: char, // BAD
         }
         fn foo() {
-            let S: int = 12; // OK
+            let S: i32= 12; // OK
             print S;
         }
         struct foo { }
         struct GOOD {
-            foo: int, // OK
+            foo: i32, // OK
         }
         ";
 
@@ -71,7 +71,7 @@ fn simple_ok() {
     let hir = Tester::all_ok("
  fn foo() { }
  fn main() {
-     let a: int = 12;
+     let a: i32 = 12;
 
      a = a + 1;
 
@@ -81,7 +81,7 @@ fn simple_ok() {
 
      foo();
 
-     let foo: float = 1.2;
+     let foo: f32 = 1.2;
      foo = foo * 1.2;
  },");
 

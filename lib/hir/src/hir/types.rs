@@ -6,9 +6,17 @@ use crate::{HirId, hir_id::HirNode, node_map::HirNodeKind};
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub enum PrimitiveType {
-    Int,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
     Char,
-    Float,
+    F32,
+    F64,
     Bool,
     Empty,
 }
@@ -16,11 +24,19 @@ pub enum PrimitiveType {
 impl fmt::Debug for PrimitiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Int => write!(f, "int"),
             Self::Char => write!(f, "char"),
-            Self::Float => write!(f, "float"),
             Self::Bool => write!(f, "bool"),
             Self::Empty => write!(f, "()"),
+            PrimitiveType::I8 => write!(f, "i8"),
+            PrimitiveType::I16 => write!(f, "i16"),
+            PrimitiveType::I32 => write!(f, "i32"),
+            PrimitiveType::I64 => write!(f, "i64"),
+            PrimitiveType::U8 => write!(f, "u8"),
+            PrimitiveType::U16 => write!(f, "u16"),
+            PrimitiveType::U32 => write!(f, "u32"),
+            PrimitiveType::U64 => write!(f, "u64"),
+            PrimitiveType::F32 => write!(f, "f32"),
+            PrimitiveType::F64 => write!(f, "f64"),
         }
     }
 }
@@ -123,33 +139,32 @@ impl fmt::Debug for Type<'_> {
     }
 }
 
-impl<'ty> Type<'ty> {
-    const INT: Self = Self {
-        kind: TypeKind::Primitive(PrimitiveType::Int),
-        id: HirId::DUMMY,
+macro_rules! const_variants {
+    ( $v:ident ) => {
+            pub const $v: Self = Self {
+                kind: TypeKind::Primitive(PrimitiveType::$v),
+                id: HirId::DUMMY,
+            };
     };
-    const FLOAT: Self = Self {
-        kind: TypeKind::Primitive(PrimitiveType::Float),
-        id: HirId::DUMMY,
+    ( = $name:ident : $v:ident) => {
+            pub const $name: Self = Self {
+                kind: TypeKind::Primitive(PrimitiveType::$v),
+                id: HirId::DUMMY,
+            };
     };
-    const CHAR: Self = Self {
-        kind: TypeKind::Primitive(PrimitiveType::Char),
-        id: HirId::DUMMY,
+    ($($( = $name:ident :)?  $v:ident),* $(,)?) => {
+        $(
+            const_variants!( $( = $name :)? $v);
+        )*
     };
-    const BOOL: Self = Self {
-        kind: TypeKind::Primitive(PrimitiveType::Bool),
-        id: HirId::DUMMY,
-    };
-    const EMPTY: Self = Self {
-        kind: TypeKind::Primitive(PrimitiveType::Empty),
-        id: HirId::DUMMY,
-    };
+}
 
-    pub const fn int() -> &'ty Self { &Self::INT }
-    pub const fn float() -> &'ty Self { &Self::FLOAT }
-    pub const fn char() -> &'ty Self { &Self::CHAR }
-    pub const fn bool() -> &'ty Self { &Self::BOOL }
-    pub const fn empty() -> &'ty Self { &Self::EMPTY }
+impl Type<'_> {
+    const_variants!(I8, I16, I32, I64, U8, U16, U32, U64, F32, F64,
+        = CHAR: Char,
+        = BOOL: Bool,
+        = EMPTY: Empty
+    );
 
     pub fn is_empty(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
