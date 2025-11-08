@@ -92,6 +92,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 kw_extern,
                 body,
                 params,
+                variadic_span,
                 return_type,
                 ..
             } => {
@@ -104,6 +105,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                         |rt| self.lower_type(rt));
                 HIK::Function {
                     is_extern: kw_extern.is_some(),
+                    is_variadic: variadic_span.is_some(),
                     name,
                     params,
                     body,

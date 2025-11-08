@@ -144,6 +144,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
             span: self.c.current_span(),
         })
     }
+    #[allow(clippy::too_many_lines)]
     fn scan_token(&mut self) -> Option<Token> {
         match self.c.advance() {
             '(' => self.add_token(TokenKind::LeftParen),
@@ -154,7 +155,10 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
             ']' => self.add_token(TokenKind::RightBracket),
             ',' => self.add_token(TokenKind::Comma),
             '.' => {
-                if self.c.peek().is_numeric() {
+                if self.c.match_next('.') && self.c.match_next('.') {
+                    self.add_token(TokenKind::ThreeDot)
+                }
+                else if self.c.peek().is_numeric() {
                     self.error(LexerErrorKind::FloatLitWithoutIntegralPart);
                     None
                 } else {

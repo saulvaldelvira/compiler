@@ -3,7 +3,7 @@ use ast::{
     Expression, Visitor, expr::ExpressionKind,
     stmt::StatementKind, visitor,
 };
-use error::{Warning, WarningKind};
+use error::{Error, ErrorKind};
 use error_manager::ErrorManager;
 use precedence::Precedence;
 
@@ -23,8 +23,8 @@ impl AstValidator<'_> {
     fn warn_unnecesary_paren(&mut self, no_paren: &Expression, precedence: u8) {
         if let ExpressionKind::Paren(p) = &no_paren.kind {
             if p.val.precedence() >= precedence {
-                self.em.emit_warning(Warning {
-                    kind: WarningKind::UnnecesaryParenthesis,
+                self.em.emit_warning(Error {
+                    kind: ErrorKind::UnnecesaryParenthesis,
                     span: no_paren.span,
                 });
             }
@@ -81,11 +81,19 @@ impl Visitor for AstValidator<'_> {
 
     fn visit_item(&mut self, item: &'_ Item) {
         visitor::walk_item(self, item);
-        if let ItemKind::Variable {
-            init: Some(init), ..
-        } = &item.kind
-        {
-            self.warn_unnecesary_paren(init, 1);
+        match &item.kind {
+            ItemKind::Variable { init: Some(init), .. } => {
+                self.warn_unnecesary_paren(init, 1);
+            },
+            ItemKind::Function { variadic_span, kw_extern, .. } => {
+                if let Some(varspan) = variadic_span && !kw_extern.is_some() {
+                    self.em.emit_error(Error {
+                        kind: ErrorKind::NonExternVariadic,
+                        span: *varspan,
+                    });
+                }
+            }
+            _ => {}
         }
     }
 }

@@ -99,7 +99,7 @@ fn define_func<'hir>(
     }
 
     let ty = cg.sem.type_of(&def.id).unwrap();
-    let (_, ret) = ty.as_function_type().unwrap();
+    let (_, _, ret) = ty.as_function_type().unwrap();
     let ret_size = ret.size_of();
 
     let locals = body

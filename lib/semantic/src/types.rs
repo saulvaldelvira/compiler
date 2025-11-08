@@ -58,6 +58,7 @@ pub enum TypeKind<'ty> {
         fields: &'ty [Field<'ty>],
     },
     Function {
+        is_variadic: bool,
         params: &'ty [&'ty Ty<'ty>],
         ret_ty: &'ty Ty<'ty>,
     },
@@ -70,7 +71,7 @@ impl Display for TypeKind<'_> {
             TypeKind::Ref(inner) => write!(f, "&{inner}"),
             TypeKind::Array(of, len) => write!(f, "[{of}; {len}]"),
             TypeKind::Struct { name, .. } => write!(f, "{name:#?}"),
-            TypeKind::Function { params, ret_ty } => {
+            TypeKind::Function { is_variadic, params, ret_ty } => {
                 write!(f, "fn(")?;
                 let mut first = true;
                 for param in *params {
@@ -79,6 +80,9 @@ impl Display for TypeKind<'_> {
                     }
                     first = false;
                     write!(f, "{param}")?;
+                }
+                if *is_variadic {
+                    write!(f, ", ...")?;
                 }
                 write!(f, ") -> {ret_ty}")
             }
@@ -148,9 +152,9 @@ impl<'ty> Ty<'ty> {
     }
 
     #[inline]
-    pub const fn as_function_type(&self) -> Option<(&'ty [&'ty Ty<'ty>], &'ty Ty<'ty>)> {
+    pub const fn as_function_type(&self) -> Option<(bool, &'ty [&'ty Ty<'ty>], &'ty Ty<'ty>)> {
         match self.kind {
-            TypeKind::Function { params, ret_ty } => Some((params, ret_ty)),
+            TypeKind::Function { is_variadic, params, ret_ty } => Some((is_variadic, params, ret_ty)),
             _ => None,
         }
     }

@@ -32,6 +32,7 @@ pub enum TypeKind<'hir> {
     Array(&'hir Type<'hir>, u32),
     Path(Path),
     Function {
+        is_variadic: bool,
         params: &'hir [Type<'hir>],
         ret_ty: &'hir Type<'hir>,
     },
@@ -54,7 +55,7 @@ impl fmt::Debug for TypeKind<'_> {
                 }
                 Ok(())
             }
-            Self::Function { params, ret_ty } => {
+            Self::Function { is_variadic, params, ret_ty } => {
                 write!(f, "fn (")?;
                 let mut first = true;
                 for p in *params {
@@ -63,6 +64,9 @@ impl fmt::Debug for TypeKind<'_> {
                     }
                     first = false;
                     write!(f, "{p:?}")?;
+                }
+                if *is_variadic {
+                    write!(f, ", ...")?;
                 }
                 write!(f, ") -> {ret_ty:?}")
             }
@@ -90,14 +94,16 @@ impl PartialEq for TypeKind<'_> {
             }
             (
                 Self::Function {
+                    is_variadic: l_isvariadic,
                     params: l_params,
                     ret_ty: l_ret_ty,
                 },
                 Self::Function {
+                    is_variadic: r_isvariadic,
                     params: r_params,
                     ret_ty: r_ret_ty,
                 },
-            ) => l_params == r_params && l_ret_ty == r_ret_ty,
+            ) => l_params == r_params && l_ret_ty == r_ret_ty && l_isvariadic == r_isvariadic,
             _ => false,
         }
     }

@@ -202,6 +202,7 @@ impl Parser<'_, '_> {
         self.consume(TokenKind::LeftParen)?;
 
         let mut params = Vec::new();
+        let mut variadic_span = None;
 
         let mut first = true;
         while !self.match_type(TokenKind::RightParen) {
@@ -209,6 +210,12 @@ impl Parser<'_, '_> {
                 self.consume(TokenKind::Comma)?;
             }
             first = false;
+
+            if self.match_type(TokenKind::ThreeDot) {
+               variadic_span = Some(self.previous_span()?);
+               self.consume(TokenKind::RightParen)?;
+               break;
+            }
 
             let p = self.param()?;
             params.push(p);
@@ -248,6 +255,7 @@ impl Parser<'_, '_> {
                 kw_fn,
                 name,
                 params: params.into_boxed_slice(),
+                variadic_span,
                 return_type,
                 body,
                 semicolon

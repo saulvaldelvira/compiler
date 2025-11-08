@@ -59,6 +59,7 @@ pub enum ItemKind<'hir> {
     },
     Function {
         is_extern: bool,
+        is_variadic: bool,
         name: &'hir PathDef,
         params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,

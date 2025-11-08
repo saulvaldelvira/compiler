@@ -97,10 +97,10 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             }
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
-            HTK::Function { params, ret_ty } => {
+            HTK::Function { is_variadic, params, ret_ty } => {
                 let params = self.lower_hir_types(params);
                 let ret_ty = self.lower_hir_type(ret_ty);
-                TypeKind::Function { params, ret_ty }
+                TypeKind::Function { is_variadic: *is_variadic, params, ret_ty }
             }
             HTK::Path(_) => unreachable!(),
         }

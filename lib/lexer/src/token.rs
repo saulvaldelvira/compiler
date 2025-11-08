@@ -186,6 +186,9 @@ pub enum TokenKind {
 
     /// "extern"
     Extern,
+
+    /// ...
+    ThreeDot,
 }
 
 /// A token consist on a discriminator [`TokenKind`] and a [Span]

@@ -261,7 +261,7 @@ impl SemanticRule<'_> for ValidateCall<'_> {
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
         let expr_ty = sem.type_of(&self.callee.id)?;
 
-        let TypeKind::Function { params, ret_ty } = expr_ty.kind else {
+        let TypeKind::Function { is_variadic, params, ret_ty } = expr_ty.kind else {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::CallToNonFunction,
                 span: self.callee.span,
@@ -269,36 +269,41 @@ impl SemanticRule<'_> for ValidateCall<'_> {
             return Default::default();
         };
 
-        if params.len() != self.args.len() {
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::MismatchedArgsNum {
-                    expected: params.len(),
-                    received: self.args.len(),
-                },
-                span: self.span,
-            });
-            return Default::default();
-        }
+        let mut src_params = self.args.iter();
+        let mut dst_params = params.iter();
 
-        let args_tys = self
-            .args
-            .iter()
-            .map(|expr| sem.type_of(&expr.id).map(|ty| (ty, expr.span)));
         let mut error = false;
-        for (param, arg) in params.iter().zip(args_tys) {
-            let Some((arg, arg_span)) = arg else {
+        while let Some(expected_param) = dst_params.next() {
+            let Some(src_param) = src_params.next() else {
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::MismatchedArgsNum {
+                        expected: params.len(),
+                        received: self.args.len(),
+                    },
+                    span: self.span,
+                });
                 return Default::default();
             };
 
-            if !arg.kind.can_be_promoted_to(&param.kind) {
-                let l = format!("{}", param.kind);
-                let r = format!("{}", arg.kind);
+            let Some(src_ty) = sem.type_of(&src_param.id) else { return Default::default() };
+
+            if !src_ty.kind.can_be_promoted_to(&expected_param.kind) {
+                let l = format!("{}", expected_param.kind);
+                let r = format!("{}", src_ty.kind);
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::CantPromote(l, r),
-                    span: arg_span,
+                    span: src_param.span,
                 });
                 error = true;
             }
+        }
+
+        if src_params.next().is_some() && !is_variadic {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::MismatchedArgsNum { expected: self.args.len(), received: params.len() },
+                span: self.span,
+            });
+            error = true;
         }
 
         if error {

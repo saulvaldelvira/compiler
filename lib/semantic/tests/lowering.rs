@@ -19,7 +19,7 @@ fn unique_types() {
 
     let ret_ty = hir_sess.alloc(Type::new(TypeKind::Primitive(PrimitiveType::Empty)));
 
-    let func = TypeKind::Function { params, ret_ty };
+    let func = TypeKind::Function { is_variadic: false, params, ret_ty };
     let func = hir_sess.alloc(Type::new(func));
 
     let sem = Semantic::default();

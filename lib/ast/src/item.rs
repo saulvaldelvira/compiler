@@ -41,6 +41,7 @@ pub enum ItemKind {
         kw_fn: Span,
         name: Spanned<Symbol>,
         params: Box<[Param]>,
+        variadic_span: Option<Span>,
         return_type: Option<Type>,
         body: Option<Block<Statement>>,
         semicolon: Option<Span>,

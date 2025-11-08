@@ -403,6 +403,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     fn visit_function_definition(
         &mut self,
         _is_extern: bool,
+        is_variadic: bool,
         def: &'hir hir::Item<'hir>,
         name: &'hir PathDef,
         params: &'hir [hir::Param<'hir>],
@@ -414,7 +415,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
             let params = self.lowerer.lower_hir_types_iter(params);
             let ret_ty = self.lowerer.lower_hir_type(ret_ty);
 
-            let func_type = semantic::types::TypeKind::Function { params, ret_ty };
+            let func_type = semantic::types::TypeKind::Function { is_variadic, params, ret_ty };
             let ty = self.semantic.get_or_intern_type(func_type).id;
             self.semantic.set_type_of(def.id, ty);
         }

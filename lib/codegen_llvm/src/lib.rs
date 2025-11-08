@@ -534,7 +534,7 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     expr.value(cg)
                 }).collect();
 
-                let name = if fty.as_function_type().unwrap().1.is_empty_type() {
+                let name = if fty.as_function_type().unwrap().2.is_empty_type() {
                     ""
                 } else {
                     "tmp_call"
@@ -770,7 +770,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                     },
                 }
             },
-            hir::ItemKind::Function { is_extern, name, params, ret_ty, body } =>
+            hir::ItemKind::Function { is_extern, is_variadic: _, name, params, ret_ty, body } =>
                 codegen_function(cg, self, is_extern, name, params, ret_ty, body),
             hir::ItemKind::Struct { .. } => {
                 let struct_type = cg.semantic.type_of(&self.id).unwrap();
@@ -799,13 +799,13 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
                 PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Empty => llvm::Type::void(cg.llvm_ctx),
             },
-            TypeKind::Function { params, ret_ty } => {
+            TypeKind::Function { is_variadic, params, ret_ty } => {
                 let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {
                     param.codegen(cg)
                 }).collect();
                 let ret = ret_ty.codegen(cg);
 
-                llvm::Type::function(ret, &mut params_tys, false)
+                llvm::Type::function(ret, &mut params_tys, *is_variadic)
             },
             TypeKind::Ref(to) => {
                 llvm::Type::pointer(to.codegen(cg))

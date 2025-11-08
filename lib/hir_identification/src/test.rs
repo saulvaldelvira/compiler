@@ -88,7 +88,7 @@ fn simple_ok() {
     let root = hir.get_root();
 
     let main = root.find_item(Symbol::new("main")).unwrap();
-    let ItemKind::Function { body, .. } = main.kind else {
+    let ItemKind::Function { body: Some(body), .. } = main.kind else {
         panic!();
     };
 

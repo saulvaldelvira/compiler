@@ -24,7 +24,7 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
         let Some(ty) = sem.type_of(&self.def.id) else {
             return;
         };
-        let (_, ret_type) = ty
+        let (_, _, ret_type) = ty
             .as_function_type()
             .expect("Expected function's type to be of FuncType");
 
@@ -59,7 +59,7 @@ impl SemanticRule<'_> for CheckReturnStmt<'_> {
         };
 
         let def_ty = sem.type_of(&self.definition.id).unwrap();
-        let (_, expected) = def_ty.as_function_type().unwrap();
+        let (_, _, expected) = def_ty.as_function_type().unwrap();
 
         if !found.kind.can_be_promoted_to(&expected.kind) {
             let expected = format!("{}", expected.kind);

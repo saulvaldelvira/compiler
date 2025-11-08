@@ -259,6 +259,7 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     fn visit_function_definition(
         &mut self,
         _is_extern: bool,
+        _is_variadic: bool,
         base: &'hir hir::Item<'hir>,
         name: &'hir hir::PathDef,
         params: &'hir [hir::Param<'hir>],

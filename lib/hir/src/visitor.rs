@@ -141,6 +141,7 @@ pub trait Visitor<'hir> {
     fn visit_function_definition(
         &mut self,
         _is_extern: bool,
+        _is_variadic: bool,
         base: &'hir Item<'hir>,
         name: &'hir PathDef,
         params: &'hir [Param<'hir>],
@@ -329,7 +330,7 @@ where
         TypeKind::Array(ty, _) => {
             v.visit_type(ty);
         }
-        TypeKind::Function { params, ret_ty } => {
+        TypeKind::Function { is_variadic: _, params, ret_ty } => {
             walk_iter!(v, params, visit_type);
             v.visit_type(ret_ty);
         }
@@ -367,11 +368,12 @@ where
         ItemKind::Use(u) => v.visit_use(item, u),
         ItemKind::Function {
             is_extern,
+            is_variadic,
             name,
             params,
             body,
             ret_ty,
-        } => v.visit_function_definition(*is_extern, item, name, params, ret_ty, *body),
+        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, *body),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
     }
