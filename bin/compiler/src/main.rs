@@ -76,16 +76,16 @@ fn main() {
                 gen_asm(&comp, &modules);
             }
             Output::ForBin(modules) => {
-                gen_asm(&comp, &modules);
+                gen_llvm(&comp, &modules);
 
                 let out = conf.out_file.as_deref().unwrap_or("a.out");
 
-                let mut gcc = Command::new("gcc");
-                gcc.args(["-xassembler", "-o", out]);
+                let mut gcc = Command::new("clang");
+                gcc.args(["-Wno-override-module", "-o", out]);
 
                 for file in comp.source().borrow().files() {
                     let mut path = PathBuf::from(file.path().unwrap());
-                    path.set_extension("s");
+                    path.set_extension("ll");
                     gcc.arg(path);
                 }
 
@@ -94,9 +94,6 @@ fn main() {
 
                 for file in comp.source().borrow().files() {
                     let mut path = PathBuf::from(file.path().unwrap());
-
-                    path.set_extension("s");
-                    fs::remove_file(&path).unwrap();
 
                     path.set_extension("ll");
                     fs::remove_file(path).unwrap();
