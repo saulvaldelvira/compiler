@@ -5,7 +5,7 @@ This is a toy compiler I'm working on
 == Documentation ==
 To build the code documentation, run `cargo doc`, or
 browse it online at https://doc.saulv.es/compiler/rustdoc/
-There's a markdown book on the /doc folder
+There's a markdown book on the /doc folder <https://doc.saulv.es/compiler/book/>
 
 ====
 Copyright (C) 2025 Saúl Valdelvira

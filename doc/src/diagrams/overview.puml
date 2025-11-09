@@ -1,6 +1,7 @@
 @startuml
 
-(Source Code) -> [Lexer]
+(Source Code) -r-> [Lexer]
+
 [Lexer] -> [Parser]
 
 [Parser] -> [AST]
@@ -26,15 +27,13 @@ node "Semantic Analysis" {
 [AST Lowering] --> [Identification]
 [Semantic] ..l..> "HIR": uses
 
-node "Code Generation" {
+[TypeChecking] --d-> [LLVM Frontend]
 
-}
+[LLVM Frontend] -d-> (LLVM_IR) : produces
+[LLVM Frontend] .....> "HIR" : uses
 
-[TypeChecking] --d-> "Code Generation"
-
-
-"Code Generation" -d-> (MAPL)
-"Code Generation" .....> "HIR" : uses
+(LLVM_IR) -r-> (ASM): llc
+(ASM) -r-> (EXECUTABLE): C/ASM compiler
 
 [HIR Session] .....> [Memory Arena]: uses
 [Semantic] ....l..> [Memory Arena]

@@ -23,7 +23,7 @@ Token --|> TokenKind
 Token --|> Span
 
 enum TokenKind {
-    Int
+    Char
     Identifier
     IntLiteral
     ...
