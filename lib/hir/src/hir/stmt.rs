@@ -27,8 +27,6 @@ pub enum StatementKind<'hir> {
     Break,
     Continue,
     Return(Option<&'hir Expression<'hir>>),
-    Print(&'hir Expression<'hir>),
-    Read(&'hir Expression<'hir>),
     Item(&'hir Item<'hir>),
 }
 

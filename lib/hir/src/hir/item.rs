@@ -155,7 +155,7 @@ impl<'hir> Item<'hir> {
         match &self.kind {
             ItemKind::Mod(module) => module.name.ident.sym,
             ItemKind::Use(u) => u.get_name(),
-            ItemKind::TypeAlias { name, .. } => name.ident.sym,
+            ItemKind::TypeAlias { name, .. } |
             ItemKind::Variable{ name, .. } |
             ItemKind::Function { name, .. } |
             ItemKind::Struct { name, .. } => name.ident.sym

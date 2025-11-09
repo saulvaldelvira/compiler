@@ -134,20 +134,6 @@ impl Execute for Statement<'_> {
                     ret
                 }
             }
-            StatementKind::Print(expression) => {
-                let ty = cg.sem.type_of(&expression.id).unwrap();
-                let ty = MaplType::from(ty);
-                MaplInstruction::Compose(Box::new([expression.eval(cg), MaplInstruction::Out(ty)]))
-            }
-            StatementKind::Read(expr) => {
-                let ty = cg.sem.type_of(&expr.id).unwrap();
-                let ty = MaplType::from(ty);
-                MaplInstruction::Compose(Box::new([
-                    expr.address(cg),
-                    MaplInstruction::In(ty),
-                    MaplInstruction::Store(ty),
-                ]))
-            }
             StatementKind::Item(item) => item.define(cg),
         };
 

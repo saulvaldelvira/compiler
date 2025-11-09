@@ -39,7 +39,6 @@ fn simple_redefinition() {
         }
         fn foo() {
             let S: i32= 12; // OK
-            print S;
         }
         struct foo { }
         struct GOOD {
@@ -56,7 +55,7 @@ fn simple_redefinition() {
         IdentificationErrorKind::Redefinition {
             name: "foo".to_string(),
             node_type: "function",
-            prev: FilePosition { start_line: 8, start_col: 9, end_line: 11, end_col: 10 }
+            prev: FilePosition { start_line: 8, start_col: 9, end_line: 10, end_col: 10 }
         },
     ];
 
@@ -70,6 +69,7 @@ fn simple_redefinition() {
 fn simple_ok() {
     let hir = Tester::all_ok("
  fn foo() { }
+ fn use_char(a: char) {}
  fn main() {
      let a: i32 = 12;
 
@@ -77,7 +77,7 @@ fn simple_ok() {
 
      let a: char = 'a';
 
-     print a;
+     use_char(a);
 
      foo();
 
@@ -100,8 +100,13 @@ fn simple_ok() {
     assert_eq!(*def1_id, def.get().unwrap());
 
     let StatementKind::Item(Item { id: def2_id, .. }) = &body[2].kind else { panic!() };
-    let StatementKind::Print(Expression { kind: ExpressionKind::Variable(path), .. }) = &body[3].kind else { panic!() };
+    let StatementKind::Expr(expr) = &body[3].kind else { panic!() };
+    let ExpressionKind::Call { args, .. } = expr.kind else { panic!() };
+    assert_eq!(args.len(), 1);
+    let ExpressionKind::Variable(path) = &args[0].kind else { panic!() };
+
     let def = path.def();
+
     assert_eq!(*def2_id, def.get().unwrap());
 
     assert_ne!(def1_id, def2_id);

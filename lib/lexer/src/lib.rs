@@ -47,9 +47,6 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("fn", TokenKind::Fn);
             map.insert("for", TokenKind::For);
             map.insert("if", TokenKind::If);
-            map.insert("print", TokenKind::Print);
-            map.insert("read", TokenKind::Read);
-
             map.insert("i8", TokenKind::I8);
             map.insert("i16", TokenKind::I16);
             map.insert("i32", TokenKind::I32);
@@ -62,10 +59,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("f64", TokenKind::F64);
             map.insert("char", TokenKind::Char);
             map.insert("bool", TokenKind::Bool);
-
             map.insert("return", TokenKind::Return);
-            map.insert("super", TokenKind::Super);
-            map.insert("this", TokenKind::This);
             map.insert("true", TokenKind::True);
             map.insert("let", TokenKind::Let);
             map.insert("use", TokenKind::Use);

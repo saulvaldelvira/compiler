@@ -91,8 +91,6 @@ impl HasReturn for hir::Statement<'_> {
             | StatementKind::Empty
             | StatementKind::Break
             | StatementKind::Continue
-            | StatementKind::Print(_)
-            | StatementKind::Read(_)
             | StatementKind::Item(_) => false,
         }
     }

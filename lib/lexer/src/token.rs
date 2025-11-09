@@ -82,7 +82,7 @@ pub enum TokenKind {
     /// "<="
     LessEqual,
 
-    /// [a-zA-Z_][a-zA-Z_0-9]*
+    /// [a-zA-Z_]\[a-zA-Z_0-9\]*
     Identifier,
 
     /// "(.|\\\\.)*?"
@@ -97,20 +97,32 @@ pub enum TokenKind {
     /// '\\?.'
     CharLiteral,
 
-    // Int types
-    I8, I16, I32, I64,
-
-    // Uint types
-    U8, U16, U32, U64,
-
-    // Float types
-    F32, F64,
-
+    /* ==== Primitive Types ==== */
+    /// "i8"
+    I8,
+    /// "i16"
+    I16,
+    /// "i32"
+    I32,
+    /// "i64"
+    I64,
+    /// "u8"
+    U8,
+    /// "u16"
+    U16,
+    /// "u32"
+    U32,
+    /// "u64"
+    U64,
+    /// "f32"
+    F32,
+    /// "f64"
+    F64,
     /// "char"
     Char,
-
     /// "bool"
     Bool,
+    /* ========================= */
 
     /// "struct"
     Struct,
@@ -130,20 +142,8 @@ pub enum TokenKind {
     /// "if"
     If,
 
-    /// "print"
-    Print,
-
-    /// "read"
-    Read,
-
     /// "return"
     Return,
-
-    /// "super"
-    Super,
-
-    /// "this"
-    This,
 
     /// "true"
     True,
@@ -190,7 +190,7 @@ pub enum TokenKind {
     /// "extern"
     Extern,
 
-    /// ...
+    /// "..."
     ThreeDot,
 }
 

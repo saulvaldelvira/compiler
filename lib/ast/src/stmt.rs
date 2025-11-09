@@ -10,8 +10,6 @@ use crate::{Block, Expression, Parenthesized};
 #[derive(Debug)]
 pub enum StatementKind {
     Expression(Expression, Span),
-    Print(Span, Box<[Expression]>, Span),
-    Read(Span, Box<[Expression]>, Span),
     Item(Box<Item>),
     Block(Block<Statement>),
     If {

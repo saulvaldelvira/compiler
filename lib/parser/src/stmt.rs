@@ -127,11 +127,7 @@ impl Parser<'_, '_> {
         })
     }
     fn single_line_stmt(&mut self) -> Result<Statement> {
-        let ast = if self.match_type(TokenKind::Print) {
-            return self.print_stmt();
-        } else if self.match_type(TokenKind::Read) {
-            return self.read_stmt();
-        } else if self.match_type(TokenKind::Semicolon) {
+        let ast =  if self.match_type(TokenKind::Semicolon) {
             Statement {
                 kind: StatementKind::Empty(self.previous_span()?),
                 span: self.previous_span()?,
@@ -150,29 +146,6 @@ impl Parser<'_, '_> {
             self.expression_as_stmt()?
         };
         Ok(ast)
-    }
-    fn print_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.previous_span()?;
-        let exprs = self.comma_sep_expr()?;
-        let semmi = self.consume(TokenKind::Semicolon)?.span;
-        let span = start_span.join(&semmi);
-
-        Ok(Statement {
-            kind: StatementKind::Print(start_span, exprs, semmi),
-            span,
-        })
-    }
-
-    fn read_stmt(&mut self) -> Result<Statement> {
-        let start_span = self.previous_span()?;
-        let exprs = self.comma_sep_expr()?;
-        let semmi = self.consume(TokenKind::Semicolon)?.span;
-        let span = start_span.join(&semmi);
-
-        Ok(Statement {
-            kind: StatementKind::Read(start_span, exprs, semmi),
-            span,
-        })
     }
 
     fn expression_as_stmt(&mut self) -> Result<Statement> {

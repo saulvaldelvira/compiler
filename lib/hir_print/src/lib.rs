@@ -349,16 +349,6 @@ impl HirPrinter<'_, '_> {
                     Node::Empty
                 }
             }
-            StatementKind::Print(expr) => {
-                list.push(Node::Title("PrintStmt"));
-                let expr = self.serialize_expr(expr).into();
-                Node::KeyVal("expr", expr)
-            }
-            StatementKind::Read(expr) => {
-                list.push(Node::Title("ReadStmt"));
-                let expr = self.serialize_expr(expr).into();
-                Node::KeyVal("expr", expr)
-            }
             StatementKind::Item(def) => return self.serialize_item(def),
         };
 

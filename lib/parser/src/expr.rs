@@ -13,19 +13,6 @@ impl Parser<'_, '_> {
 
     pub(super) fn try_expression(&mut self) -> Option<Expression> { self.expression().ok() }
 
-    pub(super) fn comma_sep_expr(&mut self) -> Result<Box<[Expression]>> {
-        let mut exprs = Vec::new();
-        let expr = self.expression()?;
-        exprs.push(expr);
-
-        while self.match_type(TokenKind::Comma) {
-            let expr = self.expression()?;
-            exprs.push(expr);
-        }
-
-        Ok(exprs.into_boxed_slice())
-    }
-
     fn assignment(&mut self) -> Result<Expression> {
         let left = self.ternary()?;
         let ast = if self.match_type(TokenKind::Equal) {

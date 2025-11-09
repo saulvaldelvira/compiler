@@ -18,26 +18,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         use hir::stmt::StatementKind as HSK;
         let kind = match &stmt.kind {
             SK::Expression(expr, _) => HSK::Expr(self.lower_expression(expr)),
-            SK::Print(_, expressions, _) => {
-                if expressions.len() > 1 {
-                    let stmts = self.sess.alloc_iter(expressions.iter().map(|expr| {
-                        hir::Statement::new(HSK::Print(self.lower_expression(expr)), expr.span)
-                    }));
-                    HSK::Block(stmts)
-                } else {
-                    HSK::Print(self.lower_expression(&expressions[0]))
-                }
-            }
-            SK::Read(_, expressions, _) => {
-                if expressions.len() > 1 {
-                    let stmts = self.sess.alloc_iter(expressions.iter().map(|expr| {
-                        hir::Statement::new(HSK::Read(self.lower_expression(expr)), expr.span)
-                    }));
-                    HSK::Block(stmts)
-                } else {
-                    HSK::Read(self.lower_expression(&expressions[0]))
-                }
-            }
             SK::Item(item) => {
                 let item = self.lower_item(item);
                 HSK::Item(item)

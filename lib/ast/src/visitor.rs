@@ -93,14 +93,6 @@ where
 {
     match &stmt.kind {
         StatementKind::Expression(expression, _) => v.visit_expression(expression),
-        StatementKind::Print(_, expressions, _)
-        | StatementKind::Read(_, expressions, _) =>
-        {
-            for expr in expressions {
-                v.visit_expression(expr);
-            }
-            V::Result::output()
-        }
         StatementKind::Item(item) => v.visit_item(item),
         StatementKind::Block(block) => {
             for stmt in &block.val {

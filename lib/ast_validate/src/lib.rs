@@ -65,17 +65,8 @@ impl Visitor for AstValidator<'_> {
 
     fn visit_statement(&mut self, stmt: &'_ ast::Statement) {
         visitor::walk_statement(self, stmt);
-        match &stmt.kind {
-            StatementKind::If { cond, .. } => {
-                self.warn_unnecesary_paren(&cond.val, 0);
-            }
-            StatementKind::Print(_, args, _)
-            | StatementKind::Read(_, args, _) => {
-                for arg in args {
-                    self.warn_unnecesary_paren(arg, 0);
-                }
-            }
-            _ => {}
+        if let StatementKind::If { cond, .. } = &stmt.kind {
+            self.warn_unnecesary_paren(&cond.val, 0);
         }
     }
 

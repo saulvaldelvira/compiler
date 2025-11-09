@@ -204,22 +204,6 @@ pub trait Visitor<'hir> {
         walk_return(self, ret)
     }
 
-    fn visit_print(
-        &mut self,
-        _base: &'hir Statement<'hir>,
-        expr: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_print(self, expr)
-    }
-
-    fn visit_read(
-        &mut self,
-        _base: &'hir Statement<'hir>,
-        expr: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_read(self, expr)
-    }
-
     fn visit_literal(&mut self, _expr: &'hir Expression<'hir>, _lit: &LitValue) -> Self::Result {
         Self::Result::output()
     }
@@ -483,22 +467,6 @@ where
 {
     v.visit_expression(expr);
     v.visit_type(to);
-    V::Result::output()
-}
-
-pub fn walk_print<'hir, V>(v: &mut V, pr: &'hir Expression<'hir>) -> V::Result
-where
-    V: Visitor<'hir> + ?Sized,
-{
-    v.visit_expression(pr);
-    V::Result::output()
-}
-
-pub fn walk_read<'hir, V>(v: &mut V, re: &'hir Expression<'hir>) -> V::Result
-where
-    V: Visitor<'hir> + ?Sized,
-{
-    v.visit_expression(re);
     V::Result::output()
 }
 
@@ -775,8 +743,6 @@ where
         StatementKind::Break => v.visit_break(stmt),
         StatementKind::Continue => v.visit_continue(stmt),
         StatementKind::Return(expression) => v.visit_return(stmt, *expression),
-        StatementKind::Print(expression) => v.visit_print(stmt, expression),
-        StatementKind::Read(expression) => v.visit_read(stmt, expression),
     };
 
     V::Result::output()

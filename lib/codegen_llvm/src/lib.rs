@@ -733,8 +733,6 @@ impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
                 let mut b = cg.current_loop_cond.unwrap();
                 cg.builder().branch(&mut b);
             },
-            StatementKind::Print(_) => todo!(),
-            StatementKind::Read(_) => todo!(),
             StatementKind::Item(item) => {
                 item.codegen(cg);
             }
