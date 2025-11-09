@@ -83,12 +83,12 @@ pub struct ErrorManager {
 
 fn print_error(err: &dyn Error, src: &SourceMap, out: &mut dyn fmt::Write) -> fmt::Result {
     let span = err.get_span();
-    let file = src.get_file_of_span(span).unwrap();
+    let file = src.get_file_of_span(&span).unwrap();
     let FilePosition {
         start_line,
         start_col,
         ..
-    } = file.file_position(span);
+    } = file.file_position(&span);
     if let Some(fname) = file.filename() {
         write!(out, "{fname}:")?;
     }

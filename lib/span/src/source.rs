@@ -36,8 +36,8 @@ pub struct SourceFile {
     pub fname: FileName,
     pub contents: Rc<str>,
     pub offset: usize,
-    /* Private field to forbid external modules to
-     * build their own SourceFiles */
+    /* Private field to avoid external modules
+     * from building their own SourceFiles */
     _marker: PhantomData<()>,
 }
 
@@ -107,14 +107,18 @@ impl SourceFile {
     /// ```
     pub const fn offset(&self) -> usize { self.offset }
 
+    pub fn contains_span(&self, span: &Span) -> bool {
+        span.offset >= self.offset &&
+        span.offset + span.len <= self.offset + self.len()
+    }
+
     /// Slices the given span
     ///
     /// **NOTE**: `span` must be contained in this `SourceFile`
     #[must_use]
     #[inline]
-    pub fn slice(&self, span: Span) -> &str {
-        debug_assert!(span.offset >= self.offset);
-        debug_assert!(span.offset + span.len <= self.offset + self.len());
+    pub fn slice(&self, span: &Span) -> &str {
+        debug_assert!(self.contains_span(span));
         span.slice(self.offset, &self.contents)
     }
 
@@ -123,7 +127,7 @@ impl SourceFile {
     /// **NOTE**: `span` must be contained in this `SourceFile`
     #[must_use]
     #[inline]
-    pub fn file_position(&self, span: Span) -> FilePosition {
+    pub fn file_position(&self, span: &Span) -> FilePosition {
         span.file_position(self.offset, &self.contents)
     }
 
@@ -159,11 +163,11 @@ impl SourceFile {
 /// let f = source.add_file(FileName::Annon, "DEFGHIJK".into());
 /// let span2 = process_file(f);
 ///
-/// let slice1 = source.slice(span1);
-/// let slice2 = source.slice(span2);
+/// let slice1 = source.slice(&span1);
+/// let slice2 = source.slice(&span2);
 ///
-/// assert_eq!(slice1, "CDE");
-/// assert_eq!(slice2, "FGH");
+/// assert_eq!(slice1, Some("CDE"));
+/// assert_eq!(slice2, Some("FGH"));
 /// ```
 #[derive(Default)]
 pub struct SourceMap {
@@ -232,20 +236,17 @@ impl SourceMap {
     ///     len: 4,
     /// };
     ///
-    /// let file1 = sm.get_file_of_span(span1).unwrap();
+    /// let file1 = sm.get_file_of_span(&span1).unwrap();
     /// assert_eq!(file1.filename().unwrap(), "file1.txt");
     ///
-    /// let file2 = sm.get_file_of_span(span2).unwrap();
+    /// let file2 = sm.get_file_of_span(&span2).unwrap();
     /// assert_eq!(file2.filename().unwrap(), "file2.txt");
     /// ```
-    pub fn get_file_of_span(&self, span: Span) -> Option<&SourceFile> {
-        self.files.iter().find(|file| {
-            span.offset >= file.offset
-            && (span.offset + span.len) <= (file.offset + file.len())
-        })
+    pub fn get_file_of_span(&self, span: &Span) -> Option<&SourceFile> {
+        self.files.iter().find(|file| file.contains_span(span))
     }
 
-    /// Returns the first file whose offset if >= than the given value
+    /// Returns the file for a given offset
     pub fn get_file_for_offset(&self, offset: usize) -> Option<&SourceFile> {
         self.files.iter().find(|file| file.offset == offset)
     }
@@ -258,30 +259,98 @@ impl SourceMap {
     /// file it belongs to.
     ///
     /// If no file is found, returns 0
-    pub fn get_base_offset_of_span(&self, span: Span) -> usize {
-        self.get_file_of_span(span).map(|f| f.offset).unwrap_or(0)
+    pub fn get_base_offset_of_span(&self, span: &Span) -> Option<usize> {
+        self.get_file_of_span(span).map(|f| f.offset)
     }
 
     /// Slices the given [`Span`]
     ///
     /// This function will compute the [`SourceFile`] for the span
     /// and slice it
-    pub fn slice(&self, span: Span) -> &str {
-        self.get_file_of_span(span)
-            .unwrap()
-            .slice(span)
+    pub fn slice(&self, span: &Span) -> Option<&str> {
+        self.get_file_of_span(span).map(|file| file.slice(span))
     }
 
     /// Returns the [`FilePosition`] for this [`Span`]
     ///
     /// This function will compute the [`SourceFile`] for the span
     /// and slice it
-    pub fn file_position(&self, span: Span) -> FilePosition {
-        self.get_file_of_span(span)
-            .unwrap()
-            .file_position(span)
+    pub fn file_position(&self, span: &Span) -> Option<FilePosition> {
+        self.get_file_of_span(span).map(|file| file.file_position(span))
     }
 
     pub fn files(&self) -> &[SourceFile] { &self.files }
+
+    /// Returns true if this is a valid span, this is, if it finds
+    /// a matching [`SourceFile`] for it
+    pub fn is_valid(&self, span: &Span) -> bool {
+        self.get_file_of_span(span).is_some()
+    }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn spans() {
+         let mut sm = SourceMap::new();
+         let (_, offset1) =
+             sm.add_file(
+                 FileName::from("file1.txt"),
+                 "Hello world!".into()
+             )
+             .into_parts();
+         let (_, offset2) =
+             sm.add_file(
+                 FileName::from("file2.txt"),
+                 "Another file :)".into()
+             )
+             .into_parts();
+
+         let span1 = Span {
+             offset: 3 + offset1,
+             len: 3,
+         };
+
+         let slice1 = sm.slice(&span1);
+         let pos1 = sm.file_position(&span1);
+         assert_eq!(slice1, Some("lo "));
+         assert_eq!(pos1, Some(FilePosition {
+             start_line: 1,
+             start_col: 3,
+             end_line: 1,
+             end_col: 6,
+         }));
+
+         let span2 = Span {
+             offset: 1 + offset2,
+             len: 4,
+         };
+
+         let slice2 = sm.slice(&span2);
+         let pos2 = sm.file_position(&span2);
+         assert_eq!(slice2, Some("noth"));
+         assert_eq!(pos2, Some(FilePosition {
+             start_line: 1,
+             start_col: 1,
+             end_line: 1,
+             end_col: 5,
+         }));
+
+         let bad_span1 = Span {
+             offset: 9999,
+             len: 4,
+         };
+
+         let bad_span2 = Span {
+             offset: 0,
+             len: 182,
+         };
+
+         assert!(sm.slice(&bad_span1).is_none());
+         assert!(sm.file_position(&bad_span1).is_none());
+         assert!(sm.slice(&bad_span2).is_none());
+         assert!(sm.file_position(&bad_span2).is_none());
+    }
+}

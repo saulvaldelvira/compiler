@@ -64,13 +64,13 @@ impl Node {
             Node::Span(span) => {
                 *span_count += 1;
 
-                let file = src.get_file_of_span(*span).unwrap();
+                let file = src.get_file_of_span(span).unwrap();
 
                 let FilePosition {
                     start_line,
                     start_col,
                     ..
-                } = file.file_position(*span);
+                } = file.file_position(span);
                 write!(
                     f,
                     "<a id=\"back_{s}\" href=\"#span_{s}\">[{start_line}:{start_col}]</a> : \"",
@@ -78,7 +78,7 @@ impl Node {
                 )?;
 
                 let n = span.len.min(50);
-                for c in file.slice(*span).chars().filter(|&c| c != '\n').take(n) {
+                for c in file.slice(span).chars().filter(|&c| c != '\n').take(n) {
                     write!(f, "{c}")?;
                 }
                 if n < span.len {
@@ -132,20 +132,20 @@ impl Node {
             Node::DefId(_) | Node::Id(_) | Node::Title(_) | Node::Text(_) | Node::Empty => Ok(()),
             Node::Span(span) => {
                 *span_count += 1;
-                let file = src.get_file_of_span(*span).unwrap();
+                let file = src.get_file_of_span(span).unwrap();
                 let FilePosition {
                     start_line,
                     start_col,
                     end_line,
                     end_col,
-                } = file.file_position(*span);
+                } = file.file_position(span);
                 write!(f, "<li id=\"span_{}\">", *span_count)?;
                 write!(
                     f,
                     "<p> [{start_line}:{start_col}] .. [{end_line}:{end_col}] "
                 )?;
                 write!(f, "<a href=\"#back_{}\"> ^ </a> </p>", *span_count)?;
-                let slice = file.slice(*span);
+                let slice = file.slice(span);
                 write!(f, "<pre>{slice}</pre>")?;
                 write!(f, "</li>")
             }

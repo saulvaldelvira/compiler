@@ -214,7 +214,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             if let Err(shadowed_ty) = try_shadow(prev) {
                 let owner = self.hir_sess.get_node(&owner);
                 let prev_span = prev.get_span().unwrap();
-                let pos = self.source.file_position(prev_span);
+                let pos = self.source.file_position(&prev_span).expect("Expected a valid span");
                 self.em.emit_error(IdentificationError {
                     kind: IdentificationErrorKind::Redefinition {
                         node_type: shadowed_ty,

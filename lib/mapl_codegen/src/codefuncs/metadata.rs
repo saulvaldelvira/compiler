@@ -9,7 +9,7 @@ use crate::{code_generator::CodeGenerator, mir::MaplInstruction};
 
 impl Metadata for Statement<'_> {
     fn metadata(&self, cg: &mut CodeGenerator) -> MaplInstruction {
-        let FilePosition { start_line, .. } = cg.source.file_position(self.span);
+        let FilePosition { start_line, .. } = cg.source.file_position(&self.span).expect("Expected a valid span");
         MaplInstruction::Literal(format!("#line {start_line}"))
     }
 }
