@@ -70,6 +70,10 @@ pub enum ItemKind<'hir> {
         fields: &'hir [Field<'hir>],
     },
     Use(&'hir UseItem<'hir>),
+    TypeAlias {
+        ty: &'hir Type<'hir>,
+        name: &'hir PathDef,
+    }
 }
 
 impl ItemKind<'_> {
@@ -79,7 +83,7 @@ impl ItemKind<'_> {
             ItemKind::Variable { .. } => "variable",
             ItemKind::Function { .. } => "function",
             ItemKind::Struct { .. } => "struct",
-            ItemKind::Use(_) => "use",
+            ItemKind::Use(_) | ItemKind::TypeAlias { .. } => "use",
         }
     }
 }
@@ -151,6 +155,7 @@ impl<'hir> Item<'hir> {
         match &self.kind {
             ItemKind::Mod(module) => module.name.ident.sym,
             ItemKind::Use(u) => u.get_name(),
+            ItemKind::TypeAlias { name, .. } => name.ident.sym,
             ItemKind::Variable{ name, .. } |
             ItemKind::Function { name, .. } |
             ItemKind::Struct { name, .. } => name.ident.sym

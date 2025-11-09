@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_use, walk_variable_definition};
+use hir::visitor::{walk_type_alias, walk_use, walk_variable_definition};
 use hir::{Item, PathDef};
 use hir::{
     Expression, Type,
@@ -155,6 +155,13 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
        if let Some(ty) = self.semantic.type_of(&def) {
            self.semantic.set_type_of(item.id, ty.id);
        }
+    }
+
+    fn visit_type_alias(&mut self, item: &'hir Item<'hir>, ty: &'hir Type<'hir>, name: &'hir PathDef) -> Self::Result {
+       walk_type_alias(self, item, ty, name);
+
+       let ty = self.lowerer.lower_hir_type(ty);
+       self.semantic.set_type_of(item.id, ty.id);
     }
 
     fn visit_deref(

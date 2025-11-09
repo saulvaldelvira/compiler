@@ -145,6 +145,13 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             val: stmts.into_boxed_slice(),
         })
     }
+    fn try_path(&mut self) -> Option<Path> {
+        if self.peek().is_ok_and(|token| token.kind == TokenKind::Identifier) {
+            self.path().ok()
+        } else {
+            None
+        }
+    }
     fn path(&mut self) -> Result<Path> {
         let mut path = vec![self.consume_ident_spanned()?];
 

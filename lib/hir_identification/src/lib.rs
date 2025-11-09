@@ -237,6 +237,7 @@ fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
         HirNodeKind::Item(item) => {
             match item.kind {
                 ItemKind::Variable { .. } |
+                ItemKind::TypeAlias { .. } |
                 ItemKind::Use(_) => Ok(()),
                 ItemKind::Function { .. } => Err("function"),
                 ItemKind::Struct { .. } => Err("struct"),

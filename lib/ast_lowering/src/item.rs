@@ -1,4 +1,5 @@
 use ast::item::{Item, VariableConstness};
+use ast::UseTarget;
 use hir::{Constness, Ident, UseItem};
 
 use super::AstLowering;
@@ -62,11 +63,18 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             IK::Function { name, .. } |
             IK::Struct { name, .. } => ident(name),
             IK::Mod(m) => ident(&m.name),
-            IK::Use { path, as_name, .. } => {
-                if let Some(as_name) = as_name {
-                    ident(as_name)
-                } else {
-                    ident(path.segments.last().unwrap())
+            IK::Use { src, as_name, .. } => {
+                match src {
+                    UseTarget::Path(path) => {
+                        if let Some(as_name) = as_name {
+                            ident(as_name)
+                        } else {
+                            ident(path.segments.last().unwrap())
+                        }
+                    },
+                    UseTarget::Type(_) => {
+                        ident(as_name.as_ref().expect("The parser won't allow a 'use <type>' with no name"))
+                    }
                 }
             }
         };
@@ -120,15 +128,25 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let m = self.lower_module(m);
                 HIK::Mod(m)
             },
-            IK::Use { path, as_name, .. } => {
-                let as_name = match as_name {
-                    Some(as_name) => ident(as_name),
-                    None => ident(path.segments.last().unwrap()),
-                };
-                let as_name = self.lower_pathdef(as_name);
-                let u = UseItem::new(Self::lower_path(path), as_name);
-                let u = self.sess.alloc_annon(u);
-                HIK::Use(u)
+            IK::Use { src, as_name, .. } => {
+                match src {
+                    UseTarget::Path(path) => {
+                        let as_name = match as_name {
+                            Some(as_name) => ident(as_name),
+                            None => ident(path.segments.last().unwrap()),
+                        };
+                        let as_name = self.lower_pathdef(as_name);
+                        let u = UseItem::new(Self::lower_path(path), as_name);
+                        let u = self.sess.alloc_annon(u);
+                        HIK::Use(u)
+                    },
+                    UseTarget::Type(ty) => {
+                        let name = ident(as_name.as_ref().expect("The parser won't allow a 'use <type>' with no name"));
+                        let name = self.lower_pathdef(name);
+                        let ty = self.lower_type(ty);
+                        HIK::TypeAlias { ty, name }
+                    }
+                }
             }
         };
         hir::Item::new(kind, def.span)

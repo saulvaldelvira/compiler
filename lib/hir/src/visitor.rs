@@ -30,6 +30,10 @@ pub trait Visitor<'hir> {
         walk_use(self, item, u)
     }
 
+    fn visit_type_alias(&mut self, item: &'hir Item<'hir>, ty: &'hir Type<'hir>, name: &'hir PathDef) -> Self::Result {
+        walk_type_alias(self, item, ty, name)
+    }
+
     fn visit_variable_definition(&mut self,
         base: &'hir Item<'hir>,
         name: &'hir PathDef,
@@ -348,6 +352,15 @@ where
     V::Result::output()
 }
 
+pub fn walk_type_alias<'hir, V>(v: &mut V, item: &'hir Item<'hir>, ty: &'hir Type<'hir>, name: &'hir PathDef) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized,
+{
+    v.visit_type(ty);
+    v.visit_pathdef(item.id, name);
+    V::Result::output()
+}
+
 pub fn walk_param<'hir, V>(v: &mut V, param: &'hir Param<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -376,6 +389,7 @@ where
         } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, *body),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
+        ItemKind::TypeAlias { ty, name } => v.visit_type_alias(item, ty, name)
     }
 }
 

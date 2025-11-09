@@ -73,7 +73,8 @@ impl HirPrinter<'_, '_> {
             ItemKind::Function { .. } => "FunctionDefinition",
             ItemKind::Struct { .. } => "StructDefinition",
             ItemKind::Mod { .. } => "Module",
-            ItemKind::Use(_) => "Use",
+            ItemKind::Use(_) |
+            ItemKind::TypeAlias { .. } => "Use",
         };
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
@@ -107,6 +108,7 @@ impl HirPrinter<'_, '_> {
                 ul.push(Node::KeyVal("path", Node::Text(path.into()).into()));
                 ul.push(Node::KeyVal("as", Node::Text(u.new_name.ident.sym.to_string().into()).into()));
             }
+            ItemKind::TypeAlias { .. } => {}
             ItemKind::Function { params, body, .. } => {
                 if !params.is_empty() {
                     let mut p = vec![];

@@ -73,6 +73,7 @@ impl Metadata for Item<'_> {
             /*     MaplInstruction::Compose(v.into_boxed_slice()) */
             /* } */
             ItemKind::Struct { .. } |
+            ItemKind::TypeAlias { .. } |
             ItemKind::Use(_) |
             ItemKind::Mod(_) |
             ItemKind::Function { .. } => MaplInstruction::Empty,

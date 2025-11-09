@@ -28,6 +28,12 @@ pub struct Param {
 }
 
 #[derive(Debug)]
+pub enum UseTarget {
+    Path(Path),
+    Type(Type),
+}
+
+#[derive(Debug)]
 pub enum ItemKind {
     Variable {
         constness: VariableConstness,
@@ -53,7 +59,7 @@ pub enum ItemKind {
     },
     Use {
         kw_use: Span,
-        path: Path,
+        src: UseTarget,
         kw_as: Option<Span>,
         as_name: Option<Spanned<Symbol>>,
         semicolon: Span,

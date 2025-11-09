@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ast::{Item, ItemKind, ModuleBody, Symbol};
+use ast::{Item, ItemKind, ModuleBody, Symbol, UseTarget};
 use ast::{
     item::{Field, Param, VariableConstness},
     Block, Module,
@@ -52,7 +52,12 @@ impl Parser<'_, '_> {
 
     fn parse_as(&mut self) -> Result<Item> {
         let kw_use = self.previous_span()?;
-        let path = self.path()?;
+        let src = if let Some(path) = self.try_path() {
+            UseTarget::Path(path)
+        } else {
+            let ty = self.ty().map_err(|_| ParseErrorKind::Use)?;
+            UseTarget::Type(ty)
+        };
 
         let mut kw_as = None;
         let mut as_name = None;
@@ -61,12 +66,14 @@ impl Parser<'_, '_> {
         if self.match_type(TokenKind::As) {
             kw_as = Some(self.previous_span()?);
             as_name = Some(self.consume_ident_spanned()?);
+        } else if matches!(src, UseTarget::Type(_)) {
+            return Err(ParseErrorKind::UseTypeUnnamed)
         }
         let semicolon = self.consume(TokenKind::Semicolon)?.span;
         span = span.join(&semicolon);
 
         Ok(Item {
-            kind: ItemKind::Use { kw_use, path, kw_as, as_name, semicolon },
+            kind: ItemKind::Use { kw_use, src, kw_as, as_name, semicolon },
             span
         })
     }

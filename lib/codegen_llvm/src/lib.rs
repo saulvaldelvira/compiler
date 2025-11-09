@@ -294,6 +294,7 @@ impl<'cg> Address<'cg> for hir::Item<'_> {
                         => unreachable!("Can't get address of node with kind: {}", node.get_name())
                 }
             }
+            ItemKind::TypeAlias { .. } => unreachable!("Can't get address of a type alias"),
             ItemKind::Mod(_) => unreachable!("Can't get address of a module"),
             ItemKind::Struct { .. } => unreachable!("Can't get address of a struct definition"),
         }
@@ -782,6 +783,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                 let s = llvm::Type::struct_named(&name, &mut fields, false, cg.llvm_ctx);
                 cg.types.insert(struct_type.id, s);
             }
+            hir::ItemKind::TypeAlias { .. } |
             hir::ItemKind::Use(_) => {},
         }
     }

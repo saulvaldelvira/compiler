@@ -105,6 +105,7 @@ impl Address for Item<'_> {
                 let node = cg.hir.get_node(&def).expect_item();
                 node.address(cg)
             }
+            ItemKind::TypeAlias { .. } |
             ItemKind::Mod(_) |
             ItemKind::Struct { .. } => unreachable!(),
         }

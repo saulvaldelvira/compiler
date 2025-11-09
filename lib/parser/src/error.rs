@@ -21,6 +21,8 @@ pub enum ParseErrorKind {
     CantPeek,
     NoPreviousToken,
     LexemParseError,
+    Use,
+    UseTypeUnnamed,
 }
 
 pub struct ParseError {
@@ -47,6 +49,9 @@ impl error_manager::Error for ParseError {
             ParseErrorKind::NoPreviousToken => write!(out, "No previous token"),
             ParseErrorKind::LexemParseError => write!(out, "Error parsing lexem"),
             ParseErrorKind::ExternFnDefined => write!(out, "Expected semicollon after \"extern\" function declaration"),
+            ParseErrorKind::Use => write!(out, "\"use\" item must be a path or a type"),
+            ParseErrorKind::UseTypeUnnamed => write!(out, "\"use <type>\" must alias to a new name"),
+
         }
     }
 }
