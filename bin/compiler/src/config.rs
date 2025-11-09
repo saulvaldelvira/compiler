@@ -1,3 +1,4 @@
+use std::env;
 use std::{env::Args, process};
 
 use compiler_driver::Emit;
@@ -25,15 +26,16 @@ impl Config {
                 /* Parse args */
                 "-o" => {
                     conf.out_file = Some(args.next().unwrap_or_else(|| {
-                        eprintln!("Missing argument for '-o'");
-                        process::exit(1);
+                        eprintln!("Missing argument for '-o'\n");
+                        help();
                     }));
                 }
+                "-h" | "--help" => help(),
                 "--check" => conf.check = true,
                 "--emit" => {
                     let em = args.next().unwrap_or_else(|| {
-                        eprintln!("Missing argument for '--emit'");
-                        process::exit(1);
+                        eprintln!("Missing argument for '--emit'\n");
+                        help();
                     });
                     match em.as_str() {
                         "mapl" => conf.emit = Emit::Mapl,
@@ -42,8 +44,8 @@ impl Config {
                         "asm" => conf.emit = Emit::Asm,
                         "bin" => conf.emit = Emit::Bin,
                         a => {
-                            eprintln!("Unknown argument for '--emit': {a}");
-                            process::exit(1);
+                            eprintln!("Unknown argument for '--emit': {a}\n");
+                            help();
                         }
                     }
                 }
@@ -62,4 +64,22 @@ impl Config {
             Emit::Bin => "out",
         }
     }
+}
+
+fn help() -> ! {
+    let name = env::args().next();
+    println!("\
+USAGE: {name} <file1>..<fileN> [-o <output>] [--emit <output_type>] [--check]
+OPTIONS:
+    -o      Specify output file
+    --emit  Set type of output
+        hir: An html representation of the program
+        llvm-ir: LLVM Intermediate representation
+        asm: Assembly
+        bin: Binary executable (default)
+    --check  Only check, don't generate anything
+    -h, --help  Print this help message and exit",
+name = name.as_deref().unwrap_or("compiler")
+);
+    process::exit(1);
 }
