@@ -24,11 +24,12 @@ use self::error::ParseError;
 
 type Result<T> = std::result::Result<T, ParseErrorKind>;
 
-/// Parsers the given [`TokenStream`] and produces an AST.
+/// Parsers the given program and produces an AST.
 ///
 /// # Arguments
-/// - stream: The token stream
 /// - src: The source file
+/// - `base_offset`: Offset of this file inside the [`SourceMap`]
+/// - `src_map`: The [`SourceMap`] for this compilation
 /// - em: An [`ErrorManager`], where all the errors will be sent
 pub fn parse(
     src: &str,
@@ -59,7 +60,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e);
-                    self.synchronize_with(&[TokenKind::Let, TokenKind::Const, TokenKind::Fn]);
+                    self.synchronize_with(&[TokenKind::Let, TokenKind::Const, TokenKind::Fn, TokenKind::Mod]);
                 }
             }
         }
@@ -221,7 +222,6 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn previous_lexem(&mut self) -> Result<Symbol> { Ok(self.owned_lexem(self.previous()?.span)) }
 
     fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
-        self.bump();
         while !self.is_finished() {
             if safe.contains(&self.peek().unwrap_or_else(|_| unreachable!()).kind) {
                 return true;

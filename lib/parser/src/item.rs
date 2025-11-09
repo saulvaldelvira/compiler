@@ -78,7 +78,7 @@ impl Parser<'_, '_> {
         })
     }
 
-    fn parse_extern_mod(&mut self, name: Symbol) -> (Box<[Item]>, FileId) {
+    fn parse_extern_mod(&mut self, name: Symbol) -> Result<(Box<[Item]>, FileId)> {
         let mut new_path = {
             let src_map = self.src_map.borrow();
             let fname = src_map.get_file_for_offset(self.base_offset).unwrap().filename().unwrap();
@@ -92,10 +92,11 @@ impl Parser<'_, '_> {
         child.push_str(".txt");
         new_path.push(child);
 
-        let contents = fs::read_to_string(&new_path).unwrap_or_else(|err| {
-            eprintln!("Error reading {}: {err}", new_path.display());
-            std::process::exit(1);
-        });
+        let contents = fs::read_to_string(&new_path).map_err(|err| {
+            ParseErrorKind::ReadFile(new_path.clone(), err)
+            /* eprintln!("Error reading {}: {err}", new_path.display()); */
+            /* std::process::exit(1); */
+        })?;
 
         let (source, id) = self.src_map.borrow_mut()
             .add_file(FileName::Path(new_path), contents.into())
@@ -108,7 +109,7 @@ impl Parser<'_, '_> {
         self.em.merge(&mut em_parse);
 
         let ModuleBody::Slf(items, id) = ast.body else { unreachable!() };
-        (items, id)
+        Ok((items, id))
     }
 
     pub(super) fn module(&mut self) -> Result<Item> {
@@ -121,7 +122,7 @@ impl Parser<'_, '_> {
             (ModuleBody::Inline(block), span)
         } else {
             let semicolon = self.consume(TokenKind::Semicolon)?.span;
-            let (items, id) = self.parse_extern_mod(*name);
+            let (items, id) = self.parse_extern_mod(*name)?;
             (ModuleBody::Extern { semicolon, items, id }, semicolon)
         };
 

@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::io;
+use std::path::PathBuf;
 
 use lexer::token::TokenKind;
 use span::Span;
@@ -23,6 +25,7 @@ pub enum ParseErrorKind {
     LexemParseError,
     Use,
     UseTypeUnnamed,
+    ReadFile(PathBuf, io::Error),
 }
 
 pub struct ParseError {
@@ -51,7 +54,7 @@ impl error_manager::Error for ParseError {
             ParseErrorKind::ExternFnDefined => write!(out, "Expected semicollon after \"extern\" function declaration"),
             ParseErrorKind::Use => write!(out, "\"use\" item must be a path or a type"),
             ParseErrorKind::UseTypeUnnamed => write!(out, "\"use <type>\" must alias to a new name"),
-
+            ParseErrorKind::ReadFile(path, err) => write!(out, "Error reading \"{}\": {err}", path.display())
         }
     }
 }
