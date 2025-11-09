@@ -63,7 +63,7 @@ impl Parser<'_, '_> {
                 val: ops,
                 span: op.span,
             };
-            let right = Box::new(self.factor()?);
+            let right = Box::new(self.logical()?);
             let span = left.span.join(&right.span);
             left = Expression {
                 kind: ExpressionKind::Binary {
@@ -86,7 +86,7 @@ impl Parser<'_, '_> {
                 val: ops,
                 span: op.span,
             };
-            let right = Box::new(self.factor()?);
+            let right = Box::new(self.equality()?);
             let span = left.span.join(&right.span);
             left = Expression {
                 kind: ExpressionKind::Binary {
@@ -115,7 +115,7 @@ impl Parser<'_, '_> {
                 val: ops,
                 span: op.span,
             };
-            let right = Box::new(self.factor()?);
+            let right = Box::new(self.comparison()?);
             let span = left.span.join(&right.span);
             left = Expression {
                 kind: ExpressionKind::Binary {
@@ -138,7 +138,7 @@ impl Parser<'_, '_> {
                 val: ops,
                 span: op.span,
             };
-            let right = Box::new(self.factor()?);
+            let right = Box::new(self.term()?);
             let span = left.span.join(&right.span);
             left = Expression {
                 kind: ExpressionKind::Binary {
