@@ -1,0 +1,12 @@
+
+extern fn printf(fmt: &char, ...) -> i32;
+extern fn scanf(fmt: &char, ...) -> i32;
+
+fn main() {
+    let name: [char; 120];
+
+    printf("What's your name?: ");
+    scanf("%s", &name[0]);
+
+    printf("Hello %s\n", &name[0]);
+}

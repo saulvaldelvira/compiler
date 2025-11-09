@@ -1,0 +1,18 @@
+extern fn malloc(size: u64) -> &char;
+extern fn free(ptr: &char);
+extern fn strcat(dst: &char, src: &char) -> &char;
+extern fn printf(fmt: &char, ...) -> i32;
+
+fn main() {
+    let buf: &char;
+
+    buf = malloc(120 as u64);
+
+    strcat(buf, "Woo, I'm using dynamic memory. ");
+    strcat(buf, "So cool!");
+
+    printf("buf = %s\n", buf);
+
+    free(buf);
+ }
+

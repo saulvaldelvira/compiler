@@ -1,0 +1,17 @@
+
+extern fn printf(fmt: &char, ...) -> i32;
+extern fn atoi(input: &char, ...) -> i32;
+
+fn fib(n: i32) -> i32 {
+    if (n == 0 || n == 1)
+        return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn main(argc: i32, argv: &&char) {
+    let n: i32 = 5;
+    if (argc >= 2)
+        n = atoi(argv[1]);
+
+    printf("fib(%d) = %d", n, fib(n));
+}

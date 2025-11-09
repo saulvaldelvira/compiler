@@ -1,0 +1,8 @@
+
+extern fn printf(fmt: &char, ...) -> i32;
+
+fn main(argc: i32, argv: &&char) {
+    for (let n: i32 = 0; n < argc; n = n + 1) {
+        printf("[%d] %s\n", n, argv[n]);
+    }
+}
