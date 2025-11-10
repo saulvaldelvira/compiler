@@ -472,7 +472,12 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     }
                 }
             }
-            EK::Ternary { .. } => todo!(),
+            EK::Ternary { cond, if_true, if_false } => {
+                let cond = cond.value(cg);
+                let if_true = if_true.value(cg);
+                let if_false = if_false.value(cg);
+                cg.builder().select(cond, if_true, if_false, "tmp_select")
+            }
             EK::Assignment { left, right } => {
                 let left = left.address(cg);
                 let right = right.value(cg);

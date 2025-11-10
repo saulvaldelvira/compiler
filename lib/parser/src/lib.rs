@@ -60,7 +60,8 @@ impl<'sess, 'src> Parser<'sess, 'src> {
                 Ok(stmt) => decls.push(stmt),
                 Err(e) => {
                     self.error(e);
-                    self.synchronize_with(&[TokenKind::Let, TokenKind::Const, TokenKind::Fn, TokenKind::Mod]);
+                    self.synchronize_with(&[TokenKind::Let, TokenKind::Const,
+                        TokenKind::Fn, TokenKind::Mod, TokenKind::Semicolon]);
                 }
             }
         }
@@ -127,7 +128,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         F: FnMut(&mut Self) -> Result<T>
     {
         let mut stmts = Vec::new();
-        while !self.check(TokenKind::RightBrace) && !self.is_finished() {
+        while !self.is_finished()  && !self.check(TokenKind::RightBrace) {
             let val = f(self)?;
             stmts.push(val);
         }
@@ -222,6 +223,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
     fn previous_lexem(&mut self) -> Result<Symbol> { Ok(self.owned_lexem(self.previous()?.span)) }
 
     fn synchronize_with(&mut self, safe: &[TokenKind]) -> bool {
+        self.bump();
         while !self.is_finished() {
             if safe.contains(&self.peek().unwrap_or_else(|_| unreachable!()).kind) {
                 return true;

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ast::{Item, ItemKind, ModuleBody, Symbol, UseTarget};
+use ast::{Item, ItemKind, ModuleBody, Statement, Symbol, UseTarget};
 use ast::{
     item::{Field, Param, VariableConstness},
     Block, Module,
@@ -121,8 +121,8 @@ impl Parser<'_, '_> {
             let span = block.close_brace;
             (ModuleBody::Inline(block), span)
         } else {
-            let semicolon = self.consume(TokenKind::Semicolon)?.span;
             let (items, id) = self.parse_extern_mod(*name)?;
+            let semicolon = self.consume(TokenKind::Semicolon)?.span;
             (ModuleBody::Extern { semicolon, items, id }, semicolon)
         };
 
@@ -252,7 +252,21 @@ impl Parser<'_, '_> {
             span = ext.join(&scspan);
             semicolon = Some(scspan);
         } else {
-            let block = self.block(Self::statement)?;
+            fn _stmt(slf: &mut Parser<'_, '_>) -> Result<Statement> {
+                match slf.statement() {
+                    Ok(stmt) => Ok(stmt),
+                    Err(err) => {
+                       slf.error(err);
+                       slf.synchronize_with(&[
+                           TokenKind::If, TokenKind::Let, TokenKind::Mod,
+                           TokenKind::Struct, TokenKind::While, TokenKind::Semicolon,
+                           TokenKind::RightBrace,
+                       ]);
+                       slf.statement()
+                    }
+                }
+            }
+            let block = self.block(_stmt)?;
             span = kw_fn.join(&block.close_brace);
             body = Some(block);
         }

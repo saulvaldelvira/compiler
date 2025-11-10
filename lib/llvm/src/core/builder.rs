@@ -2,7 +2,7 @@ use core::ffi::{c_char, c_int};
 use core::marker::PhantomData;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
 use crate::{Context, Type};
 
 pub struct Builder<'ctx> {
@@ -296,6 +296,14 @@ impl<'ctx> Builder<'ctx> {
         Value(unsafe {
             LLVMBuildUnreachable(self.raw)
         }, PhantomData)
+    }
+
+    pub fn select(&mut self, cond: Value<'ctx>, then: Value<'ctx>, else_val: Value<'ctx>, name: &str) -> Value<'ctx> {
+        cstr!(name);
+        Value(unsafe {
+            LLVMBuildSelect(self.raw, cond.raw(), then.raw(), else_val.raw(), name) },
+            PhantomData
+        )
     }
 
     pub fn get_context(&self) -> &'ctx Context { self.ctx }
