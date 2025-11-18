@@ -8,16 +8,17 @@ fn main() {
     }
 
     let out = Command::new("llvm-config")
-                        .arg("--ldflags")
+                        .arg("--libdir")
+                        .arg("--libs")
                         .output()
                         .unwrap()
                         .stdout;
     let out = String::from_utf8(out).unwrap();
 
-    let prefix = out.trim();
-    let prefix = prefix.strip_prefix("-L").unwrap();
+    let mut split = out.lines();
+    let libdir = split.next().unwrap();
+    let libs = split.next().unwrap();
 
-    /* println!("cargo::rerun-if-changed={prefix}/libLLVM.so"); */
-    println!("cargo::rustc-link-search={prefix}");
-    println!("cargo::rustc-link-lib=LLVM");
+    println!("cargo::rustc-link-search={libdir}");
+    println!("cargo::rustc-link-lib={libs}");
 }
