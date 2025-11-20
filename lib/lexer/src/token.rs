@@ -190,6 +190,9 @@ pub enum TokenKind {
     /// "extern"
     Extern,
 
+    /// "super"
+    Super,
+
     /// "..."
     ThreeDot,
 }

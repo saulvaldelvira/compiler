@@ -77,6 +77,7 @@ impl SymbolTable {
 
 pub struct Ctx {
     st: SymbolTable,
+    mods: Vec<HirId>,
 }
 
 fn path_can_be_variable_ty(sess: &hir::Session<'_>, path: &Path) -> Option<bool> {
@@ -102,12 +103,14 @@ impl<'ast> VisitorCtx<'ast> for Ctx {
         self.st.exit_scope();
     }
 
-    fn enter_module(&mut self, _mod: &'ast hir::Module<'ast>) {
+    fn enter_module(&mut self, module: &'ast hir::Module<'ast>) {
         self.st.enter_scope();
+        self.mods.push(module.id);
     }
 
     fn exit_module(&mut self) {
         self.st.exit_scope();
+        self.mods.pop();
     }
 
     fn enter_struct(&mut self, _mod: &'ast hir::Item<'ast>) {
@@ -131,6 +134,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         let mut ident = Self {
             ctx: Ctx {
                 st: SymbolTable::default(),
+                mods: Vec::default(),
             },
             source,
             hir_sess,
@@ -141,6 +145,18 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn visit_path_segment(&mut self, path: &'hir PathSegment) {
+        if path.ident.sym == "super" {
+           if self.ctx.mods.len() < 2 {
+               self.em.emit_error(IdentificationError {
+                   kind: IdentificationErrorKind::SuperOnTopLevel,
+                   span: path.ident.span,
+               });
+           } else {
+               let parent = self.ctx.mods[self.ctx.mods.len() - 2];
+               path.def.resolve(parent);
+           }
+           return
+        }
         let found_def = self.ctx.st.get(path.ident.sym);
         match found_def {
             Some(def) => path.def.resolve(def),
@@ -307,6 +323,7 @@ enum IdentificationErrorKind {
     UndefinedAccess(String, String),
     CantAccess(String, String, &'static str),
     VariablePathInvalidTy,
+    SuperOnTopLevel,
 }
 
 #[derive(Debug, PartialEq)]
@@ -327,6 +344,7 @@ impl error_manager::Error for IdentificationError {
             IdentificationErrorKind::UndefinedAccess(base, name) => write!(out, "Undefined symbol '{base}::{name}'"),
             IdentificationErrorKind::CantAccess(base, name, ty) => write!(out, "Can't access item '{name}' on '{base}' ({ty})"),
             IdentificationErrorKind::VariablePathInvalidTy => write!(out, "Variable path must resolve to a definition"),
+            IdentificationErrorKind::SuperOnTopLevel => write!(out, "Can't use \"super\" on root module"),
         }
     }
 }

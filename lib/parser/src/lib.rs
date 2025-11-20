@@ -148,14 +148,21 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
     fn try_path(&mut self) -> Option<Path> {
-        if self.peek().is_ok_and(|token| token.kind == TokenKind::Identifier) {
+        if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super)) {
             self.path().ok()
         } else {
             None
         }
     }
     fn path(&mut self) -> Result<Path> {
-        let mut path = vec![self.consume_ident_spanned()?];
+        let mut path = vec![if self.match_type(TokenKind::Super) {
+            Spanned {
+                val: Symbol::new("super"),
+                span: self.previous_span().unwrap(),
+            }
+        } else {
+            self.consume_ident_spanned()?
+        }];
 
         while self.match_type(TokenKind::DoubleColon) {
             path.push(self.consume_ident_spanned()?);
