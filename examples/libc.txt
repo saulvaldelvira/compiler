@@ -1,0 +1,9 @@
+mod stddef {
+    use i32 as c_int;
+}
+
+mod stdio {
+    use super::stddef::c_int;
+
+    extern fn printf(fmt: &char, ...) -> c_int;
+}

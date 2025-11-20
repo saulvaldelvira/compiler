@@ -1,0 +1,5 @@
+mod libc;
+
+fn main() {
+    libc::stdio::printf("Hola\n");
+}

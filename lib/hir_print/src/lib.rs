@@ -11,7 +11,7 @@ use span::source::SourceMap;
 
 pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &SourceMap) -> String {
     let prog = hir.get_root();
-    let serializer = HirPrinter { sem };
+    let serializer = HirPrinter { sem, sm: src };
     let node = serializer.serialize_module(prog);
     let mut html = String::from(
         r#"<html>
@@ -38,6 +38,7 @@ pub fn hir_print_html(hir: &hir::Session<'_>, sem: &Semantic<'_>, src: &SourceMa
 
 struct HirPrinter<'ser, 'sem> {
     sem: &'ser Semantic<'sem>,
+    sm: &'ser SourceMap,
 }
 
 macro_rules! keyval {
@@ -61,7 +62,18 @@ impl HirPrinter<'_, '_> {
             Node::Span(prog.span)
         ];
 
-        Node::Collapse(Node::List(nodes).into(), Node::Ul(defs).into())
+        let mut childs = vec![];
+
+        if let Some(file) = prog.extern_file {
+            let file = self.sm.get_file_for_id(&file).unwrap();
+            if let Some(fname) = file.filename() {
+                childs.push(Node::KeyVal("source_file", Node::Text(format!("{fname:?}").into()).into()));
+            }
+        }
+
+        childs.push(Node::Collapse(Node::Text("items".into()).into(), Node::Ul(defs).into()));
+
+        Node::Collapse(Node::List(nodes).into(), Node::Ul(childs).into())
     }
 
     fn serialize_item(&self, def: &Item<'_>) -> Node {
@@ -109,7 +121,13 @@ impl HirPrinter<'_, '_> {
                 ul.push(Node::KeyVal("as", Node::Text(u.new_name.ident.sym.to_string().into()).into()));
             }
             ItemKind::TypeAlias { .. } => {}
-            ItemKind::Function { params, body, .. } => {
+            ItemKind::Function { params, body, is_extern, is_variadic, .. } => {
+                if *is_extern {
+                    ul.push(Node::Text("extern = true".into()));
+                }
+                if *is_variadic {
+                    ul.push(Node::Text("variadic = true".into()));
+                }
                 if !params.is_empty() {
                     let mut p = vec![];
                     for param in *params {
