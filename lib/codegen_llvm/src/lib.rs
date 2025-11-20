@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
@@ -272,15 +273,21 @@ impl<'cg> Address<'cg> for hir::Item<'_> {
             ItemKind::Variable { name, .. } => {
                 cg.address_of(self.id, name.ident.sym)
             }
-            ItemKind::Function { .. } => {
-                let name = cg.get_mangled(self.id).unwrap().clone();
-                if let Some(func) = cg.module().get_function(&name) {
-                    *func.as_value()
-                } else {
-                    let fty = cg.semantic.type_of(&self.id).unwrap();
-                    let fty = fty.codegen(cg);
-                    *cg.module().add_function(&name, fty).as_value()
-                }
+            ItemKind::Function { is_extern, name, .. } => {
+                name.ident.sym.borrow(|name| {
+                    let name = if is_extern {
+                        Cow::Borrowed(name)
+                    } else {
+                        Cow::Owned(cg.get_mangled(self.id).unwrap())
+                    };
+                    if let Some(func) = cg.module().get_function(&name) {
+                        *func.as_value()
+                    } else {
+                        let fty = cg.semantic.type_of(&self.id).unwrap();
+                        let fty = fty.codegen(cg);
+                        *cg.module().add_function(&name, fty).as_value()
+                    }
+                })
             }
             ItemKind::Use(u) => {
                 let id = u.def().expect_resolved();
@@ -845,10 +852,16 @@ fn codegen_function<'hir>(
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
 
-    let mangled_name = cg.mangle_symbol(item.id, name.ident.sym).clone();
+    if is_extern {
+        // TODO: Add a no_mangle attribute instead
+        name.ident.sym.borrow(|name| {
+            cg.module().add_function(name, fty);
+        });
+        return;
+    }
 
+    let mangled_name = cg.mangle_symbol(item.id, name.ident.sym).clone();
     let mut function = cg.module().add_function(&mangled_name, fty);
-    if is_extern { return; }
 
     cg.enter(name.ident.sym);
 
