@@ -109,7 +109,7 @@ impl HirPrinter<'_, '_> {
             }
             ItemKind::Use(u) => {
                 let mut path = String::new();
-                for (i, seg) in u.path.segments().iter().enumerate() {
+                for (i, seg) in u.path.segments.iter().enumerate() {
                     if i > 0 {
                         path.push_str("::");
                     }
@@ -238,7 +238,7 @@ impl HirPrinter<'_, '_> {
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
-                let name = Node::text(path.segments().first().unwrap().ident.sym.to_string());
+                let name = Node::text(path.segments.first().unwrap().ident.sym.to_string());
                 let def = Node::Id(path.def().expect_resolved());
                 attrs.push(Node::KeyVal("name", name.into()));
                 attrs.push(Node::KeyVal("definition", def.into()));

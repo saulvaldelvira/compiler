@@ -62,7 +62,7 @@ impl fmt::Debug for TypeKind<'_> {
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
             Self::Path(arg0) => {
                 let mut first = true;
-                for seg in arg0.segments() {
+                for seg in &arg0.segments {
                     if !first {
                         write!(f, "::")?;
                     }

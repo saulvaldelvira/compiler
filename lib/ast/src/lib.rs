@@ -59,6 +59,8 @@ pub struct Parenthesized<T> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
+    /// The initial "::" of this path
+    pub start_collon: Option<Span>,
     pub segments: Box<[Spanned<Symbol>]>,
     pub span: Span,
 }

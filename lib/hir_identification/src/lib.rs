@@ -144,6 +144,18 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         ident
     }
 
+    fn inspect_from_root(&mut self, path: &'hir PathSegment) {
+        match self.hir_sess.get_root().find_item(path.ident.sym) {
+            Some(def) => path.def.resolve(def.id),
+            None => {
+                self.em.emit_error(IdentificationError {
+                    kind: IdentificationErrorKind::Undefined(path.ident.sym.to_string()),
+                    span: path.ident.span,
+                });
+            }
+        }
+    }
+
     fn visit_path_segment(&mut self, path: &'hir PathSegment) {
         if path.ident.sym == "super" {
            if self.ctx.mods.len() < 2 {
@@ -301,9 +313,13 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn visit_path(&mut self, path: &'hir hir::Path) {
-        self.visit_path_segment(&path.segments()[0]);
-        let it = path.segments().iter().skip(1);
-        let it = path.segments().iter().zip(it);
+        if path.is_absolute {
+            self.inspect_from_root(&path.segments[0]);
+        } else {
+            self.visit_path_segment(&path.segments[0]);
+        }
+        let it = path.segments.iter().skip(1);
+        let it = path.segments.iter().zip(it);
         for (l, r) in it {
             self.resolve_relative_segment(l, r);
         }

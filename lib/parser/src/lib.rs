@@ -148,19 +148,23 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
     fn try_path(&mut self) -> Option<Path> {
-        if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super)) {
+        if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super | TokenKind::DoubleColon)) {
             self.path().ok()
         } else {
             None
         }
     }
     fn path(&mut self) -> Result<Path> {
+        let mut from_root: Option<Span> = None;
         let mut path = vec![if self.match_type(TokenKind::Super) {
             Spanned {
                 val: Symbol::new("super"),
                 span: self.previous_span().unwrap(),
             }
         } else {
+            if self.check(TokenKind::DoubleColon) {
+                from_root = Some(self.consume(TokenKind::DoubleColon)?.span);
+            }
             self.consume_ident_spanned()?
         }];
 
@@ -169,12 +173,14 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
 
         let segments = path.into_boxed_slice();
-        let mut span = segments.first().unwrap().span;
+        let mut span = if let Some(f) = from_root { f } else {
+            segments.first().unwrap().span
+        };
         if let Some(l) = segments.last() {
             span = span.join(&l.span);
         }
 
-        Ok(Path { span, segments})
+        Ok(Path { start_collon: from_root, span, segments})
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
         let slice = span.slice(self.base_offset, self.src);

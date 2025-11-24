@@ -14,7 +14,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         for sp in &path.segments {
             segments.push(Self::lower_path_segment(sp));
         }
-        hir::Path::new(segments.into_boxed_slice())
+        hir::Path::new(path.start_collon.is_some(), segments.into_boxed_slice())
     }
 
     #[allow(clippy::too_many_lines)]

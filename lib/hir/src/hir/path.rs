@@ -9,13 +9,14 @@ pub struct PathSegment {
 
 #[derive(Debug, Clone)]
 pub struct Path {
-    segments: Box<[PathSegment]>,
+    pub is_absolute: bool,
+    pub segments: Box<[PathSegment]>,
 }
 
 impl Path {
-    pub fn new(segments: Box<[PathSegment]>) -> Self {
+    pub fn new(is_absolute: bool, segments: Box<[PathSegment]>) -> Self {
         debug_assert!(!segments.is_empty());
-        Self { segments }
+        Self { is_absolute, segments }
     }
 
     pub fn from_ident(ident: Ident) -> Self {
@@ -24,11 +25,10 @@ impl Path {
             def: NodeRef::pending(),
         };
         Self {
+            is_absolute: false,
             segments: Box::new([segment]),
         }
     }
-
-    pub fn segments(&self) -> &[PathSegment] { &self.segments }
 
     pub fn last_segment(&self) -> &PathSegment {
         self.segments.last().unwrap_or_else(|| {
