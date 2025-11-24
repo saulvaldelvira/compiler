@@ -91,7 +91,7 @@ impl HirPrinter<'_, '_> {
         nodes.push(Node::Title(h1));
         nodes.push(Node::Span(def.span));
 
-        keyval!(ul, "name" => def.get_name().to_string());
+        keyval!(ul, "name" => def.get_name().map(|s| s.to_string()).unwrap_or_else(|| String::from("???")));
 
         if let Some(ty) = self.sem.type_of(&def.id) {
             keyval!(ul, "type" => ty.to_string());
@@ -118,7 +118,9 @@ impl HirPrinter<'_, '_> {
                     });
                 }
                 ul.push(Node::KeyVal("path", Node::Text(path.into()).into()));
-                ul.push(Node::KeyVal("as", Node::Text(u.new_name.ident.sym.to_string().into()).into()));
+                if let Some(new_name) = u.new_name {
+                    ul.push(Node::KeyVal("as", Node::Text(new_name.ident.sym.to_string().into()).into()));
+                }
             }
             ItemKind::TypeAlias { .. } => {}
             ItemKind::Function { params, body, is_extern, is_variadic, .. } => {

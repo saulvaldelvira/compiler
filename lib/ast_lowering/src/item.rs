@@ -58,34 +58,12 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         use ast::item::ItemKind as IK;
         use hir::item::ItemKind as HIK;
 
-        let name = match &def.kind {
-            IK::Variable { name, .. } |
-            IK::Function { name, .. } |
-            IK::Struct { name, .. } => ident(name),
-            IK::Mod(m) => ident(&m.name),
-            IK::Use { src, as_name, .. } => {
-                match src {
-                    UseTarget::Path(path) => {
-                        if let Some(as_name) = as_name {
-                            ident(as_name)
-                        } else {
-                            ident(path.segments.last().unwrap())
-                        }
-                    },
-                    UseTarget::Type(_) => {
-                        ident(as_name.as_ref().expect("The parser won't allow a 'use <type>' with no name"))
-                    }
-                }
-            }
-        };
-
-        let name = self.lower_pathdef(name);
-
         let kind = match &def.kind {
             IK::Variable {
                 constness,
                 init,
                 ty,
+                name,
                 ..
             } => {
                 let constness = match constness {
@@ -94,10 +72,12 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 };
                 let init = init.as_ref().map(|i| self.lower_expression(i));
                 let ty = ty.as_ref().map(|ty| self.lower_type(ty));
+                let name = self.lower_pathdef(ident(name));
                 HIK::Variable { ty, constness, init, name }
             }
             IK::Function {
                 kw_extern,
+                name,
                 body,
                 params,
                 variadic_span,
@@ -111,6 +91,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     .map_or(
                         &hir::Type::EMPTY,
                         |rt| self.lower_type(rt));
+                let name = self.lower_pathdef(ident(name));
                 HIK::Function {
                     is_extern: kw_extern.is_some(),
                     is_variadic: variadic_span.is_some(),
@@ -120,8 +101,9 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     ret_ty,
                 }
             }
-            IK::Struct { fields, .. } => {
+            IK::Struct { name, fields, .. } => {
                 let fields = self.lower_fields(&fields.val);
+                let name = self.lower_pathdef(ident(name));
                 HIK::Struct { fields, name }
             },
             IK::Mod(m) => {
@@ -131,12 +113,10 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             IK::Use { src, as_name, .. } => {
                 match src {
                     UseTarget::Path(path) => {
-                        let as_name = match as_name {
-                            Some(as_name) => ident(as_name),
-                            None => ident(path.segments.last().unwrap()),
-                        };
-                        let as_name = self.lower_pathdef(as_name);
-                        let u = UseItem::new(Self::lower_path(path), as_name);
+                        let as_name = as_name.as_ref().map(|as_name| {
+                            self.lower_pathdef(ident(as_name))
+                        });
+                        let u = UseItem::new(Self::lower_path(path), as_name, false);
                         let u = self.sess.alloc_annon(u);
                         HIK::Use(u)
                     },
@@ -147,6 +127,14 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                         HIK::TypeAlias { ty, name }
                     }
                 }
+            },
+            IK::UseWildCard { src, .. } => {
+                let u = UseItem::new(
+                    Self::lower_path(src),
+                    None,
+                    true
+                );
+                HIK::Use(self.sess.alloc_annon(u))
             }
         };
         hir::Item::new(kind, def.span)

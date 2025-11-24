@@ -30,7 +30,7 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
 
         if !ret_type.is_empty_type() && !self.body.iter().any(HasReturn::has_return) {
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name()),
+                kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name().unwrap()),
                 span: self.span,
             });
         }

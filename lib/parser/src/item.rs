@@ -52,11 +52,26 @@ impl Parser<'_, '_> {
 
     fn parse_as(&mut self) -> Result<Item> {
         let kw_use = self.previous_span()?;
-        let src = if let Some(path) = self.try_path() {
-            UseTarget::Path(path)
-        } else {
-            let ty = self.ty().map_err(|_| ParseErrorKind::Use)?;
-            UseTarget::Type(ty)
+        let src = match self.try_path(true) {
+            Some((path, Some((tc, star)))) => {
+                let semicolon = self.consume(TokenKind::Semicolon)?.span;
+                let span = kw_use.join(&semicolon);
+                return Ok(Item {
+                    kind: ItemKind::UseWildCard {
+                        kw_use,
+                        src: path,
+                        double_colon: tc,
+                        wildard_span: star,
+                        semicolon,
+                    },
+                    span,
+                })
+            },
+            Some((path, None)) => UseTarget::Path(path),
+            _ => {
+                let ty = self.ty().map_err(|_| ParseErrorKind::Use)?;
+                UseTarget::Type(ty)
+            }
         };
 
         let mut kw_as = None;

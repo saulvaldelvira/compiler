@@ -506,7 +506,7 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                 };
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
                 let name = match cg.hir.get_node(&id) {
-                    HirNodeKind::Item(item) => item.get_name(),
+                    HirNodeKind::Item(item) => item.get_name().unwrap(),
                     HirNodeKind::Param(param) => param.name.ident.sym,
                     _ => unreachable!()
                 };

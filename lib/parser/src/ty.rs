@@ -49,7 +49,7 @@ impl Parser<'_, '_> {
         primitives!(I8, I16, I32, I64, U8, U16, U32, U64, F32, F64, Char, Bool);
 
         if self.check(TokenKind::Identifier) {
-            let p = self.path()?;
+            let p = self.path(false)?.0;
             let span = p.span;
             Ok(Type {
                 kind: TypeKind::Path(p),

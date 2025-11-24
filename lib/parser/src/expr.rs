@@ -349,7 +349,7 @@ impl Parser<'_, '_> {
                 span,
             });
         }
-        if let Some(path) = self.try_path() {
+        if let Some((path, _)) = self.try_path(false) {
             let span = path.span;
             return Ok(Expression {
                 kind: ExpressionKind::Path(path),

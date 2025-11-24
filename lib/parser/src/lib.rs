@@ -147,14 +147,14 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             val: stmts.into_boxed_slice(),
         })
     }
-    fn try_path(&mut self) -> Option<Path> {
+    fn try_path(&mut self, can_wildard: bool) -> Option<(Path, Option<(Span, Span)>)> {
         if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super | TokenKind::DoubleColon)) {
-            self.path().ok()
+            self.path(can_wildard).ok()
         } else {
             None
         }
     }
-    fn path(&mut self) -> Result<Path> {
+    fn path(&mut self, can_wildard: bool) -> Result<(Path, Option<(Span, Span)>)> {
         let mut from_root: Option<Span> = None;
         let mut path = vec![if self.match_type(TokenKind::Super) {
             Spanned {
@@ -168,8 +168,16 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             self.consume_ident_spanned()?
         }];
 
+        let mut dc = None;
+        let mut star = None;
+
         while self.match_type(TokenKind::DoubleColon) {
-            path.push(self.consume_ident_spanned()?);
+            if can_wildard && self.check(TokenKind::Star) {
+                dc = Some(self.previous_span().unwrap());
+                star = Some(self.consume(TokenKind::Star)?.span);
+            } else {
+                path.push(self.consume_ident_spanned()?);
+            }
         }
 
         let segments = path.into_boxed_slice();
@@ -180,7 +188,13 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             span = span.join(&l.span);
         }
 
-        Ok(Path { start_collon: from_root, span, segments})
+        let wc = if dc.is_some() {
+            Some((dc.unwrap(), star.unwrap()))
+        } else {
+            None
+        };
+
+        Ok((Path { start_collon: from_root, span, segments}, wc))
     }
     fn owned_lexem(&mut self, span: Span) -> Symbol {
         let slice = span.slice(self.base_offset, self.src);

@@ -108,7 +108,7 @@ fn define_func<'hir>(
         .fold(0, |acc, stmt| assign_memory_locals(cg, acc, stmt));
     let mut vec = Vec::new();
 
-    cg.mangle_symbol(def.id, &def.get_name().to_string());
+    cg.mangle_symbol(def.id, &def.get_name().unwrap().to_string());
     let name = cg.get_mangled_symbol(def.id).unwrap();
     vec.push(MaplInstruction::DefineLabel(name));
     vec.push(MaplInstruction::Enter(locals as usize));

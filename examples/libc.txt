@@ -3,7 +3,7 @@ mod stddef {
 }
 
 mod stdio {
-    use super::stddef::c_int;
+    use super::stddef::*;
 
     extern fn printf(fmt: &char, ...) -> c_int;
 }

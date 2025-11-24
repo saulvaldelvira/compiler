@@ -83,7 +83,7 @@ where
             V::Result::output()
         },
         ItemKind::Mod(m) => v.visit_module(m),
-        ItemKind::Use { .. } => V::Result::output(),
+        ItemKind::UseWildCard { .. } | ItemKind::Use { .. } => V::Result::output(),
     }
 }
 

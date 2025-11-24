@@ -1,3 +1,4 @@
+use core::cell::{Ref, RefCell};
 use core::fmt;
 use std::collections::HashMap;
 
@@ -12,16 +13,19 @@ use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind, path::
 #[derive(Debug, Clone)]
 pub struct UseItem<'hir> {
     pub path: Path,
-    pub new_name: &'hir PathDef,
+    pub new_name: Option<&'hir PathDef>,
+    pub is_wildcard: bool,
 }
 
 impl<'hir> UseItem<'hir> {
-    pub fn new(path: Path, new_name: &'hir PathDef) -> Self {
-        Self { path, new_name }
+    pub fn new(path: Path, new_name: Option<&'hir PathDef>, is_wildcard: bool) -> Self {
+        Self { path, new_name, is_wildcard }
     }
 
-    pub fn get_name(&self) -> Symbol {
-        self.new_name.ident.sym
+    pub fn get_name(&self) -> Option<Symbol> {
+        (!self.is_wildcard).then(||
+            self.new_name.map(|n| n.ident.sym).unwrap_or(self.path.last_segment().ident.sym)
+        )
     }
 
     #[inline]
@@ -151,15 +155,15 @@ impl<'hir> Item<'hir> {
         }
     }
 
-    pub fn get_name(&self) -> Symbol {
-        match &self.kind {
+    pub fn get_name(&self) -> Option<Symbol> {
+        Some(match &self.kind {
             ItemKind::Mod(module) => module.name.ident.sym,
-            ItemKind::Use(u) => u.get_name(),
+            ItemKind::Use(u) => u.get_name()?,
             ItemKind::TypeAlias { name, .. } |
             ItemKind::Variable{ name, .. } |
             ItemKind::Function { name, .. } |
             ItemKind::Struct { name, .. } => name.ident.sym
-        }
+        })
     }
 
     pub const fn is_definition(&self) -> bool {
@@ -176,7 +180,7 @@ pub struct Module<'hir> {
     pub name: &'hir PathDef,
     pub span: Span,
     pub extern_file: Option<FileId>,
-    item_map: HashMap<Symbol, &'hir Item<'hir>>,
+    item_map: RefCell<HashMap<Symbol, &'hir Item<'hir>>>,
 }
 
 impl fmt::Debug for Module<'_> {
@@ -192,22 +196,30 @@ impl fmt::Debug for Module<'_> {
 
 impl<'hir> Module<'hir> {
     pub fn new(name: &'hir PathDef, defs: &'hir [Item<'hir>], span: Span, extern_file: impl Into<Option<FileId>>) -> Self {
-        let mut m = Self {
+        let mut map = HashMap::new();
+        for item in defs {
+            if let Some(n) = item.get_name() {
+                map.insert(n, item);
+            }
+        }
+        Self {
             name,
             items: defs,
             span,
             extern_file: extern_file.into(),
             id: HirId::DUMMY,
-            item_map: HashMap::new(),
-        };
-        for item in defs {
-            m.item_map.insert(item.get_name(), item);
+            item_map: RefCell::new(map)
         }
-        m
+    }
+
+    pub fn item_map(&self) -> Ref<'_, HashMap<Symbol, &'hir Item<'hir>>> { self.item_map.borrow() }
+
+    pub fn define_item(&self, name: Symbol, it: &'hir Item<'hir>) {
+        self.item_map.borrow_mut().insert(name, it);
     }
 
     pub fn find_item(&self, name: Symbol) -> Option<&'hir Item<'hir>> {
-        self.item_map.get(&name).map(|v| &**v)
+        self.item_map.borrow().get(&name).map(|v| &**v)
     }
 }
 

@@ -64,6 +64,13 @@ pub enum ItemKind {
         as_name: Option<Spanned<Symbol>>,
         semicolon: Span,
     },
+    UseWildCard {
+        kw_use: Span,
+        src: Path,
+        double_colon: Span,
+        wildard_span: Span,
+        semicolon: Span,
+    },
     Mod(Module),
 }
 

@@ -332,7 +332,9 @@ where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_path(&s.path);
-    v.visit_pathdef(item.id, s.new_name);
+    if let Some(n) = s.new_name {
+        v.visit_pathdef(item.id, n);
+    }
     V::Result::output()
 }
 

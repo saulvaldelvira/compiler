@@ -23,7 +23,7 @@
 //! ```
 
 use error_manager::ErrorManager;
-use hir::visitor::{walk_function_definition, Visitor};
+use hir::visitor::{walk_function_definition, walk_use, Visitor};
 use hir::{Item, ItemKind, Module, Path};
 use span::source::SourceMap;
 
@@ -214,7 +214,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         else {
             self.em.emit_error(IdentificationError {
                 kind: IdentificationErrorKind::CantAccess(
-                          item.get_name().to_string(),
+                          item.get_name().map(|s| s.to_string()).unwrap_or_else(|| "<wildcard-use>".to_string()),
                           right.ident.sym.to_string(),
                           item.kind.get_repr(),
                       ),
@@ -236,27 +236,36 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
         }
     }
 
-    fn define(&mut self, name: Symbol, owner: HirId) {
+    fn define(&mut self, name: Symbol, owner: HirId, can_shadow: bool) -> Result<(), IdentificationErrorKind> {
         if let Some(prev) = self.ctx.st.get_top(name) {
             let prev = self.hir_sess.get_node(&prev);
-            if let Err(shadowed_ty) = try_shadow(prev) {
-                let owner = self.hir_sess.get_node(&owner);
+            if !can_shadow {
                 let prev_span = prev.get_span().unwrap();
                 let pos = self.source.file_position(&prev_span).expect("Expected a valid span");
-                self.em.emit_error(IdentificationError {
-                    kind: IdentificationErrorKind::Redefinition {
+                let node_type = if let HirNodeKind::Item(i) = prev {
+                    i.kind.get_repr()
+                } else {
+                    prev.get_name()
+                };
+                return Err(IdentificationErrorKind::Redefinition {
+                        name: name.to_string(),
+                        node_type,
+                        prev: pos,
+                    })
+            }
+            if let Err(shadowed_ty) = try_shadow(prev) {
+                let prev_span = prev.get_span().unwrap();
+                let pos = self.source.file_position(&prev_span).expect("Expected a valid span");
+                return Err(IdentificationErrorKind::Redefinition {
                         node_type: shadowed_ty,
                         name: name.to_string(),
                         prev: pos,
-                    },
-                    span: owner.get_span().unwrap(),
-                });
-
-                return;
+                    })
             }
         }
 
         self.ctx.st.define(name, owner);
+        Ok(())
     }
 }
 
@@ -282,7 +291,12 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     type Ctx = Ctx;
 
     fn visit_pathdef(&mut self, owner: HirId, pdef: &'hir hir::PathDef) -> Self::Result {
-        self.define(pdef.ident.sym, owner);
+        self.define(pdef.ident.sym, owner, true).unwrap_or_else(|err| {
+            self.em.emit_error(IdentificationError {
+                kind: err,
+                span: self.hir_sess.get_node(&owner).get_span().unwrap(),
+            });
+        });
     }
 
     fn visit_function_definition(
@@ -295,7 +309,12 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         ret_ty: &'hir hir::Type<'hir>,
         body: Option<&'hir [hir::Statement<'hir>]>,
     ) -> Self::Result {
-        self.define(name.ident.sym, base.id);
+        self.define(name.ident.sym, base.id, true).unwrap_or_else(|err| {
+            self.em.emit_error(IdentificationError {
+                kind: err,
+                span: base.span,
+            });
+        });
         self.ctx.st.enter_scope();
         walk_function_definition(self, base, name, params, ret_ty, body);
         self.ctx.st.exit_scope();
@@ -325,6 +344,42 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         }
     }
 
+    fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir hir::UseItem<'hir>) {
+        walk_use(self, item, u);
+        if let Some(def) = u.path.def().get() {
+            if u.is_wildcard {
+                match &self.hir_sess.get_node(&def) {
+                    HirNodeKind::Item(Item { kind: ItemKind::Mod(module), ..}) |
+                    HirNodeKind::Module(module) => {
+                        let curr = self.ctx.mods.last_mut().unwrap();
+                        let HirNodeKind::Module(curr) = self.hir_sess.get_node(curr) else { unreachable!() };
+                        for (name, it) in &*module.item_map() {
+                            self.define(*name, it.id, false).unwrap_or_else(|err| {
+                                self.em.emit_error(IdentificationError {
+                                    kind: err,
+                                    span: item.span,
+                                });
+                            });
+                            curr.define_item(*name, it);
+                        }
+                    }
+                    _ => self.em.emit_error(IdentificationError {
+                        kind: IdentificationErrorKind::WildcardOnNonModule,
+                        span: item.span,
+                    })
+                }
+            } else {
+                let as_name = u.get_name().expect("Non-wildcard use will have a name");
+                self.define(as_name, def, false).unwrap_or_else(|err| {
+                    self.em.emit_error(IdentificationError {
+                        kind: err,
+                        span: item.span,
+                    });
+                });
+            }
+        }
+    }
+
     fn get_ctx(&mut self) -> &mut Self::Ctx { &mut self.ctx }
 }
 
@@ -335,6 +390,7 @@ enum IdentificationErrorKind {
         node_type: &'static str,
         prev: FilePosition,
     },
+    WildcardOnNonModule,
     Undefined(String),
     UndefinedAccess(String, String),
     CantAccess(String, String, &'static str),
@@ -361,6 +417,7 @@ impl error_manager::Error for IdentificationError {
             IdentificationErrorKind::CantAccess(base, name, ty) => write!(out, "Can't access item '{name}' on '{base}' ({ty})"),
             IdentificationErrorKind::VariablePathInvalidTy => write!(out, "Variable path must resolve to a definition"),
             IdentificationErrorKind::SuperOnTopLevel => write!(out, "Can't use \"super\" on root module"),
+            IdentificationErrorKind::WildcardOnNonModule => write!(out, "Can't use wildard use on a non-module item"),
         }
     }
 }
