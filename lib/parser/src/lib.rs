@@ -148,7 +148,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
     fn try_path(&mut self, can_wildard: bool) -> Option<(Path, Option<(Span, Span)>)> {
-        if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super | TokenKind::DoubleColon)) {
+        if self.peek().is_ok_and(|token| matches!(token.kind, TokenKind::Identifier | TokenKind::Super | TokenKind::Slf | TokenKind::DoubleColon)) {
             self.path(can_wildard).ok()
         } else {
             None
@@ -161,11 +161,26 @@ impl<'sess, 'src> Parser<'sess, 'src> {
                 val: Symbol::new("super"),
                 span: self.previous_span().unwrap(),
             }
-        } else {
+        }
+        else if self.match_type(TokenKind::Slf) {
+            Spanned {
+                val: Symbol::new("self"),
+                span: self.previous_span().unwrap(),
+            }
+        }
+        else {
             if self.check(TokenKind::DoubleColon) {
                 from_root = Some(self.consume(TokenKind::DoubleColon)?.span);
             }
-            self.consume_ident_spanned()?
+            /* For cases like ::self::... */
+            if self.match_type(TokenKind::Slf) {
+                Spanned {
+                    val: Symbol::new("self"),
+                    span: self.previous_span().unwrap(),
+                }
+            } else {
+                self.consume_ident_spanned()?
+            }
         }];
 
         let mut dc = None;

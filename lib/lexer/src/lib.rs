@@ -71,6 +71,7 @@ fn as_keyword(ident: &str) -> Option<TokenKind> {
             map.insert("continue", TokenKind::Continue);
             map.insert("extern", TokenKind::Extern);
             map.insert("super", TokenKind::Super);
+            map.insert("self", TokenKind::Slf);
             map
         })
         .get(ident)

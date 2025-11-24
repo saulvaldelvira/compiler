@@ -145,6 +145,10 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn inspect_from_root(&mut self, path: &'hir PathSegment) {
+        if path.ident.sym == "self" {
+            path.def.resolve(self.hir_sess.get_root().id);
+            return
+        }
         match self.hir_sess.get_root().find_item(path.ident.sym) {
             Some(def) => path.def.resolve(def.id),
             None => {
@@ -168,6 +172,11 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
                path.def.resolve(parent);
            }
            return
+        }
+        if path.ident.sym == "self" {
+            let parent = self.ctx.mods.last().unwrap();
+            path.def.resolve(*parent);
+            return
         }
         let found_def = self.ctx.st.get(path.ident.sym);
         match found_def {

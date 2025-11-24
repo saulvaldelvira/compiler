@@ -193,6 +193,9 @@ pub enum TokenKind {
     /// "super"
     Super,
 
+    /// "self"
+    Slf,
+
     /// "..."
     ThreeDot,
 }
