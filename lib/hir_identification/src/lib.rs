@@ -46,12 +46,16 @@ pub fn identify(sess: &hir::Session<'_>, source: &SourceMap, em: &mut ErrorManag
     ident.visit_module(prog);
 }
 
-#[derive(Default)]
 struct SymbolTable {
     scopes: Vec<HashMap<Symbol, HirId>>,
 }
 
 impl SymbolTable {
+
+    fn new() -> Self {
+        Self { scopes: vec![HashMap::new()] }
+    }
+
 
     fn get_top(&self, sym: Symbol) -> Option<HirId> {
         self.scopes.last().unwrap().get(&sym).copied()
@@ -76,8 +80,14 @@ impl SymbolTable {
 }
 
 pub struct Ctx {
-    st: SymbolTable,
+    sts: Vec<SymbolTable>,
     mods: Vec<HirId>,
+}
+
+impl Ctx {
+    fn st(&mut self) -> &mut SymbolTable {
+        self.sts.last_mut().unwrap()
+    }
 }
 
 fn path_can_be_variable_ty(sess: &hir::Session<'_>, path: &Path) -> Option<bool> {
@@ -96,29 +106,29 @@ fn path_can_be_variable_ty(sess: &hir::Session<'_>, path: &Path) -> Option<bool>
 
 impl<'ast> VisitorCtx<'ast> for Ctx {
     fn enter_function(&mut self, _func: &'ast hir::Item<'ast>) {
-        self.st.enter_scope();
+        self.st().enter_scope();
     }
 
     fn exit_function(&mut self) {
-        self.st.exit_scope();
+        self.st().exit_scope();
     }
 
     fn enter_module(&mut self, module: &'ast hir::Module<'ast>) {
-        self.st.enter_scope();
+        self.sts.push(SymbolTable::new());
         self.mods.push(module.id);
     }
 
     fn exit_module(&mut self) {
-        self.st.exit_scope();
+        self.sts.pop();
         self.mods.pop();
     }
 
     fn enter_struct(&mut self, _mod: &'ast hir::Item<'ast>) {
-        self.st.enter_scope();
+        self.st().enter_scope();
     }
 
     fn exit_struct(&mut self) {
-        self.st.enter_scope();
+        self.st().enter_scope();
     }
 }
 
@@ -131,17 +141,15 @@ pub struct Identification<'ident, 'hir> {
 
 impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     pub fn new(hir_sess: &'ident hir::Session<'hir>, source: &'ident SourceMap, em: &'ident mut ErrorManager) -> Self {
-        let mut ident = Self {
+        Self {
             ctx: Ctx {
-                st: SymbolTable::default(),
+                sts: vec![SymbolTable::new()],
                 mods: Vec::default(),
             },
             source,
             hir_sess,
             em,
-        };
-        ident.ctx.st.enter_scope();
-        ident
+        }
     }
 
     fn inspect_from_root(&mut self, path: &'hir PathSegment) {
@@ -178,7 +186,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             path.def.resolve(*parent);
             return
         }
-        let found_def = self.ctx.st.get(path.ident.sym);
+        let found_def = self.ctx.st().get(path.ident.sym);
         match found_def {
             Some(def) => path.def.resolve(def),
             None => {
@@ -246,7 +254,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn define(&mut self, name: Symbol, owner: HirId, can_shadow: bool) -> Result<(), IdentificationErrorKind> {
-        if let Some(prev) = self.ctx.st.get_top(name) {
+        if let Some(prev) = self.ctx.st().get_top(name) {
             let prev = self.hir_sess.get_node(&prev);
             if !can_shadow {
                 let prev_span = prev.get_span().unwrap();
@@ -273,7 +281,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
             }
         }
 
-        self.ctx.st.define(name, owner);
+        self.ctx.st().define(name, owner);
         Ok(())
     }
 }
@@ -324,9 +332,9 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
                 span: base.span,
             });
         });
-        self.ctx.st.enter_scope();
+        self.ctx.st().enter_scope();
         walk_function_definition(self, base, name, params, ret_ty, body);
-        self.ctx.st.exit_scope();
+        self.ctx.st().exit_scope();
     }
 
     fn visit_variable(&mut self, base: &'hir hir::Expression<'hir>, path: &'hir hir::Path) {

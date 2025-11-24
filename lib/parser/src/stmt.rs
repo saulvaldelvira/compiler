@@ -5,14 +5,7 @@ use super::{Parser, Result};
 
 impl Parser<'_, '_> {
     pub(super) fn statement(&mut self) -> Result<Statement> {
-        let mut item = self.try_var_decl();
-        if item.is_none() {
-            item = self.try_struct();
-        }
-        if item.is_none() {
-            item = self.try_as();
-        }
-        if let Some(item) = item {
+        if let Some(item) = self.try_item() {
             let item = item?;
             let span = item.span;
             let stmt = Statement {

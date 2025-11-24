@@ -448,6 +448,7 @@ where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_pathdef(f.id, f.name);
+    v.visit_type(f.ty);
     V::Result::output()
 }
 
