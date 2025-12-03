@@ -158,13 +158,13 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         let mut from_root: Option<Span> = None;
         let mut path = vec![if self.match_type(TokenKind::Super) {
             Spanned {
-                val: Symbol::new("super"),
+                val: Symbol::KWSUPER,
                 span: self.previous_span().unwrap(),
             }
         }
         else if self.match_type(TokenKind::Slf) {
             Spanned {
-                val: Symbol::new("self"),
+                val: Symbol::KWSELF,
                 span: self.previous_span().unwrap(),
             }
         }
@@ -175,7 +175,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
             /* For cases like ::self::... */
             if self.match_type(TokenKind::Slf) {
                 Spanned {
-                    val: Symbol::new("self"),
+                    val: Symbol::KWSELF,
                     span: self.previous_span().unwrap(),
                 }
             } else {

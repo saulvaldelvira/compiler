@@ -34,7 +34,47 @@ use interns::StringInterner;
 /// Identifies an interned string.
 pub struct Symbol(interns::Symbol<str>);
 
+#[macro_export]
+macro_rules! symbols_identified {
+    (@rec $idx:expr; $name:ident : $val:literal $(, $($t:tt)+ )?) => {
+        pub const $name : Symbol = BUILDER.symbol_at($idx);
+
+        $(symbols_identified!(@rec $idx + 1; $($t)+); )?
+    };
+    (@rec_impl $idx:expr; $name:ident : $val:literal $(, $($t:tt)+ )?) => {
+
+        #[doc = concat!(
+            "Keyword \"", $val , "\""
+        )]
+        pub const $name : Self = Self(symbols::$name);
+
+        $(symbols_identified!(@rec_impl $idx + 1; $($t)+); )?
+    };
+    ($($name:ident : $val:literal),* $(,)?) => {
+        mod symbols {
+            use interns::backend::string::StringInternerBuilder;
+            type Symbol = interns::Symbol::<str>;
+            pub const COUNT: usize = 0 $( + { let _ = $val; 1 } )*;
+            pub const BUILDER: StringInternerBuilder<COUNT> = StringInternerBuilder::with_const_symbols([
+                $($val,)*
+            ]);
+            symbols_identified!(@rec 0; $($name: $val),*);
+        }
+
+        /// Pre-defined [Symbol]s for keywords
+        impl Symbol {
+            symbols_identified!(@rec_impl 0; $($name : $val),*);
+        }
+    };
+}
+
+symbols_identified!{
+    KWSELF: "self",
+    KWSUPER: "super",
+}
+
 impl Symbol {
+
     /// Gets a symbol from the given string.
     ///
     /// # Example
@@ -46,6 +86,11 @@ impl Symbol {
     /// ```
     #[inline]
     pub fn new(s: &str) -> Self {
+        #[cfg(all(debug_assertions, not(test)))] {
+            for i in 0..symbols::COUNT {
+                assert!(symbols::BUILDER.string_at(i) != s, "Attemp to intern a symbol '{s}' that is pre-defined");
+            }
+        }
         GLOBAL_INTERNER.get_or_intern(s)
     }
 
@@ -107,7 +152,9 @@ impl Display for Symbol {
 
 struct Interner(RwLock<StringInterner>);
 
-static GLOBAL_INTERNER: LazyLock<Interner> = LazyLock::new(|| Interner(RwLock::new(StringInterner::new())));
+static GLOBAL_INTERNER: LazyLock<Interner> = LazyLock::new(|| {
+    Interner(RwLock::new(symbols::BUILDER.build()))
+});
 
 impl Interner {
     #[inline]
@@ -135,3 +182,6 @@ impl Interner {
 #[inline]
 #[cold]
 fn cold() {}
+
+#[cfg(test)]
+mod test;

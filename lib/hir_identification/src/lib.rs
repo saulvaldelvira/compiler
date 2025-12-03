@@ -153,7 +153,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn inspect_from_root(&mut self, path: &'hir PathSegment) {
-        if path.ident.sym == "self" {
+        if path.ident.sym == Symbol::KWSELF {
             path.def.resolve(self.hir_sess.get_root().id);
             return
         }
@@ -169,7 +169,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
     }
 
     fn visit_path_segment(&mut self, path: &'hir PathSegment) {
-        if path.ident.sym == "super" {
+        if path.ident.sym == Symbol::KWSUPER {
            if self.ctx.mods.len() < 2 {
                self.em.emit_error(IdentificationError {
                    kind: IdentificationErrorKind::SuperOnTopLevel,
@@ -181,7 +181,7 @@ impl<'ident, 'hir: 'ident> Identification<'ident, 'hir> {
            }
            return
         }
-        if path.ident.sym == "self" {
+        if path.ident.sym == Symbol::KWSELF {
             let parent = self.ctx.mods.last().unwrap();
             path.def.resolve(*parent);
             return

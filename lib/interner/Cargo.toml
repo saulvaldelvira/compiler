@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies.interns]
 git = "https://github.com/saulvaldelvira/interner"
-version = ">=0.5.0"
+version = ">=1.2.0"
 
 [lints]
 workspace = true
