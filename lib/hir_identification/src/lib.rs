@@ -23,7 +23,7 @@
 //! ```
 
 use error_manager::ErrorManager;
-use hir::visitor::{walk_function_definition, walk_use, Visitor};
+use hir::visitor::{walk_function_definition, Visitor};
 use hir::{Item, ItemKind, Module, Path};
 use span::source::SourceMap;
 
@@ -362,7 +362,7 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
     }
 
     fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir hir::UseItem<'hir>) {
-        walk_use(self, item, u);
+        self.visit_path(&u.path);
         if let Some(def) = u.path.def().get() {
             if u.is_wildcard {
                 match &self.hir_sess.get_node(&def) {
