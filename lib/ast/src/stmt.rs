@@ -4,21 +4,14 @@ use core::fmt;
 
 use span::Span;
 
+use crate::expr::ExpressionKind;
 use crate::item::Item;
-use crate::{Block, Expression, Parenthesized};
+use crate::{Block, Expression};
 
 #[derive(Debug)]
 pub enum StatementKind {
-    Expression(Expression, Span),
+    Expression(Expression, Option<Span>),
     Item(Box<Item>),
-    Block(Block<Statement>),
-    If {
-        kw_if: Span,
-        cond: Parenthesized<Expression>,
-        if_body: Box<Statement>,
-        kw_else: Option<Span>,
-        else_body: Option<Box<Statement>>,
-    },
     While {
         kw_while: Span,
         cond: Expression,
@@ -49,8 +42,9 @@ pub struct Statement {
 impl From<Block<Statement>> for Statement {
     fn from(value: Block<Statement>) -> Self {
         let span = value.open_brace.join(&value.close_brace);
+        let expr = Expression::new(ExpressionKind::Block(value.to()), span);
         Statement {
-            kind: StatementKind::Block(value),
+            kind: StatementKind::Expression(expr, None),
             span,
         }
     }

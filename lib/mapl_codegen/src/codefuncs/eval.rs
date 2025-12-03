@@ -133,7 +133,7 @@ impl Eval for Expression<'_> {
 
                 MaplInstruction::Logical { left, right, op }
             }
-            ExpressionKind::Ternary {
+            ExpressionKind::If {
                 cond,
                 if_true,
                 if_false,
@@ -146,7 +146,7 @@ impl Eval for Expression<'_> {
                     if_true.eval(cg),
                     MaplInstruction::Jmp(end_label.clone()),
                     MaplInstruction::DefineLabel(else_label),
-                    if_false.eval(cg),
+                    if_false.unwrap().eval(cg),
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             }
@@ -190,7 +190,8 @@ impl Eval for Expression<'_> {
                 let ty = cg.sem.type_of(&self.id).unwrap();
                 let ty = MaplType::from(ty);
                 MaplInstruction::Compose(Box::new([self.address(cg), MaplInstruction::Load(ty)]))
-            }
+            },
+            ExpressionKind::Block { .. } => todo!(),
         }
     }
 }

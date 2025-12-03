@@ -94,25 +94,6 @@ where
     match &stmt.kind {
         StatementKind::Expression(expression, _) => v.visit_expression(expression),
         StatementKind::Item(item) => v.visit_item(item),
-        StatementKind::Block(block) => {
-            for stmt in &block.val {
-                v.visit_statement(stmt);
-            }
-            V::Result::output()
-        }
-        StatementKind::If {
-            cond,
-            if_body,
-            else_body,
-            ..
-        } => {
-            v.visit_expression(&cond.val);
-            v.visit_statement(if_body);
-            if let Some(e) = else_body {
-                v.visit_statement(e);
-            }
-            V::Result::output()
-        }
         StatementKind::While { cond, body, .. } => {
             v.visit_expression(cond);
             v.visit_statement(body);
@@ -167,16 +148,6 @@ where
             v.visit_expression(right);
             V::Result::output()
         }
-        ExpressionKind::Ternary {
-            cond,
-            if_true,
-            if_false,
-        } => {
-            v.visit_expression(cond);
-            v.visit_expression(if_true);
-            v.visit_expression(if_false);
-            V::Result::output()
-        }
         ExpressionKind::Path(_) | ExpressionKind::Literal(_) => V::Result::output(),
         ExpressionKind::Call { callee, args } => {
             v.visit_expression(callee);
@@ -191,6 +162,25 @@ where
             V::Result::output()
         }
         ExpressionKind::StructAccess { st, .. } => v.visit_expression(st),
+        ExpressionKind::Block(block) => {
+            for stmt in &block.val {
+                v.visit_statement(stmt);
+            }
+            V::Result::output()
+        }
+        ExpressionKind::If {
+            cond,
+            if_body,
+            else_body,
+            ..
+        } => {
+            v.visit_expression(cond);
+            v.visit_expression(if_body);
+            if let Some(e) = else_body {
+                v.visit_expression(e);
+            }
+            V::Result::output()
+        }
     }
 }
 

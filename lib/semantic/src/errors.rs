@@ -10,6 +10,8 @@ pub enum SemanticErrorKind {
     NonIntegerIndex,
     MissingField(Ident),
     CantPromote(String, String),
+    MismatchedIfTypes(String, String),
+    NonEmptyThenWithoutElse(String),
     Arithmetic(String, String),
     Logical(String, String),
     Compare(String, String),
@@ -85,6 +87,12 @@ impl error_manager::Error for SemanticError {
             }
             SemanticErrorKind::NonBooleanCondition(name) => {
                 write!(out, "Non boolean condition on {name} statement")
+            }
+            SemanticErrorKind::MismatchedIfTypes(ift, iff) => {
+                write!(out, "If expression has mismatched types on it's true and false branches ({ift} and {iff})")
+            }
+            SemanticErrorKind::NonEmptyThenWithoutElse(ty) => {
+                writeln!(out, "Non empty type on then block ({ty}) without an else")
             }
         }
     }

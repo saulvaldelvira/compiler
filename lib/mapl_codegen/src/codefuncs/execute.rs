@@ -53,28 +53,6 @@ impl Execute for Statement<'_> {
                     MaplInstruction::Compose(Box::new([expr, MaplInstruction::Pop(ty)]))
                 }
             }
-            StatementKind::Block(statements) => {
-                let block = statements.iter().map(|stmt| stmt.execute(cg)).collect();
-                MaplInstruction::Compose(block)
-            }
-            StatementKind::If {
-                cond,
-                if_true,
-                if_false,
-            } => {
-                let else_label = cg.next_label();
-                let end_label = cg.next_label();
-                MaplInstruction::Compose(Box::new([
-                    cond.eval(cg),
-                    MaplInstruction::Jz(else_label.clone()),
-                    if_true.execute(cg),
-                    MaplInstruction::Jmp(end_label.clone()),
-                    MaplInstruction::DefineLabel(else_label),
-                    if_false
-                        .map_or(MaplInstruction::Empty, |i| i.execute(cg)),
-                    MaplInstruction::DefineLabel(end_label),
-                ]))
-            }
             StatementKind::While { cond, body } => {
                 let cond_label = cg.next_label();
                 let end_label = cg.next_label();

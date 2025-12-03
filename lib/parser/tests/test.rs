@@ -60,5 +60,5 @@ fn foo() {
 
 ";
 
-    assert_eq!(find_errors(INPUT), 3);
+    assert_eq!(find_errors(INPUT), 5);
 }

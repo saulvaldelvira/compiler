@@ -8,7 +8,7 @@ mod ty;
 use core::cell::RefCell;
 use std::{borrow::Cow, str::FromStr};
 
-use ast::{Block, Module, Parenthesized, Path};
+use ast::{Block, Module, Path};
 use error::ParseErrorKind;
 use error_manager::ErrorManager;
 use lexer::Lexer;
@@ -99,20 +99,6 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
 
-    fn parenthesized<T>(
-        &mut self,
-        f: impl for<'a> FnOnce(&'a mut Parser<'sess, 'src>) -> Result<T>,
-    ) -> Result<Parenthesized<T>> {
-        let op = self.consume(TokenKind::LeftParen)?.span;
-        let val = f(self)?;
-        let cp = self.consume(TokenKind::RightParen)?.span;
-        Ok(Parenthesized {
-            open_paren: op,
-            val,
-            close_paren: cp,
-        })
-    }
-
     fn try_block<T, F>(&mut self, f: F) -> Option<Result<Block<T>>>
     where
         F: FnMut(&mut Self) -> Result<T>
@@ -144,6 +130,7 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         Ok(Block {
             open_brace: open,
             close_brace: close,
+            tail: None,
             val: stmts.into_boxed_slice(),
         })
     }

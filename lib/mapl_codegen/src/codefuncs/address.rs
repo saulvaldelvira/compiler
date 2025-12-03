@@ -71,10 +71,11 @@ impl Address for Expression<'_> {
             | ExpressionKind::Logical { .. }
             | ExpressionKind::Comparison { .. }
             | ExpressionKind::Arithmetic { .. }
-            | ExpressionKind::Ternary { .. }
             | ExpressionKind::Assignment { .. }
             | ExpressionKind::Literal(_)
             | ExpressionKind::Cast { .. }
+            | ExpressionKind::Block { .. }
+            | ExpressionKind::If { .. }
             | ExpressionKind::Call { .. } => {
                 unreachable!("We can't address a {:#?}", self.kind);
             }

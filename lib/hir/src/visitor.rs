@@ -115,16 +115,6 @@ pub trait Visitor<'hir> {
         walk_arithmetic(self, left, op, right)
     }
 
-    fn visit_ternary(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        cond: &'hir Expression<'hir>,
-        if_true: &'hir Expression<'hir>,
-        if_false: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_ternary(self, cond, if_true, if_false)
-    }
-
     fn visit_assignment(
         &mut self,
         _base: &'hir Expression<'hir>,
@@ -178,10 +168,11 @@ pub trait Visitor<'hir> {
 
     fn visit_block(
         &mut self,
-        _base: &'hir Statement<'hir>,
+        _base: &'hir Expression<'hir>,
         block: &'hir [Statement<'hir>],
+        tail: Option<&'hir Expression<'hir>>
     ) -> Self::Result {
-        walk_block(self, block)
+        walk_block(self, block, tail)
     }
 
     fn visit_break(&mut self, _base: &'hir Statement<'hir>) -> Self::Result {
@@ -236,10 +227,10 @@ pub trait Visitor<'hir> {
 
     fn visit_if(
         &mut self,
-        _base: &'hir Statement,
+        _base: &'hir Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir Statement<'hir>,
-        if_false: Option<&'hir Statement<'hir>>,
+        if_true: &'hir Expression<'hir>,
+        if_false: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false)
     }
@@ -582,15 +573,15 @@ where
 pub fn walk_if<'hir, V>(
     v: &mut V,
     cond: &'hir Expression<'hir>,
-    if_true: &'hir Statement<'hir>,
-    if_false: Option<&'hir Statement<'hir>>,
+    if_true: &'hir Expression<'hir>,
+    if_false: Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_expression(cond);
-    v.visit_statement(if_true);
-    walk_opt!(v, if_false, visit_statement);
+    v.visit_expression(if_true);
+    walk_opt!(v, if_false, visit_expression);
     V::Result::output()
 }
 
@@ -643,21 +634,6 @@ where
     V::Result::output()
 }
 
-pub fn walk_ternary<'hir, V>(
-    v: &mut V,
-    cond: &'hir Expression<'hir>,
-    if_true: &'hir Expression<'hir>,
-    if_false: &'hir Expression<'hir>,
-) -> V::Result
-where
-    V: Visitor<'hir> + ?Sized,
-{
-    v.visit_expression(cond);
-    v.visit_expression(if_true);
-    v.visit_expression(if_false);
-    V::Result::output()
-}
-
 pub fn walk_expression<'hir, V>(v: &mut V, expr: &'hir Expression<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -691,13 +667,6 @@ where
         ExpressionKind::Arithmetic { left, op, right } => {
             v.visit_arithmetic(expr, left, op, right);
         }
-        ExpressionKind::Ternary {
-            cond,
-            if_true,
-            if_false,
-        } => {
-            v.visit_ternary(expr, cond, if_true, if_false);
-        }
         ExpressionKind::Assignment { left, right } => {
             v.visit_assignment(expr, left, right);
         }
@@ -716,6 +685,16 @@ where
         ExpressionKind::StructAccess { st, field } => {
             v.visit_struct_access(expr, st, *field);
         }
+        ExpressionKind::Block { stmts, tail } => {
+            v.visit_block(expr, stmts, *tail);
+        }
+        ExpressionKind::If {
+            cond,
+            if_true,
+            if_false,
+        } => {
+            v.visit_if(expr, cond, if_true, *if_false);
+        }
     }
 
     V::Result::output()
@@ -729,12 +708,6 @@ where
     match &stmt.kind {
         StatementKind::Expr(expression) => v.visit_expression_as_stmt(stmt, expression),
         StatementKind::Item(item) => v.visit_item(item),
-        StatementKind::Block(statements) => v.visit_block(stmt, statements),
-        StatementKind::If {
-            cond,
-            if_true,
-            if_false,
-        } => v.visit_if(stmt, cond, if_true, *if_false),
         StatementKind::While { cond, body } => v.visit_while(stmt, cond, body),
         StatementKind::For {
             init,
@@ -751,13 +724,14 @@ where
     V::Result::output()
 }
 
-pub fn walk_block<'hir, V>(v: &mut V, block: &'hir [Statement<'hir>]) -> V::Result
+pub fn walk_block<'hir, V>(v: &mut V, block: &'hir [Statement<'hir>], tail: Option<&'hir Expression<'hir>>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
     for stmt in block {
         v.visit_statement(stmt);
     }
+    walk_opt!(v, tail, visit_expression);
     V::Result::output()
 }
 

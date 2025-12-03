@@ -1,3 +1,5 @@
+use ast::stmt::StatementKind;
+use ast::{Block, Statement};
 use ast::{
     expr::{BinaryExprOp, ExpressionKind, LitValue, UnaryExprOp},
     Expression, Parenthesized,
@@ -9,18 +11,106 @@ use super::{Parser, Result};
 use crate::error::ParseErrorKind;
 
 impl Parser<'_, '_> {
-    pub(super) fn expression(&mut self) -> Result<Expression> { self.assignment() }
+    pub(super) fn expression(&mut self) -> Result<Expression> {
+        if let Some(bexpr) = self.try_block_expr() {
+            bexpr
+        } else if let Some(ifexpr) = self.try_if_expr() {
+            ifexpr
+        }
+        else {
+            self.assignment()
+        }
+    }
 
     pub(super) fn try_expression(&mut self) -> Option<Expression> { self.expression().ok() }
 
+    pub(super) fn try_block_expr(&mut self) -> Option<Result<Expression>> {
+       self.check(TokenKind::LeftBrace).then(|| self.block_expr())
+    }
+
+    pub(super) fn block_expr(&mut self) -> Result<Expression> {
+        let left_brace = self.consume(TokenKind::LeftBrace)?.span;
+
+        let mut stmts = Vec::new();
+        let mut expr = None;
+        while !self.is_finished() && !self.check(TokenKind::RightBrace) {
+                if let Some(e) = self.try_expression() {
+                    if self.match_type(TokenKind::Semicolon) {
+                        let sc = self.previous_span().unwrap();
+                        let span = e.span.join(&sc);
+                        stmts.push(Statement {
+                            kind: StatementKind::Expression(e, Some(sc)),
+                            span
+                        });
+                    } else {
+                        expr = Some(Box::new(e));
+                        break;
+                    }
+                } else {
+                    let stmt = self.statement()?;
+                    stmts.push(stmt);
+                }
+        }
+
+        let right_brace = self.consume(TokenKind::RightBrace)?.span;
+
+        let span = left_brace.join(&right_brace);
+        Ok(Expression {
+            kind: ExpressionKind::Block(Block {
+                val: stmts.into(),
+                tail: expr,
+                open_brace: left_brace,
+                close_brace: right_brace,
+            }),
+            span
+        })
+    }
+
+    fn try_if_expr(&mut self) -> Option<Result<Expression>> {
+        if self.match_type(TokenKind::If) {
+            Some(self.if_expr())
+        } else {
+            None
+        }
+    }
+
+    fn if_expr(&mut self) -> Result<Expression> {
+        let kw_if = self.previous_span()?;
+
+        let cond = Box::new(self.expression()?);
+
+        let if_body = Box::new(self.block_expr()?);
+        let mut span = kw_if.join(&if_body.span);
+
+        let mut else_body = None;
+        let mut kw_else = None;
+        if self.match_type(TokenKind::Else) {
+            kw_else = Some(self.previous_span()?);
+            let blk = self.block_expr()?;
+            span = span.join(&blk.span);
+            else_body = Some(Box::new(blk));
+        }
+
+        Ok(Expression {
+            kind: ExpressionKind::If {
+                kw_if,
+                cond,
+                if_body,
+                kw_else,
+                else_body,
+            },
+            span,
+        })
+    }
+
     fn assignment(&mut self) -> Result<Expression> {
-        let left = self.ternary()?;
+        let left = self.logical()?;
         let ast = if self.match_type(TokenKind::Equal) {
             let eq = Spanned {
                 val: BinaryExprOp::Assign,
                 span: self.previous_span()?,
             };
-            let right = Box::new(self.assignment()?);
+            let right = Box::new(self.expression()?);
             let span = left.span.join(&right.span);
             Expression {
                 kind: ExpressionKind::Binary {
@@ -34,24 +124,6 @@ impl Parser<'_, '_> {
             left
         };
         Ok(ast)
-    }
-    fn ternary(&mut self) -> Result<Expression> {
-        let mut cond = self.logical()?;
-        if self.match_type(TokenKind::Question) {
-            let if_true = Box::new(self.logical()?);
-            self.consume(TokenKind::Colon)?;
-            let if_false = Box::new(self.logical()?);
-            let span = cond.span.join(&if_false.span);
-            cond = Expression {
-                kind: ExpressionKind::Ternary {
-                    cond: Box::new(cond),
-                    if_true,
-                    if_false,
-                },
-                span,
-            }
-        }
-        Ok(cond)
     }
     fn logical(&mut self) -> Result<Expression> {
         let mut left = self.equality()?;

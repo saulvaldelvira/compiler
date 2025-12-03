@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
-use hir::expr::CmpOp;
+use hir::expr::{CmpOp, ExpressionKind};
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
 use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
@@ -12,7 +12,6 @@ use lexer::unescaped::Unescaped;
 use llvm::core::{BasicBlock, Function, Global};
 use llvm::ffi::{LLVMIntPredicate, LLVMLinkage, LLVMRealPredicate, LLVMShutdown};
 use llvm::Value;
-use semantic::rules::stmt::HasReturn;
 use semantic::{PrimitiveType, TypeId, TypeKind};
 use span::source::{FileId, SourceMap};
 use tiny_str::TinyString;
@@ -180,7 +179,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
         }
     }
 
-    fn global_var(&mut self, vdecl: &hir::Item<'_>) -> Global<'llvm> {
+    fn global_var(&mut self, vdecl: &'hir hir::Item<'hir>) -> Global<'llvm> {
         let ItemKind::Variable { name, init, constness, .. } = vdecl.kind else {
             unreachable!()
         };
@@ -263,11 +262,11 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Module<'hir> {
     }
 }
 
-trait Address<'cg> {
-    fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg>;
+trait Address<'cg, 'hir> {
+    fn address(&'hir self, cg: &mut CodegenState<'_, 'cg, 'hir>) -> llvm::Value<'cg>;
 }
 
-impl<'cg> Address<'cg> for hir::Item<'_> {
+impl<'cg, 'hir> Address<'cg, 'hir> for hir::Item<'hir> {
     fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
         match self.kind {
             ItemKind::Variable { name, .. } => {
@@ -308,8 +307,8 @@ impl<'cg> Address<'cg> for hir::Item<'_> {
     }
 }
 
-impl<'cg> Address<'cg> for hir::Expression<'_> {
-    fn address(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
+impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
+    fn address(&'hir self, cg: &mut CodegenState<'_, 'cg, 'hir>) -> llvm::Value<'cg> {
         use hir::expr::ExpressionKind as EK;
         match &self.kind {
             EK::Variable(path) => {
@@ -351,12 +350,15 @@ impl<'cg> Address<'cg> for hir::Expression<'_> {
     }
 }
 
-trait CGValue<'cg> {
-    fn value(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg>;
+trait CGValue<'cg, 'hir, 'llvm> {
+    fn value_opt(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> Option<llvm::Value<'llvm>>;
+    fn value(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> llvm::Value<'llvm> {
+        self.value_opt(cg).expect("Expected a value")
+    }
 }
 
-trait CGExecute {
-    fn execute(&self, cg: &mut CodegenState<'_, '_, '_>);
+trait CGExecute<'hir> {
+    fn execute(&'hir self, cg: &mut CodegenState<'_, '_, 'hir>);
 }
 
 fn cmp_op_to_int_pred(op: CmpOp) -> LLVMIntPredicate {
@@ -392,12 +394,13 @@ fn cmp_op_to_real_pred(op: CmpOp) -> LLVMRealPredicate {
     }
 }
 
-impl<'cg> CGValue<'cg> for hir::Expression<'_> {
+impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
     #[allow(clippy::too_many_lines)]
-    fn value(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> llvm::Value<'cg> {
+    fn value_opt(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> Option<llvm::Value<'llvm>> {
         use hir::expr::ExpressionKind as EK;
         use hir::expr::{UnaryOp, LogicalOp, ArithmeticOp, LitValue};
 
+        Some(
         match &self.kind {
             EK::Array(_) => todo!(),
             EK::Unary { op, expr } => {
@@ -479,11 +482,15 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                     }
                 }
             }
-            EK::Ternary { cond, if_true, if_false } => {
-                let cond = cond.value(cg);
-                let if_true = if_true.value(cg);
-                let if_false = if_false.value(cg);
-                cg.builder().select(cond, if_true, if_false, "tmp_select")
+            EK::Block { stmts, tail } => {
+                for stmt in *stmts {
+                    stmt.codegen(cg);
+                }
+
+                return tail.map(|t| t.value(cg))
+            }
+            EK::If { cond, if_true, if_false } => {
+                return codgen_if(cg, cond, if_true, *if_false)
             }
             EK::Assignment { left, right } => {
                 let left = left.address(cg);
@@ -497,7 +504,7 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                 if let HirNodeKind::Param(p) = node
                     && let Some(p) = cg.params.get(&p.id)
                 {
-                        return *p;
+                        return Some(*p)
                 }
                 let addr = match node {
                     HirNodeKind::Item(item) => item.address(cg),
@@ -575,11 +582,12 @@ impl<'cg> CGValue<'cg> for hir::Expression<'_> {
                 cg.builder().load(gep, ty, "tmp_load")
             },
         }
+        )
     }
 }
 
-impl CGExecute for hir::Expression<'_> {
-    fn execute(&self, cg: &mut CodegenState<'_, '_, '_>) {
+impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
+    fn execute(&'hir self, cg: &mut CodegenState<'_, '_, 'hir>) {
         use hir::expr::ExpressionKind as EK;
 
         match &self.kind {
@@ -589,16 +597,11 @@ impl CGExecute for hir::Expression<'_> {
                 expression.execute(cg);
             }
             EK::Logical { left, right, .. } |
-            EK::Comparison { left, right, .. } |
-            EK::Arithmetic { left, right, .. } => {
-                left.execute(cg);
-                right.execute(cg);
-            }
-            EK::Ternary { cond, if_true, if_false } => {
-                cond.execute(cg);
-                if_true.execute(cg);
-                if_false.execute(cg);
-            }
+                EK::Comparison { left, right, .. } |
+                EK::Arithmetic { left, right, .. } => {
+                    left.execute(cg);
+                    right.execute(cg);
+                }
             EK::Assignment { .. } | EK::Call { .. } => {
                 self.value(cg);
             }
@@ -608,8 +611,62 @@ impl CGExecute for hir::Expression<'_> {
             }
             EK::ArrayAccess { arr, .. } => arr.execute(cg),
             EK::StructAccess { st, .. } => st.execute(cg),
+            EK::Block { .. } |
+            EK::If { .. } => {
+                self.value_opt(cg);
+            }
         }
     }
+}
+
+fn codgen_if<'cg, 'hir, 'llvm>(
+    cg: &mut CodegenState<'cg, 'llvm, 'hir>,
+    cond: &'hir hir::Expression<'hir>,
+    if_true: &'hir hir::Expression<'hir>,
+    if_false: Option<&'hir hir::Expression<'hir>>
+) -> Option<Value<'llvm>>
+{
+    let mut if_block = cg.llvm_ctx.create_basic_block("if.then");
+    let mut else_block = cg.llvm_ctx.create_basic_block("if.else");
+    let mut end_block = cg.llvm_ctx.create_basic_block("if.end");
+
+    let alloca =
+        if if_false.is_some() {
+            let ty = cg.semantic.type_of(&if_true.id).unwrap().codegen(cg);
+            Some((ty, cg.builder().alloca(ty, "synthetic_if_value")))
+        } else {
+            None
+        };
+
+    let cond = cond.value(cg);
+    cg.builder().cond_br(cond, &if_block, &else_block);
+    cg.function().append_existing_basic_block(&if_block);
+    cg.builder().position_at_end(&mut if_block);
+
+    let ExpressionKind::Block { stmts, tail } = if_true.kind else { unreachable!() };
+    stmts.iter().for_each(|stmt| stmt.codegen(cg));
+    if let Some((_, alloca)) = alloca {
+        let val = tail.unwrap().value(cg);
+        cg.builder().store(val, alloca);
+    }
+    cg.builder().branch(&mut end_block);
+
+    cg.function().append_existing_basic_block(&else_block);
+    cg.builder().position_at_end(&mut else_block);
+
+    if let Some(if_false) = if_false {
+        let ExpressionKind::Block { stmts, tail } = if_false.kind else { unreachable!() };
+        stmts.iter().for_each(|stmt| stmt.codegen(cg));
+        if let Some((_, alloca)) = alloca {
+            let val = tail.unwrap().value(cg);
+            cg.builder().store(val, alloca);
+        }
+    }
+    cg.function().append_existing_basic_block(&end_block);
+    cg.builder().branch(&mut end_block);
+    cg.builder().position_at_end(&mut end_block);
+
+    alloca.map(|(ty, a)| cg.builder().load(a, ty, "synthetic_load"))
 }
 
 impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
@@ -621,44 +678,10 @@ impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
             StatementKind::Expr(expr) => {
                 expr.execute(cg);
             },
-            StatementKind::Block(stmts) => {
-                for stmt in *stmts {
-                    stmt.codegen(cg);
-                };
-            },
             StatementKind::Return(expr) => {
                 let val = expr.map(|expr| expr.value(cg));
                 cg.builder().ret(val);
             },
-            StatementKind::If { cond, if_true, if_false } => {
-                let mut if_block = cg.llvm_ctx.create_basic_block("if.then");
-                let mut else_block = cg.llvm_ctx.create_basic_block("if.else");
-                let mut end_block = cg.llvm_ctx.create_basic_block("if.end");
-
-                let cond = cond.value(cg);
-                cg.builder().cond_br(cond, &if_block, &else_block);
-
-                cg.function().append_existing_basic_block(&if_block);
-
-                cg.builder().position_at_end(&mut if_block);
-
-                if_true.codegen(cg);
-                cg.builder().branch(&mut end_block);
-
-                cg.function().append_existing_basic_block(&else_block);
-                cg.builder().position_at_end(&mut else_block);
-                if let Some(if_false) = if_false {
-                    if_false.codegen(cg);
-                }
-                cg.builder().branch(&mut end_block);
-
-                cg.function().append_existing_basic_block(&end_block);
-                cg.builder().position_at_end(&mut end_block);
-
-                if self.has_return() {
-                    cg.builder().build_unreachable();
-                }
-            }
             StatementKind::While { cond, body } => {
                 let mut loop_cond = cg.llvm_ctx.create_basic_block("while.cond");
                 let mut loop_body = cg.llvm_ctx.create_basic_block("while.body");

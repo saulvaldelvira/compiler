@@ -196,6 +196,7 @@ impl Parser<'_, '_> {
         let fields = Block {
             val: fields.into_boxed_slice(),
             open_brace: lb,
+            tail: None,
             close_brace: end_span,
         };
 

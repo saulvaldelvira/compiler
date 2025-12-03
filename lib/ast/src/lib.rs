@@ -44,10 +44,22 @@ pub use interner::Symbol;
 pub use visitor::Visitor;
 
 #[derive(Debug)]
-pub struct Block<T> {
+pub struct Block<T, Opt = ()> {
     pub open_brace: Span,
     pub val: Box<[T]>,
+    pub tail: Option<Box<Opt>>,
     pub close_brace: Span,
+}
+
+impl<T> Block<T> {
+    fn to<Opt>(self) -> Block<T, Opt> {
+        Block {
+            open_brace: self.open_brace,
+            val: self.val,
+            tail: None,
+            close_brace: self.close_brace,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -55,6 +67,19 @@ pub struct Parenthesized<T> {
     pub open_paren: Span,
     pub val: T,
     pub close_paren: Span,
+}
+
+impl<T> Parenthesized<T> {
+    pub fn map<F, U>(self, f: F) -> Parenthesized<U>
+    where
+        F: FnOnce(T) -> U
+    {
+        Parenthesized {
+            open_paren: self.open_paren,
+            val: f(self.val),
+            close_paren: self.close_paren,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

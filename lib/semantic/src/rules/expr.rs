@@ -4,7 +4,7 @@ use span::Span;
 
 use super::SemanticRule;
 use crate::{
-    PrimitiveType, Ty, TypeId, TypeKind,
+    Ty, TypeId, TypeKind,
     errors::{SemanticError, SemanticErrorKind},
 };
 
@@ -26,7 +26,8 @@ impl Lvalue for hir::Expression<'_> {
             | ExpressionKind::Logical { .. }
             | ExpressionKind::Comparison { .. }
             | ExpressionKind::Arithmetic { .. }
-            | ExpressionKind::Ternary { .. }
+            | ExpressionKind::If { .. }
+            | ExpressionKind::Block { .. }
             | ExpressionKind::Literal(_)
             | ExpressionKind::Cast { .. }
             | ExpressionKind::Call { .. } => false,
@@ -57,13 +58,47 @@ impl SideEffect for hir::Expression<'_> {
             | ExpressionKind::Arithmetic { left, right, .. } => {
                 left.has_side_effect() || right.has_side_effect()
             }
-            ExpressionKind::Ternary {
+            ExpressionKind::If {
                 cond,
                 if_true,
                 if_false,
                 ..
-            } => cond.has_side_effect() || if_true.has_side_effect() || if_false.has_side_effect(),
+            } => cond.has_side_effect() || if_true.has_side_effect() || if_false.is_some_and(SideEffect::has_side_effect),
+            ExpressionKind::Block { stmts, tail } => {
+                stmts.iter().any(SideEffect::has_side_effect)
+                || tail.is_some_and(SideEffect::has_side_effect)
+            }
             ExpressionKind::Literal(_) | ExpressionKind::Variable(_) => false,
+        }
+    }
+}
+
+impl SideEffect for hir::Statement<'_> {
+    fn has_side_effect(&self) -> bool {
+        use hir::stmt::StatementKind;
+        match &self.kind {
+            StatementKind::Expr(expr) => expr.has_side_effect(),
+            StatementKind::While { cond, body } => cond.has_side_effect() || body.has_side_effect(),
+            StatementKind::For { init, cond, inc, body } => {
+                init.is_some_and(SideEffect::has_side_effect) ||
+                cond.is_some_and(SideEffect::has_side_effect) ||
+                inc.is_some_and(SideEffect::has_side_effect) ||
+                body.has_side_effect()
+            }
+            StatementKind::Empty => todo!(),
+            StatementKind::Break => todo!(),
+            StatementKind::Continue => todo!(),
+            StatementKind::Return(expr) => expr.is_some_and(SideEffect::has_side_effect),
+            StatementKind::Item(i) => i.has_side_effect(),
+        }
+    }
+}
+
+impl SideEffect for hir::Item<'_> {
+    fn has_side_effect(&self) -> bool {
+        match &self.kind {
+            hir::ItemKind::Variable { init, .. } => init.is_some_and(SideEffect::has_side_effect),
+            _ => false
         }
     }
 }
@@ -357,39 +392,37 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
     }
 }
 
-pub struct ValidateTernary<'hir> {
-    pub cond: &'hir Expression<'hir>,
+pub struct ValidateIf<'hir> {
     pub if_true: &'hir Expression<'hir>,
-    pub if_false: &'hir Expression<'hir>,
+    pub if_false: Option<&'hir Expression<'hir>>,
     pub span: Span,
 }
 
-impl<'sem> SemanticRule<'sem> for ValidateTernary<'_> {
+impl<'sem> SemanticRule<'sem> for ValidateIf<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
-        let cond_ty = sem.type_of(&self.cond.id)?;
-        let ift_ty = sem.type_of(&self.if_true.id)?;
-        let iff_ty = sem.type_of(&self.if_false.id)?;
+        let iftrue_ty = sem.type_of(&self.if_true.id)?;
+        if let Some(if_false) = self.if_false {
+            let iffalse_ty = sem.type_of(&if_false.id)?;
 
-        if !cond_ty
-            .kind
-            .can_be_promoted_to(&TypeKind::Primitive(PrimitiveType::Bool))
-        {
+            if iftrue_ty != iffalse_ty {
+                let ift = format!("{}", iftrue_ty.kind);
+                let iff = format!("{}", iffalse_ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::MismatchedIfTypes(ift, iff),
+                    span: self.span
+                });
+                return Default::default();
+            }
+        } else if !iftrue_ty.is_empty_type() {
+            let ift = format!("{}", iftrue_ty.kind);
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::CantPromote(cond_ty.kind.to_string(), "bool".to_string()),
-                span: self.span,
+                kind: SemanticErrorKind::NonEmptyThenWithoutElse(ift),
+                span: self.span
             });
+            return Default::default();
         }
-
-        let ty = iff_ty.promote_to(ift_ty);
-        if ty.is_none() {
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::CantPromote(iff_ty.kind.to_string(), ift_ty.to_string()),
-                span: self.span,
-            });
-        }
-
-        ty.map(|ty| ty.id)
+        Some(iftrue_ty.id)
     }
 }

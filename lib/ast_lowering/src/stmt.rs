@@ -22,25 +22,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let item = self.lower_item(item);
                 HSK::Item(item)
             }
-            SK::Block(block) => {
-                let block = self.lower_statements(&block.val);
-                HSK::Block(block)
-            }
-            SK::If {
-                cond,
-                if_body,
-                else_body,
-                ..
-            } => {
-                let cond = self.lower_expression(&cond.val);
-                let if_true = self.lower_statement(if_body);
-                let if_false = else_body.as_ref().map(|e| self.lower_statement(e));
-                HSK::If {
-                    cond,
-                    if_true,
-                    if_false,
-                }
-            }
             SK::While { cond, body, .. } => {
                 let cond = self.lower_expression(cond);
                 let body = self.lower_statement(body);

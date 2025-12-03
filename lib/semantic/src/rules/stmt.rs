@@ -76,14 +76,22 @@ pub trait HasReturn {
     fn has_return(&self) -> bool;
 }
 
+impl HasReturn for hir::Expression<'_> {
+    fn has_return(&self) -> bool {
+        use hir::expr::ExpressionKind;
+        match self.kind {
+            ExpressionKind::Block { stmts, .. } => stmts.iter().any(|s| s.has_return()),
+            ExpressionKind::If { if_true, if_false, .. } =>
+                if_true.has_return() && if_false.is_some_and(HasReturn::has_return),
+            _ => false,
+        }
+    }
+}
+
 impl HasReturn for hir::Statement<'_> {
     fn has_return(&self) -> bool {
         use hir::stmt::StatementKind;
         match self.kind {
-            StatementKind::If {
-                if_true, if_false, ..
-            } => if_true.has_return() && if_false.is_some_and(HasReturn::has_return),
-            StatementKind::Block(stmts) => stmts.iter().any(HasReturn::has_return),
             StatementKind::Return(_) => true,
             StatementKind::While { .. }
             | StatementKind::Expr(_)

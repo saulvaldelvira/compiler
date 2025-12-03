@@ -1,3 +1,4 @@
+use ast::expr::ExpressionKind;
 use ast::{stmt::StatementKind, Statement};
 use lexer::token::TokenKind;
 
@@ -14,11 +15,7 @@ impl Parser<'_, '_> {
             };
             Ok(stmt)
         }
-        else if let Some(block) = self.try_block(Self::statement) {
-            block.map(Statement::from)
-        } else if self.match_type(TokenKind::If) {
-            self.if_stmt()
-        } else if self.match_type(TokenKind::While) {
+        else if self.match_type(TokenKind::While) {
             self.while_stmt()
         } else if self.match_type(TokenKind::For) {
             self.for_stmt()
@@ -42,34 +39,6 @@ impl Parser<'_, '_> {
         })
     }
 
-    fn if_stmt(&mut self) -> Result<Statement> {
-        let kw_if = self.previous_span()?;
-
-        let cond = self.parenthesized(Self::expression)?;
-
-        let if_body = Box::new(self.statement()?);
-        let mut span = kw_if.join(&if_body.span);
-
-        let mut else_body = None;
-        let mut kw_else = None;
-        if self.match_type(TokenKind::Else) {
-            kw_else = Some(self.previous_span()?);
-            let blk = self.statement()?;
-            span = span.join(&blk.span);
-            else_body = Some(Box::new(blk));
-        }
-
-        Ok(Statement {
-            kind: StatementKind::If {
-                kw_if,
-                cond,
-                if_body,
-                kw_else,
-                else_body,
-            },
-            span,
-        })
-    }
     fn while_stmt(&mut self) -> Result<Statement> {
         let kw_while = self.previous_span()?;
         self.consume(TokenKind::LeftParen)?;
@@ -143,8 +112,13 @@ impl Parser<'_, '_> {
 
     fn expression_as_stmt(&mut self) -> Result<Statement> {
         let expr = self.expression()?;
-        let semmi = self.consume(TokenKind::Semicolon)?.span;
-        let span = expr.span.join(&semmi);
+        let mut span = expr.span;
+        let mut semmi = None;
+        if !matches!(expr.kind, ExpressionKind::If { .. } |  ExpressionKind::Block(_)) {
+            let s = self.consume(TokenKind::Semicolon)?.span;
+            span = span.join(&s);
+            semmi = Some(s);
+        }
         Ok(Statement {
             kind: StatementKind::Expression(expr, semmi),
             span,

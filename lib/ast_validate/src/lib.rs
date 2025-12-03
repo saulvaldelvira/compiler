@@ -1,7 +1,7 @@
 use ast::item::{Item, ItemKind, Module};
 use ast::{
     Expression, Visitor, expr::ExpressionKind,
-    stmt::StatementKind, visitor,
+    visitor,
 };
 use error::{Error, ErrorKind};
 use error_manager::ErrorManager;
@@ -50,23 +50,10 @@ impl Visitor for AstValidator<'_> {
                 self.warn_unnecesary_paren(left, expr.precedence());
                 self.warn_unnecesary_paren(right, expr.precedence());
             }
-            ExpressionKind::Ternary {
-                cond,
-                if_true,
-                if_false,
-            } => {
-                self.warn_unnecesary_paren(cond, expr.precedence());
-                self.warn_unnecesary_paren(if_true, expr.precedence());
-                self.warn_unnecesary_paren(if_false, expr.precedence());
+            ExpressionKind::If { cond, .. } => {
+                self.warn_unnecesary_paren(cond, 0);
             }
             _ => {}
-        }
-    }
-
-    fn visit_statement(&mut self, stmt: &'_ ast::Statement) {
-        visitor::walk_statement(self, stmt);
-        if let StatementKind::If { cond, .. } = &stmt.kind {
-            self.warn_unnecesary_paren(&cond.val, 0);
         }
     }
 

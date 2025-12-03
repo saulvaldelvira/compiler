@@ -5,7 +5,7 @@ use lexer::token::TokenKind;
 use interner::Symbol;
 use span::{Span, Spanned};
 
-use crate::Path;
+use crate::{Block, Path, Statement};
 use crate::{types::Type, Parenthesized};
 type Expr = Box<Expression>;
 
@@ -102,11 +102,6 @@ pub enum ExpressionKind {
         left: Expr,
         right: Expr,
     },
-    Ternary {
-        cond: Expr,
-        if_true: Expr,
-        if_false: Expr,
-    },
     Path(Path),
     Literal(Spanned<LitValue>),
     Cast {
@@ -126,6 +121,14 @@ pub enum ExpressionKind {
     StructAccess {
         st: Expr,
         field: Spanned<Symbol>,
+    },
+    Block(Block<Statement, Expression>),
+    If {
+        kw_if: Span,
+        cond: Box<Expression>,
+        if_body: Box<Expression>,
+        kw_else: Option<Span>,
+        else_body: Option<Box<Expression>>,
     },
 }
 

@@ -111,20 +111,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     BOP::Assign => HExprKind::Assignment { left, right },
                 }
             }
-            EK::Ternary {
-                cond,
-                if_true,
-                if_false,
-            } => {
-                let cond = self.lower_expression(cond);
-                let if_true = self.lower_expression(if_true);
-                let if_false = self.lower_expression(if_false);
-                HExprKind::Ternary {
-                    cond,
-                    if_true,
-                    if_false,
-                }
-            }
             EK::Path(spanned) => HExprKind::Variable(Self::lower_path(spanned)),
             EK::Literal(spanned) => {
                 use ast::expr::LitValue as ALV;
@@ -156,6 +142,26 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 HExprKind::StructAccess {
                     st,
                     field: ident(field),
+                }
+            }
+            EK::Block(block) => {
+                let stmts = self.lower_statements(&block.val);
+                let tail = block.tail.as_ref().map(|tail| self.lower_expression(tail));
+                HExprKind::Block { stmts, tail }
+            }
+            EK::If {
+                cond,
+                if_body,
+                else_body,
+                ..
+            } => {
+                let cond = self.lower_expression(cond);
+                let if_true = self.lower_expression(if_body);
+                let if_false = else_body.as_ref().map(|e| self.lower_expression(e));
+                HExprKind::If {
+                    cond,
+                    if_true,
+                    if_false,
                 }
             }
         };

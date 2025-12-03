@@ -7,12 +7,6 @@ use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind};
 #[derive(Debug, Clone, Copy)]
 pub enum StatementKind<'hir> {
     Expr(&'hir Expression<'hir>),
-    Block(&'hir [Statement<'hir>]),
-    If {
-        cond: &'hir Expression<'hir>,
-        if_true: &'hir Statement<'hir>,
-        if_false: Option<&'hir Statement<'hir>>,
-    },
     While {
         cond: &'hir Expression<'hir>,
         body: &'hir Statement<'hir>,

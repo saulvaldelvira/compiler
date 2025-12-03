@@ -52,20 +52,6 @@ pub fn assign_memory_locals(
             cg.set_address(d.id, MemoryAddress::Relative(-acc));
             acc
         }
-        StatementKind::Block(statements) => {
-            statements
-                .iter()
-                .fold(acc, |a, stmt| assign_memory_locals(cg, a, stmt))
-        }
-        StatementKind::If {
-            if_true, if_false, ..
-        } => {
-            acc = assign_memory_locals(cg, acc, if_true);
-            if let Some(if_false) = if_false {
-                acc = assign_memory_locals(cg, acc, if_false);
-            }
-            acc
-        }
         StatementKind::While { body, .. } => assign_memory_locals(cg, acc, body),
         StatementKind::For { body, init, .. } => {
             if let Some(init) = init {
@@ -74,6 +60,66 @@ pub fn assign_memory_locals(
             }
             assign_memory_locals(cg, acc, body)
         }
+        StatementKind::Expr(expr) => assign_memory_locals_expr(cg, acc, expr),
         _ => acc,
+    }
+}
+
+pub fn assign_memory_locals_expr(
+    cg: &mut CodeGenerator,
+    mut acc: i32,
+    expr: &hir::Expression<'_>,
+) -> i32 {
+    use hir::expr::ExpressionKind;
+
+    match &expr.kind {
+        ExpressionKind::Array(expressions) => {
+            for e in *expressions {
+                acc = assign_memory_locals_expr(cg, acc, e);
+            }
+            acc
+        }
+        ExpressionKind::Unary { expr, .. }
+        | ExpressionKind::Cast { expr, .. } => assign_memory_locals_expr(cg, acc, expr),
+        ExpressionKind::Block { stmts, tail } => {
+            for stmt in *stmts {
+                acc = assign_memory_locals(cg, acc, stmt);
+            }
+            if let Some(tail) = tail {
+                acc = assign_memory_locals_expr(cg, acc, tail);
+            }
+            acc
+        }
+        ExpressionKind::If { cond, if_true, if_false } => {
+            acc = assign_memory_locals_expr(cg, acc, cond);
+            acc = assign_memory_locals_expr(cg, acc, if_true);
+            if let Some(if_false) = if_false {
+                acc = assign_memory_locals_expr(cg, acc, if_false);
+            }
+            acc
+        }
+        ExpressionKind::Ref(expression) |
+        ExpressionKind::Deref(expression) => assign_memory_locals_expr(cg, acc, expression),
+        ExpressionKind::Logical { left, right, .. } |
+        ExpressionKind::Comparison { left, right, .. } |
+        ExpressionKind::Arithmetic { left, right,  .. } |
+        ExpressionKind::Assignment { left, right,  .. }  => {
+            acc = assign_memory_locals_expr(cg, acc, left);
+            assign_memory_locals_expr(cg, acc, right)
+        }
+        ExpressionKind::Call { callee, args } => {
+            acc = assign_memory_locals_expr(cg, acc, callee);
+            for arg in *args {
+                acc = assign_memory_locals_expr(cg, acc, arg);
+            }
+            acc
+        }
+        ExpressionKind::ArrayAccess { arr, index } => {
+            acc = assign_memory_locals_expr(cg, acc, arr);
+            assign_memory_locals_expr(cg, acc, index)
+        }
+        ExpressionKind::StructAccess { st, .. } => assign_memory_locals_expr(cg, acc, st),
+        ExpressionKind::Variable(_) |
+        ExpressionKind::Literal(_) => acc
     }
 }

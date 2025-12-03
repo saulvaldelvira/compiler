@@ -225,7 +225,7 @@ impl HirPrinter<'_, '_> {
                 attrs.push(Node::KeyVal("left", left));
                 attrs.push(Node::KeyVal("right", right));
             }
-            ExpressionKind::Ternary {
+            ExpressionKind::If {
                 cond,
                 if_true,
                 if_false,
@@ -233,10 +233,25 @@ impl HirPrinter<'_, '_> {
                 title.push(Node::Title("TernaryExpr"));
                 let cond = self.serialize_expr(cond).into();
                 let if_true = self.serialize_expr(if_true).into();
-                let if_false = self.serialize_expr(if_false).into();
                 attrs.push(Node::KeyVal("cond", cond));
                 attrs.push(Node::KeyVal("if_true", if_true));
-                attrs.push(Node::KeyVal("if_false", if_false));
+                if let Some(if_false) = if_false {
+                    let if_false = self.serialize_expr(if_false).into();
+                    attrs.push(Node::KeyVal("if_false", if_false));
+                }
+            }
+            ExpressionKind::Block { stmts, tail } => {
+                let mut stmts_list = vec![];
+                for stmt in *stmts {
+                    stmts_list.push(self.serialize_stmt(stmt));
+                }
+                let stmts = Node::Ul(stmts_list);
+                attrs.push(Node::collapse("stmts", stmts));
+                if let Some(tail) = tail {
+                    let tail = self.serialize_expr(tail).into();
+                    attrs.push(Node::KeyVal("tail", tail));
+                }
+
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));
@@ -298,33 +313,6 @@ impl HirPrinter<'_, '_> {
                 list.push(Node::Title("ExprAsStmt"));
                 let expr = self.serialize_expr(expr).into();
                 Node::KeyVal("expr", expr)
-            }
-            StatementKind::Block(stmts) => {
-                list.push(Node::Title("BlockStmt"));
-                let mut stmts_list = vec![];
-                for stmt in stmts {
-                    stmts_list.push(self.serialize_stmt(stmt));
-                }
-                let stmts = Node::Ul(stmts_list);
-                Node::collapse("stmts", stmts)
-            }
-            StatementKind::If {
-                cond,
-                if_true,
-                if_false,
-            } => {
-                list.push(Node::Title("IfStmt"));
-
-                attrs.push(Node::KeyVal("cond", self.serialize_expr(cond).into()));
-                attrs.push(Node::KeyVal(
-                    "true_branch",
-                    self.serialize_stmt(if_true).into(),
-                ));
-
-                match if_false {
-                    Some(fb) => Node::KeyVal("false_branch", self.serialize_stmt(fb).into()),
-                    None => Node::KeyVal("false_branch", Node::Text("None".into()).into()),
-                }
             }
             StatementKind::While { cond, body } => {
                 list.push(Node::Title("WhileStmt"));

@@ -24,7 +24,7 @@ impl Precedence for Expression {
                     BinaryExprOp::And | BinaryExprOp::Or => 6,
                 }
             }
-            ExpressionKind::Ternary { .. } => 2,
+            ExpressionKind::If { .. } | ExpressionKind::Block(_) => 2,
             ExpressionKind::Unary { .. }
             | ExpressionKind::Paren(_)
             | ExpressionKind::Path(_)

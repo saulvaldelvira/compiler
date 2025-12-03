@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_type_alias, walk_use, walk_variable_definition};
+use hir::visitor::{walk_block, walk_type_alias, walk_use, walk_variable_definition};
 use hir::{Item, PathDef};
 use hir::{
     Expression, Type,
@@ -7,9 +7,10 @@ use hir::{
         Visitor, VisitorCtx, walk_arithmetic, walk_array_access, walk_assignment, walk_call,
         walk_cast, walk_comparison, walk_deref, walk_expression, walk_field, walk_for,
         walk_function_definition, walk_if, walk_logical, walk_ref, walk_return, walk_struct_access,
-        walk_struct_definition, walk_ternary, walk_while,
+        walk_struct_definition, walk_while,
     },
 };
+use semantic::rules::expr::ValidateIf;
 use semantic::{
     Semantic, TypeKind, TypeLowering,
     errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind},
@@ -18,7 +19,6 @@ use semantic::{
         expr::{
             SideEffect, ValidateArithmetic, ValidateArrayAccess, ValidateAssignment, ValidateCall,
             ValidateCast, ValidateComparison, ValidateFieldAccess, ValidateLogical,
-            ValidateTernary,
         },
         stmt::{CheckFunctionReturns, CheckReturnStmt},
     },
@@ -136,15 +136,39 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         }
     }
 
+    fn visit_block(
+        &mut self,
+        base: &'hir Expression<'hir>,
+        block: &'hir [hir::Statement<'hir>],
+        tail: Option<&'hir Expression<'hir>>
+    ) -> Self::Result {
+        walk_block(self, block, tail);
+        if let Some(expr) = tail {
+            let Some(id) = self.semantic.type_of(&expr.id) else { return };
+            self.semantic.set_type_of(base.id, id.id);
+        } else {
+            self.semantic.set_type_of(base.id, self.semantic.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Empty)).id);
+        }
+    }
+
     fn visit_if(
         &mut self,
-        _base: &'hir hir::Statement,
+        base: &'hir hir::Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir hir::Statement<'hir>,
-        if_false: Option<&'hir hir::Statement<'hir>>,
+        if_true: &'hir hir::Expression<'hir>,
+        if_false: Option<&'hir hir::Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false);
         self.check_boolean_condition(cond, "if");
+        ValidateIf {
+            if_true,
+            if_false,
+            span: base.span,
+        }
+        .apply(self.semantic, self.em)
+        .inspect(|ty| {
+            self.semantic.set_type_of(base.id, *ty);
+        });
     }
 
     fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir hir::UseItem<'hir>) -> Self::Result {
@@ -202,27 +226,6 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         .apply(self.semantic, self.em)
         .inspect(|&id| {
             self.semantic.set_type_of(expr.id, id);
-        });
-    }
-
-    fn visit_ternary(
-        &mut self,
-        base: &'hir Expression<'hir>,
-        cond: &'hir Expression<'hir>,
-        if_true: &'hir Expression<'hir>,
-        if_false: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_ternary(self, cond, if_true, if_false);
-
-        ValidateTernary {
-            cond,
-            if_true,
-            if_false,
-            span: base.span,
-        }
-        .apply(self.semantic, self.em)
-        .inspect(|&id| {
-            self.semantic.set_type_of(base.id, id);
         });
     }
 
