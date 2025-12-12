@@ -26,6 +26,7 @@ pub use stmt::Statement;
 
 pub mod expr;
 pub use expr::Expression;
+pub use expr::BlockExpr;
 use interner::Symbol;
 use span::Span;
 

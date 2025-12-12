@@ -1,6 +1,6 @@
 mod node;
 
-use hir::{Item, ItemKind};
+use hir::{BlockExpr, Item, ItemKind};
 use hir::{
     Expression, Module, Statement, expr::ExpressionKind,
     stmt::StatementKind,
@@ -143,11 +143,9 @@ impl HirPrinter<'_, '_> {
                     ul.push(Node::collapse("params", Node::Ul(p)));
                 }
                 if let Some(body) = body {
-                    let mut b = vec![];
-                    for stmt in *body {
-                        b.push(self.serialize_stmt(stmt));
-                    }
-                    ul.push(Node::collapse("body", Node::Ul(b)));
+                    let mut stmts = Vec::new();
+                    self.serialize_block_expr(&mut stmts, body);
+                    ul.push(Node::collapse("body", Node::Ul(stmts)));
                 }
             }
             ItemKind::Struct { fields, .. } => {
@@ -166,6 +164,19 @@ impl HirPrinter<'_, '_> {
         }
 
         Node::Collapse(Node::List(nodes).into(), Node::Ul(ul).into())
+    }
+
+    fn serialize_block_expr(&self, attrs: &mut Vec<Node>, block: &BlockExpr<'_>) {
+        let mut stmts_list = vec![];
+        for stmt in block.stmts {
+            stmts_list.push(self.serialize_stmt(stmt));
+        }
+        let stmts = Node::Ul(stmts_list);
+        attrs.push(Node::collapse("stmts", stmts));
+        if let Some(tail) = block.tail {
+            let tail = self.serialize_expr(tail).into();
+            attrs.push(Node::KeyVal("tail", tail));
+        }
     }
 
     #[allow(clippy::too_many_lines)]
@@ -230,28 +241,20 @@ impl HirPrinter<'_, '_> {
                 if_true,
                 if_false,
             } => {
-                title.push(Node::Title("TernaryExpr"));
+                title.push(Node::Title("If"));
                 let cond = self.serialize_expr(cond).into();
-                let if_true = self.serialize_expr(if_true).into();
                 attrs.push(Node::KeyVal("cond", cond));
-                attrs.push(Node::KeyVal("if_true", if_true));
+                let mut block = Vec::new();
+                self.serialize_block_expr(&mut block, if_true);
+                attrs.push(Node::Collapse(Node::Title("if_true").into(), Node::Ul(block).into()));
                 if let Some(if_false) = if_false {
-                    let if_false = self.serialize_expr(if_false).into();
-                    attrs.push(Node::KeyVal("if_false", if_false));
+                    let mut block = Vec::new();
+                    self.serialize_block_expr(&mut block, if_false);
+                    attrs.push(Node::Collapse(Node::Title("if_true").into(), Node::Ul(block).into()));
                 }
             }
-            ExpressionKind::Block { stmts, tail } => {
-                let mut stmts_list = vec![];
-                for stmt in *stmts {
-                    stmts_list.push(self.serialize_stmt(stmt));
-                }
-                let stmts = Node::Ul(stmts_list);
-                attrs.push(Node::collapse("stmts", stmts));
-                if let Some(tail) = tail {
-                    let tail = self.serialize_expr(tail).into();
-                    attrs.push(Node::KeyVal("tail", tail));
-                }
-
+            ExpressionKind::Block(block) => {
+                self.serialize_block_expr(&mut attrs, block);
             }
             ExpressionKind::Variable(path) => {
                 title.push(Node::Title("VariableExpression"));

@@ -1,10 +1,29 @@
 use ast::expr::ExpressionKind;
+use ast::Expression;
 use ast::{stmt::StatementKind, Statement};
 use lexer::token::TokenKind;
 
+use crate::error::ParseErrorKind;
+
 use super::{Parser, Result};
 
+fn needs_semicolon(expr: &Expression) -> bool {
+    match &expr.kind {
+        ExpressionKind::Block(b) => {
+            b.tail.is_some()
+        }
+        ExpressionKind::If { if_body, else_body, .. } => {
+            if_body.tail.is_some()
+            ||
+            else_body.as_ref().is_some_and(|e| e.tail.is_some())
+        }
+        _ => true
+    }
+
+}
+
 impl Parser<'_, '_> {
+
     pub(super) fn statement(&mut self) -> Result<Statement> {
         if let Some(item) = self.try_item() {
             let item = item?;
@@ -21,10 +40,32 @@ impl Parser<'_, '_> {
             self.for_stmt()
         } else if self.match_type(TokenKind::Return) {
             self.ret_stmt()
-        } else {
+        } else if self.check_types(&[TokenKind::Continue, TokenKind::Break, TokenKind::Semicolon]) {
             self.single_line_stmt()
+        } else {
+            let expr = self.expression()?;
+            self.expression_into_stmt(expr)
         }
     }
+
+    pub(super) fn expression_into_stmt(&mut self, expr: Expression) -> Result<Statement> {
+        let semi = if self.match_type(TokenKind::Semicolon) {
+            Some(self.previous_span().unwrap())
+        } else if !needs_semicolon(&expr) {
+            None
+        } else {
+            return Err(ParseErrorKind::MissingSemmicolon)
+        };
+        let mut span = expr.span;
+        if let Some(semi) = semi {
+            span = span.join(&semi);
+        }
+        Ok(Statement {
+            kind: StatementKind::Expression(expr, semi),
+            span,
+        })
+    }
+
     fn ret_stmt(&mut self) -> Result<Statement> {
         let kw_ret = self.previous_span()?;
         let expr = self.try_expression();
@@ -44,7 +85,7 @@ impl Parser<'_, '_> {
         self.consume(TokenKind::LeftParen)?;
         let cond = self.expression()?;
         self.consume(TokenKind::RightParen)?;
-        let body = Box::new(Statement::from(self.block(Self::statement)?));
+        let body = Box::new(Statement::from(self.braced(Self::statement)?));
         let span = kw_while.join(&body.span);
         Ok(Statement {
             kind: StatementKind::While {
@@ -105,23 +146,8 @@ impl Parser<'_, '_> {
                 span: self.previous_span()?,
             }
         } else {
-            self.expression_as_stmt()?
+            return Err(ParseErrorKind::ExpectedNode("Statement"))
         };
         Ok(ast)
-    }
-
-    fn expression_as_stmt(&mut self) -> Result<Statement> {
-        let expr = self.expression()?;
-        let mut span = expr.span;
-        let mut semmi = None;
-        if !matches!(expr.kind, ExpressionKind::If { .. } |  ExpressionKind::Block(_)) {
-            let s = self.consume(TokenKind::Semicolon)?.span;
-            span = span.join(&s);
-            semmi = Some(s);
-        }
-        Ok(Statement {
-            kind: StatementKind::Expression(expr, semmi),
-            span,
-        })
     }
 }

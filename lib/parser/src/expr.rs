@@ -1,4 +1,3 @@
-use ast::stmt::StatementKind;
 use ast::{Block, Statement};
 use ast::{
     expr::{BinaryExprOp, ExpressionKind, LitValue, UnaryExprOp},
@@ -28,40 +27,49 @@ impl Parser<'_, '_> {
        self.check(TokenKind::LeftBrace).then(|| self.block_expr())
     }
 
-    pub(super) fn block_expr(&mut self) -> Result<Expression> {
+    fn block_body(&mut self, stmts: &mut Vec<Statement>, expr: &mut Option<Expression>) -> Result<bool> {
+        if let Some(e) = self.try_expression() {
+            if self.check(TokenKind::RightBrace) {
+                *expr = Some(e);
+                return Ok(true)
+            }
+            stmts.push(self.expression_into_stmt(e)?);
+        } else {
+            stmts.push(self.statement()?);
+        }
+        Ok(false)
+    }
+    pub(super) fn block(&mut self) -> Result<Block<Statement, Expression>> {
         let left_brace = self.consume(TokenKind::LeftBrace)?.span;
 
         let mut stmts = Vec::new();
         let mut expr = None;
         while !self.is_finished() && !self.check(TokenKind::RightBrace) {
-                if let Some(e) = self.try_expression() {
-                    if self.match_type(TokenKind::Semicolon) {
-                        let sc = self.previous_span().unwrap();
-                        let span = e.span.join(&sc);
-                        stmts.push(Statement {
-                            kind: StatementKind::Expression(e, Some(sc)),
-                            span
-                        });
-                    } else {
-                        expr = Some(Box::new(e));
-                        break;
-                    }
-                } else {
-                    let stmt = self.statement()?;
-                    stmts.push(stmt);
-                }
+            let finish = self.block_body(&mut stmts, &mut expr)
+                .unwrap_or_else(|err| {
+                    self.error(err);
+                    self.synchronize_with(&[TokenKind::Semicolon, TokenKind::RightBrace]);
+                    false
+                });
+            if finish { break }
         }
+
 
         let right_brace = self.consume(TokenKind::RightBrace)?.span;
 
-        let span = left_brace.join(&right_brace);
+        Ok(Block {
+            val: stmts.into(),
+            tail: expr.map(Box::new),
+            open_brace: left_brace,
+            close_brace: right_brace,
+        })
+    }
+
+    pub(super) fn block_expr(&mut self) -> Result<Expression> {
+        let block = self.block()?;
+        let span = block.open_brace.join(&block.close_brace);
         Ok(Expression {
-            kind: ExpressionKind::Block(Block {
-                val: stmts.into(),
-                tail: expr,
-                open_brace: left_brace,
-                close_brace: right_brace,
-            }),
+            kind: ExpressionKind::Block(block),
             span
         })
     }
@@ -79,16 +87,16 @@ impl Parser<'_, '_> {
 
         let cond = Box::new(self.expression()?);
 
-        let if_body = Box::new(self.block_expr()?);
-        let mut span = kw_if.join(&if_body.span);
+        let if_body = self.block()?;
+        let mut span = kw_if.join(&if_body.close_brace);
 
         let mut else_body = None;
         let mut kw_else = None;
         if self.match_type(TokenKind::Else) {
             kw_else = Some(self.previous_span()?);
-            let blk = self.block_expr()?;
-            span = span.join(&blk.span);
-            else_body = Some(Box::new(blk));
+            let blk = self.block()?;
+            span = span.join(&blk.close_brace);
+            else_body = Some(blk);
         }
 
         Ok(Expression {

@@ -1,6 +1,6 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_block, walk_type_alias, walk_use, walk_variable_definition};
-use hir::{Item, PathDef};
+use hir::visitor::{walk_type_alias, walk_use, walk_variable_definition};
+use hir::{BlockExpr, Item, PathDef};
 use hir::{
     Expression, Type,
     visitor::{
@@ -136,27 +136,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         }
     }
 
-    fn visit_block(
-        &mut self,
-        base: &'hir Expression<'hir>,
-        block: &'hir [hir::Statement<'hir>],
-        tail: Option<&'hir Expression<'hir>>
-    ) -> Self::Result {
-        walk_block(self, block, tail);
-        if let Some(expr) = tail {
-            let Some(id) = self.semantic.type_of(&expr.id) else { return };
-            self.semantic.set_type_of(base.id, id.id);
-        } else {
-            self.semantic.set_type_of(base.id, self.semantic.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Empty)).id);
-        }
-    }
-
     fn visit_if(
         &mut self,
         base: &'hir hir::Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir hir::Expression<'hir>,
-        if_false: Option<&'hir hir::Expression<'hir>>,
+        if_true: &'hir BlockExpr<'hir>,
+        if_false: Option<&'hir BlockExpr<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false);
         self.check_boolean_condition(cond, "if");
@@ -418,7 +403,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         name: &'hir PathDef,
         params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: Option<&'hir [hir::Statement<'hir>]>,
+        body: Option<&'hir BlockExpr<'hir>>,
     ) -> Self::Result {
         {
             let params = params.iter().map(|p| p.ty);

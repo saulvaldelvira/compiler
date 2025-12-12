@@ -27,6 +27,10 @@ pub trait Visitor {
     fn visit_item(&mut self, item: &Item) -> Self::Result {
         walk_item(self, item)
     }
+
+    fn visit_block(&mut self, block: &Block<Statement, Expression>) -> Self::Result {
+        walk_block(self, block)
+    }
 }
 
 pub fn walk_type<V>(v: &mut V, ty: &Type) -> V::Result
@@ -70,9 +74,7 @@ where
                 v.visit_type(rty);
             }
             if let Some(body) = body {
-                for stmt in &body.val {
-                    v.visit_statement(stmt);
-                }
+                v.visit_block(body);
             }
             V::Result::output()
         }
@@ -132,6 +134,20 @@ where
     }
 }
 
+
+pub fn walk_block<V>(v: &mut V, block: &Block<Statement, Expression>) -> V::Result
+where
+    V: Visitor + ?Sized,
+{
+    for stmt in &block.val {
+        v.visit_statement(stmt);
+    }
+    if let Some(tail) = &block.tail {
+        v.visit_expression(tail);
+    }
+    V::Result::output()
+}
+
 pub fn walk_expression<V>(v: &mut V, expr: &Expression) -> V::Result
 where
     V: Visitor + ?Sized,
@@ -175,9 +191,9 @@ where
             ..
         } => {
             v.visit_expression(cond);
-            v.visit_expression(if_body);
+            v.visit_block(if_body);
             if let Some(e) = else_body {
-                v.visit_expression(e);
+                v.visit_block(e);
             }
             V::Result::output()
         }

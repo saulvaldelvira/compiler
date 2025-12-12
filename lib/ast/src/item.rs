@@ -4,8 +4,8 @@ use interner::Symbol;
 use span::source::FileId;
 use span::{Span, Spanned};
 
-use crate::Path;
-use crate::{types::Type, Block, Expression, Statement};
+use crate::{Path, Statement};
+use crate::{types::Type, Block, Expression};
 
 #[derive(Debug)]
 pub enum VariableConstness {
@@ -49,7 +49,7 @@ pub enum ItemKind {
         params: Box<[Param]>,
         variadic_span: Option<Span>,
         return_type: Option<Type>,
-        body: Option<Block<Statement>>,
+        body: Option<Block<Statement, Expression>>,
         semicolon: Option<Span>,
     },
     Struct {

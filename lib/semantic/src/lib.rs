@@ -12,7 +12,7 @@ use __arena::Arena;
 pub mod types;
 pub use types::*;
 pub mod type_lowering;
-use hir::HirId;
+use hir::{BlockExpr, HirId};
 pub use type_lowering::*;
 pub mod errors;
 pub mod rules;
@@ -65,6 +65,13 @@ impl<'sem> Semantic<'sem> {
                 unreachable!("If we have a TypeId on the hir_to_typeid_assoc table, it MUST be also interned into the types table")
             })
         })
+    }
+
+    pub fn type_of_block(&self, block: &BlockExpr<'_>) -> Option<&'sem Ty<'sem>> {
+        match block.tail {
+            Some(t) => self.type_of(&t.id),
+            None => Some(self.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Empty)))
+        }
     }
 
     #[inline]

@@ -1,4 +1,5 @@
-use ast::Symbol;
+use ast::{Block, Symbol};
+use hir::expr::BlockExpr;
 use hir::{
     NodeRef,
     expr::{ArithmeticOp, CmpOp, ExpressionKind as HExprKind, LogicalOp, UnaryOp},
@@ -38,6 +39,12 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         expr: &ast::Expression,
     ) -> &'hir hir::Expression<'hir> {
         self.sess.alloc(self.lower_expression_owned(expr))
+    }
+
+    pub(super) fn lower_block(&mut self, block: &Block<ast::Statement, ast::Expression>) -> hir::expr::BlockExpr<'hir> {
+        let stmts = self.lower_statements(&block.val);
+        let tail = block.tail.as_ref().map(|tail| self.lower_expression(tail));
+        BlockExpr { stmts, tail }
     }
 
     #[allow(clippy::too_many_lines)]
@@ -145,9 +152,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 }
             }
             EK::Block(block) => {
-                let stmts = self.lower_statements(&block.val);
-                let tail = block.tail.as_ref().map(|tail| self.lower_expression(tail));
-                HExprKind::Block { stmts, tail }
+                HExprKind::Block(self.lower_block(block))
             }
             EK::If {
                 cond,
@@ -156,8 +161,8 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 ..
             } => {
                 let cond = self.lower_expression(cond);
-                let if_true = self.lower_expression(if_body);
-                let if_false = else_body.as_ref().map(|e| self.lower_expression(e));
+                let if_true = self.lower_block(if_body);
+                let if_false = else_body.as_ref().map(|e| self.lower_block(e));
                 HExprKind::If {
                     cond,
                     if_true,

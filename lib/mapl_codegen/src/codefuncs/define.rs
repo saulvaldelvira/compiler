@@ -24,7 +24,7 @@ impl Define for Item<'_> {
                 }
             }
             ItemKind::Function { params, body, .. } => {
-                return define_func(self, params, body.unwrap(), cg);
+                return define_func(self, params, body.unwrap().stmts, cg);
             }
             ItemKind::Struct { fields, .. } => {
                 let mut acc = 0;

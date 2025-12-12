@@ -52,7 +52,7 @@ struct Parser<'sess, 'src> {
     src_map: &'sess RefCell<SourceMap>,
 }
 
-impl<'sess, 'src> Parser<'sess, 'src> {
+impl Parser<'_, '_> {
     fn parse(mut self) -> Option<Module> {
         let mut decls = Vec::new();
         while !self.is_finished() {
@@ -99,17 +99,17 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         })
     }
 
-    fn try_block<T, F>(&mut self, f: F) -> Option<Result<Block<T>>>
+    fn try_braced<T, F>(&mut self, f: F) -> Option<Result<Block<T>>>
     where
         F: FnMut(&mut Self) -> Result<T>
     {
         if self.check(TokenKind::LeftBrace) {
-            Some(self.block(f))
+            Some(self.braced(f))
         } else {
             None
         }
     }
-    fn block_inner<T, F>(&mut self, mut f: F) -> Result<Vec<T>>
+    fn braced_inner<T, F>(&mut self, mut f: F) -> Result<Vec<T>>
     where
         F: FnMut(&mut Self) -> Result<T>
     {
@@ -120,12 +120,12 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         }
         Ok(stmts)
     }
-    fn block<T, F>(&mut self, f: F) -> Result<Block<T>>
+    fn braced<T, F>(&mut self, f: F) -> Result<Block<T>>
     where
         F: FnMut(&mut Self) -> Result<T>
     {
         let open = self.consume(TokenKind::LeftBrace)?.span;
-        let stmts = self.block_inner(f)?;
+        let stmts = self.braced_inner(f)?;
         let close = self.consume(TokenKind::RightBrace)?.span;
         Ok(Block {
             open_brace: open,
@@ -262,7 +262,10 @@ impl<'sess, 'src> Parser<'sess, 'src> {
         false
     }
     fn error(&mut self, kind: ParseErrorKind) {
-        let tok = if self.is_finished() {
+        let should_use_prev =
+            self.is_finished() || matches!(kind, ParseErrorKind::MissingSemmicolon);
+
+        let tok = if should_use_prev {
             self.previous()
         } else {
             self.peek()

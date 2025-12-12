@@ -1,4 +1,4 @@
-use hir::Expression;
+use hir::{BlockExpr, Expression};
 use semantic::Semantic;
 
 use super::Eval;
@@ -56,6 +56,12 @@ fn cast(
                 to: to_ty,
             }
         }
+    }
+}
+
+impl Eval for BlockExpr<'_> {
+    fn eval(&self, _cg: &mut CodeGenerator<'_, '_, '_>) -> MaplInstruction {
+        todo!()
     }
 }
 

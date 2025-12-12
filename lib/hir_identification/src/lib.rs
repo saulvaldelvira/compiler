@@ -24,7 +24,7 @@
 
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
-use hir::{Item, ItemKind, Module, Path};
+use hir::{BlockExpr, Item, ItemKind, Module, Path};
 use span::source::SourceMap;
 
 use std::collections::HashMap;
@@ -324,7 +324,7 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
         name: &'hir hir::PathDef,
         params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir hir::Type<'hir>,
-        body: Option<&'hir [hir::Statement<'hir>]>,
+        body: Option<&'hir BlockExpr<'hir>>,
     ) -> Self::Result {
         self.define(name.ident.sym, base.id, true).unwrap_or_else(|err| {
             self.em.emit_error(IdentificationError {

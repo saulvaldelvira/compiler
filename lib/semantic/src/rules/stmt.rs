@@ -1,4 +1,4 @@
-use hir::{Expression, Item, Statement};
+use hir::{BlockExpr, Expression, Item};
 use span::Span;
 
 use super::SemanticRule;
@@ -9,7 +9,7 @@ use crate::{
 
 pub struct CheckFunctionReturns<'hir> {
     pub def: &'hir Item<'hir>,
-    pub body: &'hir [Statement<'hir>],
+    pub body: &'hir BlockExpr<'hir>,
     pub span: Span,
 }
 
@@ -28,7 +28,7 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
             .as_function_type()
             .expect("Expected function's type to be of FuncType");
 
-        if !ret_type.is_empty_type() && !self.body.iter().any(HasReturn::has_return) {
+        if !ret_type.is_empty_type() && self.body.tail.is_none() && !self.body.has_return() {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name().unwrap()),
                 span: self.span,
@@ -79,12 +79,18 @@ pub trait HasReturn {
 impl HasReturn for hir::Expression<'_> {
     fn has_return(&self) -> bool {
         use hir::expr::ExpressionKind;
-        match self.kind {
-            ExpressionKind::Block { stmts, .. } => stmts.iter().any(|s| s.has_return()),
+        match &self.kind {
+            ExpressionKind::Block(b) => b.has_return(),
             ExpressionKind::If { if_true, if_false, .. } =>
-                if_true.has_return() && if_false.is_some_and(HasReturn::has_return),
+                if_true.has_return() && if_false.as_ref().is_some_and(HasReturn::has_return),
             _ => false,
         }
+    }
+}
+
+impl HasReturn for hir::BlockExpr<'_> {
+    fn has_return(&self) -> bool {
+        self.stmts.iter().any(HasReturn::has_return)
     }
 }
 

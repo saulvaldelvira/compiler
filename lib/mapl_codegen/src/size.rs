@@ -65,6 +65,20 @@ pub fn assign_memory_locals(
     }
 }
 
+fn assign_memory_locals_block(
+    cg: &mut CodeGenerator,
+    mut acc: i32,
+    block: &hir::BlockExpr<'_>,
+) -> i32 {
+    for stmt in block.stmts {
+        acc = assign_memory_locals(cg, acc, stmt);
+    }
+    if let Some(tail) = block.tail {
+        acc = assign_memory_locals_expr(cg, acc, tail);
+    }
+    acc
+}
+
 pub fn assign_memory_locals_expr(
     cg: &mut CodeGenerator,
     mut acc: i32,
@@ -81,20 +95,12 @@ pub fn assign_memory_locals_expr(
         }
         ExpressionKind::Unary { expr, .. }
         | ExpressionKind::Cast { expr, .. } => assign_memory_locals_expr(cg, acc, expr),
-        ExpressionKind::Block { stmts, tail } => {
-            for stmt in *stmts {
-                acc = assign_memory_locals(cg, acc, stmt);
-            }
-            if let Some(tail) = tail {
-                acc = assign_memory_locals_expr(cg, acc, tail);
-            }
-            acc
-        }
+        ExpressionKind::Block(block) => assign_memory_locals_block(cg, acc, block),
         ExpressionKind::If { cond, if_true, if_false } => {
             acc = assign_memory_locals_expr(cg, acc, cond);
-            acc = assign_memory_locals_expr(cg, acc, if_true);
+            acc = assign_memory_locals_block(cg, acc, if_true);
             if let Some(if_false) = if_false {
-                acc = assign_memory_locals_expr(cg, acc, if_false);
+                acc = assign_memory_locals_block(cg, acc, if_false);
             }
             acc
         }

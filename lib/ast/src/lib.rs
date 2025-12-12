@@ -52,7 +52,7 @@ pub struct Block<T, Opt = ()> {
 }
 
 impl<T> Block<T> {
-    fn to<Opt>(self) -> Block<T, Opt> {
+    pub fn to<Opt>(self) -> Block<T, Opt> {
         Block {
             open_brace: self.open_brace,
             val: self.val,

@@ -1,178 +1,177 @@
 use std::ops::ControlFlow;
 
+use crate::expr::BlockExpr;
 use crate::item::Item;
 use crate::{Constness, Param, UseItem};
 use crate::{
-    Expression, HirId, Ident, Module, Path, PathDef,
-    Statement, Type,
-    item::Field,
-    expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp},
-    hir, stmt,
+Expression, HirId, Ident, Module, Path, PathDef,
+Statement, Type,
+item::Field,
+expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp},
+hir, stmt,
 };
 
 pub trait Visitor<'hir> {
-    type Result: VisitorResult;
-    type Ctx: VisitorCtx<'hir>;
+type Result: VisitorResult;
+type Ctx: VisitorCtx<'hir>;
 
-    fn get_ctx(&mut self) -> &mut Self::Ctx;
+fn get_ctx(&mut self) -> &mut Self::Ctx;
 
-    fn visit_module(&mut self, m: &'hir Module<'hir>) -> Self::Result { walk_module(self, m) }
+fn visit_module(&mut self, m: &'hir Module<'hir>) -> Self::Result { walk_module(self, m) }
 
-    fn visit_param(&mut self, param: &'hir Param<'hir>) -> Self::Result {
-        walk_param(self, param)
-    }
+fn visit_param(&mut self, param: &'hir Param<'hir>) -> Self::Result {
+    walk_param(self, param)
+}
 
-    fn visit_item(&mut self, item: &'hir Item<'hir>) -> Self::Result {
-        walk_item(self, item)
-    }
+fn visit_item(&mut self, item: &'hir Item<'hir>) -> Self::Result {
+    walk_item(self, item)
+}
 
-    fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir UseItem<'hir>) -> Self::Result {
-        walk_use(self, item, u)
-    }
+fn visit_use(&mut self, item: &'hir Item<'hir>, u: &'hir UseItem<'hir>) -> Self::Result {
+    walk_use(self, item, u)
+}
 
-    fn visit_type_alias(&mut self, item: &'hir Item<'hir>, ty: &'hir Type<'hir>, name: &'hir PathDef) -> Self::Result {
-        walk_type_alias(self, item, ty, name)
-    }
+fn visit_type_alias(&mut self, item: &'hir Item<'hir>, ty: &'hir Type<'hir>, name: &'hir PathDef) -> Self::Result {
+    walk_type_alias(self, item, ty, name)
+}
 
-    fn visit_variable_definition(&mut self,
-        base: &'hir Item<'hir>,
-        name: &'hir PathDef,
-        ty: Option<&'hir Type<'hir>>,
-        init: Option<&'hir Expression<'hir>>,
-        constness: Constness,
-    ) -> Self::Result {
-        walk_variable_definition(self, base, name, ty, init, constness)
-    }
+fn visit_variable_definition(&mut self,
+    base: &'hir Item<'hir>,
+    name: &'hir PathDef,
+    ty: Option<&'hir Type<'hir>>,
+    init: Option<&'hir Expression<'hir>>,
+    constness: Constness,
+) -> Self::Result {
+    walk_variable_definition(self, base, name, ty, init, constness)
+}
 
-    fn visit_expression(&mut self, expr: &'hir Expression<'hir>) -> Self::Result {
-        walk_expression(self, expr)
-    }
+fn visit_expression(&mut self, expr: &'hir Expression<'hir>) -> Self::Result {
+    walk_expression(self, expr)
+}
 
-    fn visit_expression_as_stmt(
-        &mut self,
-        _base: &'hir Statement<'hir>,
-        expr: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_expression(self, expr)
-    }
+fn visit_expression_as_stmt(
+    &mut self,
+    _base: &'hir Statement<'hir>,
+    expr: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_expression(self, expr)
+}
 
-    fn visit_ref(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        r: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_ref(self, r)
-    }
+fn visit_ref(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    r: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_ref(self, r)
+}
 
-    fn visit_cast(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        expr: &'hir Expression<'hir>,
-        to: &'hir Type<'hir>,
-    ) -> Self::Result {
-        walk_cast(self, expr, to)
-    }
+fn visit_cast(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    expr: &'hir Expression<'hir>,
+    to: &'hir Type<'hir>,
+) -> Self::Result {
+    walk_cast(self, expr, to)
+}
 
-    fn visit_deref(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        r: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_deref(self, r)
-    }
+fn visit_deref(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    r: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_deref(self, r)
+}
 
-    fn visit_unary(&mut self, _op: &UnaryOp, expr: &'hir Expression<'hir>) -> Self::Result {
-        walk_unary(self, expr)
-    }
+fn visit_unary(&mut self, _op: &UnaryOp, expr: &'hir Expression<'hir>) -> Self::Result {
+    walk_unary(self, expr)
+}
 
-    fn visit_logical(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        left: &'hir Expression<'hir>,
-        op: &LogicalOp,
-        right: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_logical(self, left, op, right)
-    }
+fn visit_logical(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    left: &'hir Expression<'hir>,
+    op: &LogicalOp,
+    right: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_logical(self, left, op, right)
+}
 
-    fn visit_comparison(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        left: &'hir Expression<'hir>,
-        op: &CmpOp,
-        right: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_comparison(self, left, op, right)
-    }
+fn visit_comparison(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    left: &'hir Expression<'hir>,
+    op: &CmpOp,
+    right: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_comparison(self, left, op, right)
+}
 
-    fn visit_arithmetic(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        left: &'hir Expression<'hir>,
-        op: &ArithmeticOp,
-        right: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_arithmetic(self, left, op, right)
-    }
+fn visit_arithmetic(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    left: &'hir Expression<'hir>,
+    op: &ArithmeticOp,
+    right: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_arithmetic(self, left, op, right)
+}
 
-    fn visit_assignment(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        left: &'hir Expression<'hir>,
-        right: &'hir Expression<'hir>,
-    ) -> Self::Result {
-        walk_assignment(self, left, right)
-    }
+fn visit_assignment(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    left: &'hir Expression<'hir>,
+    right: &'hir Expression<'hir>,
+) -> Self::Result {
+    walk_assignment(self, left, right)
+}
 
-    fn visit_variable(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        path: &'hir hir::Path,
-    ) -> Self::Result {
-        walk_variable(self, path)
-    }
+fn visit_variable(
+    &mut self,
+    _base: &'hir Expression<'hir>,
+    path: &'hir hir::Path,
+) -> Self::Result {
+    walk_variable(self, path)
+}
 
-    fn visit_function_definition(
-        &mut self,
-        _is_extern: bool,
-        _is_variadic: bool,
-        base: &'hir Item<'hir>,
-        name: &'hir PathDef,
-        params: &'hir [Param<'hir>],
-        ret_ty: &'hir Type<'hir>,
-        body: Option<&'hir [Statement<'hir>]>,
-    ) -> Self::Result {
-        walk_function_definition(self, base, name, params, ret_ty, body)
-    }
+fn visit_function_definition(
+    &mut self,
+    _is_extern: bool,
+    _is_variadic: bool,
+    base: &'hir Item<'hir>,
+    name: &'hir PathDef,
+    params: &'hir [Param<'hir>],
+    ret_ty: &'hir Type<'hir>,
+    body: Option<&'hir BlockExpr<'hir>>,
+) -> Self::Result {
+    walk_function_definition(self, base, name, params, ret_ty, body)
+}
 
-    fn visit_struct_definition(
-        &mut self,
-        base: &'hir Item<'hir>,
-        name: &'hir PathDef,
-        fields: &'hir [Field<'hir>],
-    ) -> Self::Result {
-        walk_struct_definition(self, base, name, fields)
-    }
+fn visit_struct_definition(
+    &mut self,
+    base: &'hir Item<'hir>,
+    name: &'hir PathDef,
+    fields: &'hir [Field<'hir>],
+) -> Self::Result {
+    walk_struct_definition(self, base, name, fields)
+}
 
-    fn visit_field(
-        &mut self,
-        _def: &'hir Item<'hir>,
-        param: &'hir Field<'hir>,
-    ) -> Self::Result {
-        walk_field(self, param)
-    }
+fn visit_field(
+    &mut self,
+    _def: &'hir Item<'hir>,
+    param: &'hir Field<'hir>,
+) -> Self::Result {
+    walk_field(self, param)
+}
 
-    fn visit_statement(&mut self, stmt: &'hir Statement<'hir>) -> Self::Result {
-        walk_statement(self, stmt)
-    }
+fn visit_statement(&mut self, stmt: &'hir Statement<'hir>) -> Self::Result {
+    walk_statement(self, stmt)
+}
 
-    fn visit_block(
-        &mut self,
-        _base: &'hir Expression<'hir>,
-        block: &'hir [Statement<'hir>],
-        tail: Option<&'hir Expression<'hir>>
-    ) -> Self::Result {
-        walk_block(self, block, tail)
+fn visit_block(
+    &mut self,
+    block: &BlockExpr<'hir>,
+) -> Self::Result {
+    walk_block(self, block)
     }
 
     fn visit_break(&mut self, _base: &'hir Statement<'hir>) -> Self::Result {
@@ -229,8 +228,8 @@ pub trait Visitor<'hir> {
         &mut self,
         _base: &'hir Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir Expression<'hir>,
-        if_false: Option<&'hir Expression<'hir>>,
+        if_true: &'hir BlockExpr<'hir>,
+        if_false: Option<&'hir BlockExpr<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false)
     }
@@ -363,7 +362,7 @@ where
             params,
             body,
             ret_ty,
-        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, *body),
+        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, body.as_ref()),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
         ItemKind::TypeAlias { ty, name } => v.visit_type_alias(item, ty, name)
@@ -393,7 +392,7 @@ pub fn walk_function_definition<'hir, V>(
     name: &'hir PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir [Statement<'hir>]>,
+    body: Option<&'hir BlockExpr<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -403,11 +402,7 @@ where
     for p in params {
         v.visit_param(p);
     }
-    if let Some(body) = body {
-        for stmt in body {
-            v.visit_statement(stmt);
-        }
-    }
+    walk_opt!(v, body, visit_block);
     v.visit_type(ret_ty);
     v.get_ctx().exit_function();
     V::Result::output()
@@ -573,15 +568,15 @@ where
 pub fn walk_if<'hir, V>(
     v: &mut V,
     cond: &'hir Expression<'hir>,
-    if_true: &'hir Expression<'hir>,
-    if_false: Option<&'hir Expression<'hir>>,
+    if_true: &BlockExpr<'hir>,
+    if_false: Option<&BlockExpr<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_expression(cond);
-    v.visit_expression(if_true);
-    walk_opt!(v, if_false, visit_expression);
+    v.visit_block(if_true);
+    walk_opt!(v, if_false, visit_block);
     V::Result::output()
 }
 
@@ -685,15 +680,15 @@ where
         ExpressionKind::StructAccess { st, field } => {
             v.visit_struct_access(expr, st, *field);
         }
-        ExpressionKind::Block { stmts, tail } => {
-            v.visit_block(expr, stmts, *tail);
+        ExpressionKind::Block(block) => {
+            v.visit_block(block);
         }
         ExpressionKind::If {
             cond,
             if_true,
             if_false,
         } => {
-            v.visit_if(expr, cond, if_true, *if_false);
+            v.visit_if(expr, cond, if_true, if_false.as_ref());
         }
     }
 
@@ -724,14 +719,14 @@ where
     V::Result::output()
 }
 
-pub fn walk_block<'hir, V>(v: &mut V, block: &'hir [Statement<'hir>], tail: Option<&'hir Expression<'hir>>) -> V::Result
+pub fn walk_block<'hir, V>(v: &mut V, block: &BlockExpr<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    for stmt in block {
+    for stmt in block.stmts {
         v.visit_statement(stmt);
     }
-    walk_opt!(v, tail, visit_expression);
+    walk_opt!(v, block.tail, visit_expression);
     V::Result::output()
 }
 

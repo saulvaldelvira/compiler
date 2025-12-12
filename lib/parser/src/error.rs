@@ -24,6 +24,7 @@ pub enum ParseErrorKind {
     NoPreviousToken,
     LexemParseError,
     Use,
+    MissingSemmicolon,
     UseTypeUnnamed,
     ReadFile(PathBuf, io::Error),
 }
@@ -54,7 +55,8 @@ impl error_manager::Error for ParseError {
             ParseErrorKind::ExternFnDefined => write!(out, "Expected semicollon after \"extern\" function declaration"),
             ParseErrorKind::Use => write!(out, "\"use\" item must be a path or a type"),
             ParseErrorKind::UseTypeUnnamed => write!(out, "\"use <type>\" must alias to a new name"),
-            ParseErrorKind::ReadFile(path, err) => write!(out, "Error reading \"{}\": {err}", path.display())
+            ParseErrorKind::ReadFile(path, err) => write!(out, "Error reading \"{}\": {err}", path.display()),
+            ParseErrorKind::MissingSemmicolon => write!(out, "Missing semmicolon on expression"),
         }
     }
 }

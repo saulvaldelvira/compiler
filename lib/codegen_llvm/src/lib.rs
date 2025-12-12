@@ -3,10 +3,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
-use hir::expr::{CmpOp, ExpressionKind};
+use hir::expr::CmpOp;
 use hir::node_map::HirNodeKind;
 use hir::stmt::StatementKind;
-use hir::{Constness, HirId, ItemKind, Param, PathDef, Statement, Type};
+use hir::{BlockExpr, Constness, HirId, ItemKind, Param, PathDef, Type};
 use interner::Symbol;
 use lexer::unescaped::Unescaped;
 use llvm::core::{BasicBlock, Function, Global};
@@ -394,6 +394,16 @@ fn cmp_op_to_real_pred(op: CmpOp) -> LLVMRealPredicate {
     }
 }
 
+
+impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::BlockExpr<'hir> {
+    fn value_opt(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> Option<llvm::Value<'llvm>> {
+        for stmt in self.stmts {
+            stmt.codegen(cg);
+        }
+        self.tail.map(|t| t.value(cg))
+    }
+}
+
 impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
     #[allow(clippy::too_many_lines)]
     fn value_opt(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> Option<llvm::Value<'llvm>> {
@@ -482,15 +492,9 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                     }
                 }
             }
-            EK::Block { stmts, tail } => {
-                for stmt in *stmts {
-                    stmt.codegen(cg);
-                }
-
-                return tail.map(|t| t.value(cg))
-            }
+            EK::Block(block) => return block.value_opt(cg),
             EK::If { cond, if_true, if_false } => {
-                return codgen_if(cg, cond, if_true, *if_false)
+                return codgen_if(cg, cond, if_true, if_false.as_ref())
             }
             EK::Assignment { left, right } => {
                 let left = left.address(cg);
@@ -622,8 +626,8 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
 fn codgen_if<'cg, 'hir, 'llvm>(
     cg: &mut CodegenState<'cg, 'llvm, 'hir>,
     cond: &'hir hir::Expression<'hir>,
-    if_true: &'hir hir::Expression<'hir>,
-    if_false: Option<&'hir hir::Expression<'hir>>
+    if_true: &'hir hir::BlockExpr<'hir>,
+    if_false: Option<&'hir hir::BlockExpr<'hir>>
 ) -> Option<Value<'llvm>>
 {
     let mut if_block = cg.llvm_ctx.create_basic_block("if.then");
@@ -632,7 +636,7 @@ fn codgen_if<'cg, 'hir, 'llvm>(
 
     let alloca =
         if if_false.is_some() {
-            let ty = cg.semantic.type_of(&if_true.id).unwrap().codegen(cg);
+            let ty = cg.semantic.type_of(&if_true.tail.unwrap().id).unwrap().codegen(cg);
             Some((ty, cg.builder().alloca(ty, "synthetic_if_value")))
         } else {
             None
@@ -643,10 +647,9 @@ fn codgen_if<'cg, 'hir, 'llvm>(
     cg.function().append_existing_basic_block(&if_block);
     cg.builder().position_at_end(&mut if_block);
 
-    let ExpressionKind::Block { stmts, tail } = if_true.kind else { unreachable!() };
-    stmts.iter().for_each(|stmt| stmt.codegen(cg));
+    if_true.stmts.iter().for_each(|stmt| stmt.codegen(cg));
     if let Some((_, alloca)) = alloca {
-        let val = tail.unwrap().value(cg);
+        let val = if_true.tail.unwrap().value(cg);
         cg.builder().store(val, alloca);
     }
     cg.builder().branch(&mut end_block);
@@ -655,10 +658,9 @@ fn codgen_if<'cg, 'hir, 'llvm>(
     cg.builder().position_at_end(&mut else_block);
 
     if let Some(if_false) = if_false {
-        let ExpressionKind::Block { stmts, tail } = if_false.kind else { unreachable!() };
-        stmts.iter().for_each(|stmt| stmt.codegen(cg));
+        if_false.stmts.iter().for_each(|stmt| stmt.codegen(cg));
         if let Some((_, alloca)) = alloca {
-            let val = tail.unwrap().value(cg);
+            let val = if_false.tail.unwrap().value(cg);
             cg.builder().store(val, alloca);
         }
     }
@@ -779,7 +781,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
     type Output = ();
 
     fn codegen(&self, cg: &mut CodegenState<'_, '_, 'hir>) {
-        match self.kind {
+        match &self.kind {
             hir::ItemKind::Mod(module) => module.codegen(cg),
             hir::ItemKind::Variable { name, constness, init, .. } => {
                 match constness {
@@ -805,7 +807,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                 }
             },
             hir::ItemKind::Function { is_extern, is_variadic: _, name, params, ret_ty, body } =>
-                codegen_function(cg, self, is_extern, name, params, ret_ty, body),
+                codegen_function(cg, self, *is_extern, name, params, ret_ty, body.as_ref()),
             hir::ItemKind::Struct { .. } => {
                 let struct_type = cg.semantic.type_of(&self.id).unwrap();
                 let (name, fields) = struct_type.as_struct_type().unwrap();
@@ -870,7 +872,7 @@ fn codegen_function<'hir>(
     name: &PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir[Statement<'hir>]>,
+    body: Option<&'hir BlockExpr<'hir>>,
 ) {
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
@@ -907,12 +909,12 @@ fn codegen_function<'hir>(
 
         let old_f = cg.curr_func.replace(function);
 
-        for stmt in body.expect("A non-extern function MUST have a block") {
-            stmt.codegen(cg);
-        }
-
+        let val = body.expect("A non-extern function MUST have a block").value_opt(cg);
         if ret_ty.is_empty() {
             cg.builder().ret(None);
+        } else if let Some(val) = val {
+            cg.builder().ret(Some(val));
+
         }
 
         cg.curr_builder.take();

@@ -92,15 +92,15 @@ fn simple_ok() {
         panic!();
     };
 
-    let StatementKind::Item(Item { id: def1_id, .. }) = &body[0].kind else { panic!() };
-    let assignment = body[1];
+    let StatementKind::Item(Item { id: def1_id, .. }) = &body.stmts[0].kind else { panic!() };
+    let assignment = body.stmts[1];
     let StatementKind::Expr(Expression { kind: ExpressionKind::Assignment { left, .. }, ..}) = assignment.kind else { panic!() };
     let ExpressionKind::Variable(path) = &left.kind else { panic!() };
     let def = path.def();
     assert_eq!(*def1_id, def.get().unwrap());
 
-    let StatementKind::Item(Item { id: def2_id, .. }) = &body[2].kind else { panic!() };
-    let StatementKind::Expr(expr) = &body[3].kind else { panic!() };
+    let StatementKind::Item(Item { id: def2_id, .. }) = &body.stmts[2].kind else { panic!() };
+    let StatementKind::Expr(expr) = &body.stmts[3].kind else { panic!() };
     let ExpressionKind::Call { args, .. } = expr.kind else { panic!() };
     assert_eq!(args.len(), 1);
     let ExpressionKind::Variable(path) = &args[0].kind else { panic!() };

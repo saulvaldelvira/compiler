@@ -48,6 +48,12 @@ pub enum LitValue {
     Char(char),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BlockExpr<'hir> {
+    pub stmts: &'hir [Statement<'hir>],
+    pub tail: Option<&'hir Expression<'hir>>,
+}
+
 #[derive(Debug)]
 pub enum ExpressionKind<'hir> {
     Array(&'hir [Expression<'hir>]),
@@ -55,14 +61,11 @@ pub enum ExpressionKind<'hir> {
         op: UnaryOp,
         expr: &'hir Expression<'hir>,
     },
-    Block {
-        stmts: &'hir [Statement<'hir>],
-        tail: Option<&'hir Expression<'hir>>,
-    },
+    Block(BlockExpr<'hir>),
     If {
         cond: &'hir Expression<'hir>,
-        if_true: &'hir Expression<'hir>,
-        if_false: Option<&'hir Expression<'hir>>,
+        if_true: BlockExpr<'hir>,
+        if_false: Option<BlockExpr<'hir>>,
     },
     Ref(&'hir Expression<'hir>),
     Deref(&'hir Expression<'hir>),
