@@ -173,6 +173,10 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                     if_true,
                     if_false,
                 }
+            },
+            EK::Array { exprs, .. } => {
+                let exprs = self.lower_expressions(exprs);
+                HExprKind::Array(exprs)
             }
         };
         hir::Expression::new(kind, expr.span)

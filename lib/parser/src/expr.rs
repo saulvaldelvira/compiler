@@ -15,8 +15,7 @@ impl Parser<'_, '_> {
             bexpr
         } else if let Some(ifexpr) = self.try_if_expr() {
             ifexpr
-        }
-        else {
+        } else {
             self.assignment()
         }
     }
@@ -479,6 +478,28 @@ impl Parser<'_, '_> {
                 kind: ExpressionKind::Paren(expr),
                 span,
             });
+        }
+        if self.match_type(TokenKind::LeftBracket) {
+            let mut exprs = Vec::new();
+            let open_bracket = self.previous_span().unwrap();
+            while !self.match_type(TokenKind::RightBracket) {
+                let expr = self.expression()?;
+                exprs.push(expr);
+                if self.check(TokenKind::RightBracket) { continue }
+                self.consume(TokenKind::Comma)?;
+            }
+
+            let close_bracket = self.previous_span().unwrap();
+            let span = open_bracket.join(&close_bracket);
+
+            return Ok(Expression {
+                kind: ExpressionKind::Array {
+                    exprs: exprs.into_boxed_slice(),
+                    open_bracket,
+                    close_bracket,
+                },
+                span
+            })
         }
         if let Some((path, _)) = self.try_path(false) {
             let span = path.span;

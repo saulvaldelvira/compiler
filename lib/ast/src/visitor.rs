@@ -187,6 +187,12 @@ where
         ExpressionKind::TupleAccess { tuple, .. } => {
             v.visit_expression(tuple)
         }
+        ExpressionKind::Array { exprs, .. } => {
+            for expr in exprs {
+                v.visit_expression(expr);
+            }
+            V::Result::output()
+        }
         ExpressionKind::Block(block) => {
             for stmt in &block.val {
                 v.visit_statement(stmt);

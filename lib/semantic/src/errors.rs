@@ -25,6 +25,7 @@ pub enum SemanticErrorKind {
     NonBooleanCondition(&'static str),
     TupleAccessOnNonTuple(String),
     InvalidIndexForTuple(u16, u16),
+    MismatchedArrayTypes(String, String),
 }
 
 pub struct SemanticError {
@@ -101,6 +102,9 @@ impl error_manager::Error for SemanticError {
             }
             SemanticErrorKind::InvalidIndexForTuple(index, len) => {
                 write!(out, "Index {index} invalid for tuple of length {len}")
+            }
+            SemanticErrorKind::MismatchedArrayTypes(expected, found) => {
+                write!(out, "Unexpected type on array literal. Expected {expected}, found {found}")
             }
         }
     }

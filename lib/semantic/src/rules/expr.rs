@@ -470,3 +470,32 @@ impl<'sem> SemanticRule<'sem> for ValidateTupleAccess<'_> {
         Some(tys[self.index as usize].id)
     }
 }
+
+pub struct ValidateArrayExpr<'hir> {
+    pub exprs: &'hir [Expression<'hir>],
+}
+
+impl<'sem> SemanticRule<'sem> for ValidateArrayExpr<'_> {
+    type Result = Option<TypeId>;
+
+    fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
+        if self.exprs.is_empty() { return None }
+
+        let expected_ty = sem.type_of(&self.exprs[0].id)?;
+        for other in self.exprs.get(1..).unwrap_or(&[]) {
+            let Some(ty) = sem.type_of(&other.id) else { continue };
+            if ty != expected_ty {
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::MismatchedArrayTypes(
+                              format!("{}", expected_ty.kind),
+                              format!("{}", ty.kind)
+                    ),
+                    span: other.span,
+                });
+            }
+        }
+
+        let arr_ty = sem.get_or_intern_type(TypeKind::Array(expected_ty, self.exprs.len() as _));
+        Some(arr_ty.id)
+    }
+}

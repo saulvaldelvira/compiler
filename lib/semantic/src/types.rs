@@ -144,6 +144,10 @@ impl<'ty> TypeKind<'ty> {
             return r1.kind == r2.kind;
         }
 
+        if let (Self::Array(t1, l1), Self::Array(t2, l2)) = (self, o) {
+            return t1.kind == t2.kind && l1 == l2
+        }
+
         let (Self::Primitive(p1), Self::Primitive(p2)) = (self, o) else {
             return false;
         };
@@ -211,6 +215,14 @@ impl<'ty> Ty<'ty> {
     pub const fn as_struct_type(&self) -> Option<(Symbol, &'ty [Field<'ty>])> {
         match self.kind {
             TypeKind::Struct { name, fields } => Some((name, fields)),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub const fn as_array_type(&self) -> Option<(&'ty Ty<'ty>, u32)> {
+        match self.kind {
+            TypeKind::Array(of, len) => Some((of, len)),
             _ => None,
         }
     }

@@ -127,6 +127,11 @@ pub enum ExpressionKind {
         field: Spanned<Symbol>,
     },
     Block(Block<Statement, Expression>),
+    Array {
+        open_bracket: Span,
+        exprs: Box<[Expression]>,
+        close_bracket: Span,
+    },
     If {
         kw_if: Span,
         cond: Box<Expression>,

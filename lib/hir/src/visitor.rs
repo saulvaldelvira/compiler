@@ -252,6 +252,13 @@ fn visit_block(
         walk_array_access(self, array, index)
     }
 
+    fn visit_array_expr(&mut self,
+        _expr: &'hir Expression<'hir>,
+        exprs: &'hir [Expression<'hir>]
+    ) -> Self::Result {
+        walk_array_expr(self, exprs)
+    }
+
     fn visit_tuple_access(
         &mut self,
         _expr: &'hir Expression<'hir>,
@@ -654,6 +661,16 @@ where
     V::Result::output()
 }
 
+pub fn walk_array_expr<'hir, V>(v: &mut V, exprs: &'hir [Expression<'hir>]) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized,
+{
+    for expr in exprs {
+        v.visit_expression(expr);
+    }
+    V::Result::output()
+}
+
 pub fn walk_expression<'hir, V>(v: &mut V, expr: &'hir Expression<'hir>) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -661,7 +678,7 @@ where
     use crate::expr::ExpressionKind;
     match &expr.kind {
         ExpressionKind::Array(expressions) => {
-            walk_iter!(v, expressions, visit_expression);
+            v.visit_array_expr(expr, expressions);
         }
         ExpressionKind::Cast {
             expr: casted_expr,

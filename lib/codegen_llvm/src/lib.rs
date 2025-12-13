@@ -333,6 +333,20 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
                 cg.builder().gep(ty, arr_ptr, &mut [index], "tmp_gep")
             },
+            EK::Array(arr) => {
+                let ty = cg.semantic.type_of(&self.id).unwrap();
+                let (elem_ty, _) = ty.as_array_type().unwrap();
+                let elem_ty = elem_ty.codegen(cg);
+                let ty = ty.codegen(cg);
+                let alloca = cg.builder().alloca(ty, "array_lit");
+                for (i, elem) in arr.iter().enumerate() {
+                    let idx = llvm::Value::const_uint(llvm::Type::int(32, cg.llvm_ctx), i as _);
+                    let ptr = cg.builder().gep(elem_ty, alloca, &mut [idx], "");
+                    let elem = elem.value(cg);
+                    cg.builder().store(elem, ptr);
+                }
+                alloca
+            }
             EK::StructAccess { st, field } => {
                 let sty = cg.semantic.type_of(&st.id).unwrap();
                 let idx = sty.field_index_of(field.sym).unwrap();
@@ -419,7 +433,6 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
 
         Some(
         match &self.kind {
-            EK::Array(_) => todo!(),
             EK::Unary { op, expr } => {
                 let val = expr.value(cg);
                 match op {
@@ -586,7 +599,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                     cg.builder().bit_cast(&value, &to, "tmp_cast")
                 }
             }
-            EK::ArrayAccess { .. } | EK::StructAccess { .. } | EK::TupleAccess { .. } =>
+            EK::ArrayAccess { .. } | EK::StructAccess { .. } | EK::TupleAccess { .. } | EK::Array(_) =>
             {
                 let gep = self.address(cg);
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);

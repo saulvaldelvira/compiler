@@ -1,7 +1,7 @@
 use core::ffi::c_int;
 use core::marker::PhantomData;
 
-use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMConstString, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMStructTypeInContext, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
+use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstArray, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMConstString, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMStructTypeInContext, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
 use crate::Context;
 
 mod module;
@@ -9,7 +9,6 @@ pub use module::{Module, Global};
 
 mod builder;
 pub use builder::Builder;
-
 
 #[repr(transparent)]
 /* ^ Needed so we cast *mut Type to *mut LLVMTypeRef
@@ -190,6 +189,14 @@ impl<'ctx> Value<'ctx> {
     }
 
     pub fn raw(&self) -> LLVMValueRef { self.0 }
+
+    #[must_use]
+    pub fn const_array(elem_ty: Type<'ctx>, vals: &mut [Value<'ctx>]) -> Value<'ctx> {
+        let len = vals.len();
+        unsafe {
+            Value(LLVMConstArray(elem_ty.raw(), vals.as_mut_ptr().cast(), len as _), PhantomData)
+        }
+    }
 }
 
 pub struct Function<'ctx>(Value<'ctx>, &'ctx Context);

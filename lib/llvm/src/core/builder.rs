@@ -2,7 +2,7 @@ use core::ffi::{c_char, c_int};
 use core::marker::PhantomData;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildArrayAlloca, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
 use crate::{Context, Type};
 
 pub struct Builder<'ctx> {
@@ -216,6 +216,13 @@ impl<'ctx> Builder<'ctx> {
         cstr!(name);
         unsafe {
             Value(LLVMBuildAlloca(self.raw, ty.0, name), PhantomData)
+        }
+    }
+
+    pub fn array_alloca(&mut self, ty: Type<'ctx>, val: Value<'ctx>, name: &str) -> Value<'ctx> {
+        cstr!(name);
+        unsafe {
+            Value(LLVMBuildArrayAlloca(self.raw, ty.0, val.raw(), name), PhantomData)
         }
     }
 
