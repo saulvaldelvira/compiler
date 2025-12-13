@@ -292,17 +292,12 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
     }
     fn floating(&mut self) -> Option<Token> {
         self.c.advance(); /* Consume the . */
-        if self.c.peek().is_numeric() {
-            self.c.advance_while(char::is_ascii_digit);
-            self.add_token(TokenKind::FloatLiteral)
-        } else {
-            self.error(LexerErrorKind::FloatLitWithoutFloatingPart);
-            None
-        }
+        self.c.advance_while(char::is_ascii_digit);
+        self.add_token(TokenKind::FloatLiteral)
     }
     fn number(&mut self) -> Option<Token> {
         self.c.advance_while(|n| n.is_numeric());
-        if self.c.peek() == '.' {
+        if self.c.peek() == '.' && self.c.peek_next().is_numeric() {
             self.floating()
         } else {
             self.add_token(TokenKind::IntLiteral)

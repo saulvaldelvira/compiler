@@ -28,13 +28,24 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
             .as_function_type()
             .expect("Expected function's type to be of FuncType");
 
-        if !ret_type.is_empty_type() && self.body.tail.is_none() && !self.body.has_return() {
-            em.emit_error(SemanticError {
-                kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name().unwrap()),
-                span: self.span,
-            });
+        if let Some(tail) = self.body.tail {
+            if let Some(tailty) = sem.type_of(&tail.id)
+                && !tailty.kind.can_be_promoted_to(&ret_type.kind)
+            {
+                let expected = format!("{}", ret_type.kind);
+                let got = format!("{}", tailty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::MistmatchedReturn { expected, got },
+                    span: self.span,
+                });
+            }
+        } else if !ret_type.is_empty_type() && !self.body.has_return() {
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::FunctionNeedsReturn(self.def.get_name().unwrap()),
+                    span: self.span,
+                });
+            }
         }
-    }
 }
 
 pub struct CheckReturnStmt<'sem> {

@@ -1,7 +1,6 @@
 use span::Span;
 
 pub enum LexerErrorKind {
-    FloatLitWithoutFloatingPart,
     UnexpectedCharacter(char),
     ExpectedClosingTickOnCharLiteral,
     UnterminatedComment,
@@ -18,9 +17,6 @@ impl error_manager::Error for LexerError {
 
     fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
         match self.kind {
-            LexerErrorKind::FloatLitWithoutFloatingPart => {
-                write!(out, "Float literal must have a floating part")
-            }
             LexerErrorKind::UnexpectedCharacter(c) => {
                 write!(out, "Encountered unexpected character '{c}'")
             }

@@ -4,7 +4,7 @@ use ast::{
     Expression, Parenthesized,
 };
 use lexer::{token::TokenKind, unescaped::Unescaped};
-use span::Spanned;
+use span::{Span, Spanned};
 
 use super::{Parser, Result};
 use crate::error::ParseErrorKind;
@@ -391,7 +391,41 @@ impl Parser<'_, '_> {
                     span
                 }
 
-            } else {
+            }
+            else if self.match_type(TokenKind::FloatLiteral) {
+                let prev_span = self.previous_span().unwrap();
+                let (i, j) = self.previous_lexem().unwrap().borrow(|num| {
+                    let (i, j) = num.split_once('.').unwrap();
+                    let ispan = Span {
+                        offset: prev_span.offset,
+                        len: i.len(),
+                    };
+                    let jspan = Span {
+                        offset: ispan.offset + ispan.len + 1,
+                        len: j.len()
+                    };
+                    let i = Spanned {
+                        span: ispan,
+                        val: LitValue::Int(i.parse::<i32>().unwrap())
+                    };
+                    let j = Spanned {
+                        span: jspan,
+                        val: LitValue::Int(j.parse::<i32>().unwrap())
+                    };
+                    (i, j)
+                });
+                let span = expr.span.join(&i.span);
+                expr = Expression {
+                    kind: ExpressionKind::TupleAccess { tuple: Box::new(expr), index: i },
+                    span
+                };
+                let span = expr.span.join(&j.span);
+                expr = Expression {
+                    kind: ExpressionKind::TupleAccess { tuple: Box::new(expr), index: j },
+                    span
+                };
+            }
+            else {
                 let field = self.consume_ident_spanned()?;
                 let span = expr.span.join(&field.span);
 
