@@ -93,9 +93,18 @@ impl Parser<'_, '_> {
         let mut kw_else = None;
         if self.match_type(TokenKind::Else) {
             kw_else = Some(self.previous_span()?);
-            let blk = self.block()?;
-            span = span.join(&blk.close_brace);
-            else_body = Some(blk);
+            if self.match_type(TokenKind::If) {
+                let other_if = self.if_expr()?;
+                span = span.join(&other_if.span);
+                else_body = Some(other_if);
+            } else {
+                let blk = self.block()?;
+                span = span.join(&blk.close_brace);
+                else_body = Some(Expression {
+                    kind: ExpressionKind::Block(blk),
+                    span,
+                });
+            }
         }
 
         Ok(Expression {
@@ -104,7 +113,7 @@ impl Parser<'_, '_> {
                 cond,
                 if_body,
                 kw_else,
-                else_body,
+                else_body: else_body.map(Box::new),
             },
             span,
         })

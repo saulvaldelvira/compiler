@@ -100,7 +100,7 @@ pub fn assign_memory_locals_expr(
             acc = assign_memory_locals_expr(cg, acc, cond);
             acc = assign_memory_locals_block(cg, acc, if_true);
             if let Some(if_false) = if_false {
-                acc = assign_memory_locals_block(cg, acc, if_false);
+                acc = assign_memory_locals_expr(cg, acc, if_false);
             }
             acc
         }

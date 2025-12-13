@@ -93,7 +93,7 @@ impl HasReturn for hir::Expression<'_> {
         match &self.kind {
             ExpressionKind::Block(b) => b.has_return(),
             ExpressionKind::If { if_true, if_false, .. } =>
-                if_true.has_return() && if_false.as_ref().is_some_and(HasReturn::has_return),
+                if_true.has_return() && if_false.as_deref().is_some_and(HasReturn::has_return),
             _ => false,
         }
     }

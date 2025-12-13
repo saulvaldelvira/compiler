@@ -137,7 +137,7 @@ pub enum ExpressionKind {
         cond: Box<Expression>,
         if_body: Block<Statement, Expression>,
         kw_else: Option<Span>,
-        else_body: Option<Block<Statement, Expression>>,
+        else_body: Option<Box<Expression>>,
     },
 }
 

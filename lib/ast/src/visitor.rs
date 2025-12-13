@@ -208,7 +208,7 @@ where
             v.visit_expression(cond);
             v.visit_block(if_body);
             if let Some(e) = else_body {
-                v.visit_block(e);
+                v.visit_expression(e);
             }
             V::Result::output()
         }

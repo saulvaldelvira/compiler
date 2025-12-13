@@ -248,9 +248,8 @@ impl HirPrinter<'_, '_> {
                 self.serialize_block_expr(&mut block, if_true);
                 attrs.push(Node::Collapse(Node::Title("if_true").into(), Node::Ul(block).into()));
                 if let Some(if_false) = if_false {
-                    let mut block = Vec::new();
-                    self.serialize_block_expr(&mut block, if_false);
-                    attrs.push(Node::Collapse(Node::Title("if_true").into(), Node::Ul(block).into()));
+                    let node = self.serialize_expr(if_false);
+                    attrs.push(Node::Collapse(Node::Title("if_false").into(), node.into()));
                 }
             }
             ExpressionKind::Block(block) => {

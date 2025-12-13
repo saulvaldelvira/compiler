@@ -401,7 +401,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
 
 pub struct ValidateIf<'hir> {
     pub if_true: &'hir BlockExpr<'hir>,
-    pub if_false: Option<&'hir BlockExpr<'hir>>,
+    pub if_false: Option<&'hir Expression<'hir>>,
     pub span: Span,
 }
 
@@ -411,7 +411,7 @@ impl<'sem> SemanticRule<'sem> for ValidateIf<'_> {
     fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
         let iftrue_ty = sem.type_of_block(self.if_true)?;
         if let Some(if_false) = self.if_false {
-            let iffalse_ty = sem.type_of_block(if_false)?;
+            let iffalse_ty = sem.type_of(&if_false.id)?;
 
             if iftrue_ty != iffalse_ty {
                 let ift = format!("{}", iftrue_ty.kind);

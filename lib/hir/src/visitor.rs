@@ -229,7 +229,7 @@ fn visit_block(
         _base: &'hir Expression,
         cond: &'hir Expression<'hir>,
         if_true: &'hir BlockExpr<'hir>,
-        if_false: Option<&'hir BlockExpr<'hir>>,
+        if_false: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false)
     }
@@ -601,14 +601,14 @@ pub fn walk_if<'hir, V>(
     v: &mut V,
     cond: &'hir Expression<'hir>,
     if_true: &BlockExpr<'hir>,
-    if_false: Option<&BlockExpr<'hir>>,
+    if_false: Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_expression(cond);
     v.visit_block(if_true);
-    walk_opt!(v, if_false, visit_block);
+    walk_opt!(v, if_false, visit_expression);
     V::Result::output()
 }
 
@@ -733,7 +733,7 @@ where
             if_true,
             if_false,
         } => {
-            v.visit_if(expr, cond, if_true, if_false.as_ref());
+            v.visit_if(expr, cond, if_true, if_false.as_deref());
         }
     }
 

@@ -514,7 +514,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
             }
             EK::Block(block) => return block.value_opt(cg),
             EK::If { cond, if_true, if_false } => {
-                return codgen_if(cg, cond, if_true, if_false.as_ref())
+                return codgen_if(cg, cond, if_true, if_false.as_deref())
             }
             EK::Assignment { left, right } => {
                 let left = left.address(cg);
@@ -648,7 +648,7 @@ fn codgen_if<'cg, 'hir, 'llvm>(
     cg: &mut CodegenState<'cg, 'llvm, 'hir>,
     cond: &'hir hir::Expression<'hir>,
     if_true: &'hir hir::BlockExpr<'hir>,
-    if_false: Option<&'hir hir::BlockExpr<'hir>>
+    if_false: Option<&'hir hir::Expression<'hir>>
 ) -> Option<Value<'llvm>>
 {
     let mut if_block = cg.llvm_ctx.create_basic_block("if.then");
@@ -679,10 +679,9 @@ fn codgen_if<'cg, 'hir, 'llvm>(
     cg.builder().position_at_end(&mut else_block);
 
     if let Some(if_false) = if_false {
-        if_false.stmts.iter().for_each(|stmt| stmt.codegen(cg));
+        let val = if_false.value_opt(cg);
         if let Some((_, alloca)) = alloca {
-            let val = if_false.tail.unwrap().value(cg);
-            cg.builder().store(val, alloca);
+            cg.builder().store(val.unwrap(), alloca);
         }
     }
     cg.function().append_existing_basic_block(&end_block);

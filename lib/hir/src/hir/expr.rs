@@ -65,7 +65,7 @@ pub enum ExpressionKind<'hir> {
     If {
         cond: &'hir Expression<'hir>,
         if_true: BlockExpr<'hir>,
-        if_false: Option<BlockExpr<'hir>>,
+        if_false: Option<&'hir Expression<'hir>>,
     },
     Ref(&'hir Expression<'hir>),
     Deref(&'hir Expression<'hir>),

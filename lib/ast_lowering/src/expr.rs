@@ -167,7 +167,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             } => {
                 let cond = self.lower_expression(cond);
                 let if_true = self.lower_block(if_body);
-                let if_false = else_body.as_ref().map(|e| self.lower_block(e));
+                let if_false = else_body.as_ref().map(|e| self.lower_expression(e));
                 HExprKind::If {
                     cond,
                     if_true,

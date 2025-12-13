@@ -141,7 +141,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         base: &'hir hir::Expression,
         cond: &'hir Expression<'hir>,
         if_true: &'hir BlockExpr<'hir>,
-        if_false: Option<&'hir BlockExpr<'hir>>,
+        if_false: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false);
         self.check_boolean_condition(cond, "if");
