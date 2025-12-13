@@ -32,6 +32,7 @@ impl Precedence for Expression {
             ExpressionKind::Cast { .. } => 7,
             ExpressionKind::Call { .. } |
             ExpressionKind::ArrayAccess { .. } |
+            ExpressionKind::TupleAccess { .. } |
             ExpressionKind::StructAccess { .. } => 8,
         }
     }

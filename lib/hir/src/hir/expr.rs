@@ -102,6 +102,10 @@ pub enum ExpressionKind<'hir> {
         arr: &'hir Expression<'hir>,
         index: &'hir Expression<'hir>,
     },
+    TupleAccess {
+        tuple: &'hir Expression<'hir>,
+        index: u16,
+    },
     StructAccess {
         st: &'hir Expression<'hir>,
         field: Ident,

@@ -197,7 +197,7 @@ impl Eval for Expression<'_> {
                 let ty = MaplType::from(ty);
                 MaplInstruction::Compose(Box::new([self.address(cg), MaplInstruction::Load(ty)]))
             },
-            ExpressionKind::Block { .. } => todo!(),
+            ExpressionKind::Block { .. } | _ => todo!(),
         }
     }
 }

@@ -19,6 +19,7 @@ impl Lvalue for hir::Expression<'_> {
             ExpressionKind::ArrayAccess { .. }
             | ExpressionKind::Deref(_)
             | ExpressionKind::StructAccess { .. }
+            | ExpressionKind::TupleAccess { .. }
             | ExpressionKind::Variable(_) => true,
             ExpressionKind::Assignment { left, .. } => left.is_lvalue(),
             ExpressionKind::Array(_)
@@ -50,6 +51,7 @@ impl SideEffect for hir::Expression<'_> {
             }
             ExpressionKind::Deref(e) => e.has_side_effect(),
             ExpressionKind::StructAccess { st, .. } => st.has_side_effect(),
+            ExpressionKind::TupleAccess { tuple, .. } => tuple.has_side_effect(),
             ExpressionKind::Array(arr) => arr.iter().any(SideEffect::has_side_effect),
             ExpressionKind::Unary { expr, .. }
             | ExpressionKind::Cast { expr, .. } => expr.has_side_effect(),
@@ -429,5 +431,42 @@ impl<'sem> SemanticRule<'sem> for ValidateIf<'_> {
             return Default::default();
         }
         Some(iftrue_ty.id)
+    }
+}
+
+pub struct ValidateTupleAccess<'hir> {
+    pub tuple: &'hir Expression<'hir>,
+    pub index: u16,
+    pub span: Span,
+}
+
+impl<'sem> SemanticRule<'sem> for ValidateTupleAccess<'_> {
+    type Result = Option<TypeId>;
+
+    fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
+        let ty = sem.type_of(&self.tuple.id)?;
+
+        let tys = match ty.kind {
+            TypeKind::Tuple(tys) if !tys.is_empty() => tys,
+            _ => {
+                let ty = format!("{}", ty.kind);
+                em.emit_error(SemanticError {
+                    kind: SemanticErrorKind::TupleAccessOnNonTuple(ty),
+                    span: self.span,
+                });
+                return None
+            }
+        };
+
+        if self.index as usize >= tys.len() {
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::InvalidIndexForTuple(self.index, tys.len() as u16),
+                span: self.span,
+            });
+            return None
+        }
+
+
+        Some(tys[self.index as usize].id)
     }
 }

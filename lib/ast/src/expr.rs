@@ -118,6 +118,10 @@ pub enum ExpressionKind {
         index: Expr,
         closing_bracket: Span,
     },
+    TupleAccess {
+        tuple: Expr,
+        index: Spanned<LitValue>,
+    },
     StructAccess {
         st: Expr,
         field: Spanned<Symbol>,

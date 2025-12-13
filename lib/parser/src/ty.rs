@@ -74,6 +74,7 @@ impl Parser<'_, '_> {
             let mut types = Vec::new();
             while !self.match_type(TokenKind::RightParen) {
                 types.push(self.ty()?);
+                self.match_type(TokenKind::Comma);
             }
             let end = self.previous_span().unwrap();
             let span = start.join(&end);

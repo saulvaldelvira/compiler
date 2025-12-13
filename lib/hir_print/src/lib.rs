@@ -294,6 +294,14 @@ impl HirPrinter<'_, '_> {
                     Node::text(field.sym.to_string()).into(),
                 ));
             }
+            ExpressionKind::TupleAccess { tuple, index } => {
+                title.push(Node::Title("TupleAccess"));
+                attrs.push(Node::KeyVal("tuple", self.serialize_expr(tuple).into()));
+                attrs.push(Node::KeyVal(
+                    "index",
+                    Node::text(index.to_string()).into(),
+                ));
+            }
         }
 
         let ty = match self.sem.type_of(&expr.id) {

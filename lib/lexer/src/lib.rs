@@ -164,10 +164,7 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
                 if self.c.match_next('.') && self.c.match_next('.') {
                     self.add_token(TokenKind::ThreeDot)
                 }
-                else if self.c.peek().is_numeric() {
-                    self.error(LexerErrorKind::FloatLitWithoutIntegralPart);
-                    None
-                } else {
+                else {
                     self.add_token(TokenKind::Dot)
                 }
             }

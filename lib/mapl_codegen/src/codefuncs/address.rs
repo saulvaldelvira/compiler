@@ -76,7 +76,8 @@ impl Address for Expression<'_> {
             | ExpressionKind::Cast { .. }
             | ExpressionKind::Block { .. }
             | ExpressionKind::If { .. }
-            | ExpressionKind::Call { .. } => {
+            | ExpressionKind::Call { .. }
+            | _ => {
                 unreachable!("We can't address a {:#?}", self.kind);
             }
         }

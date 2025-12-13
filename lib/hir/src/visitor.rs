@@ -252,6 +252,15 @@ fn visit_block(
         walk_array_access(self, array, index)
     }
 
+    fn visit_tuple_access(
+        &mut self,
+        _expr: &'hir Expression<'hir>,
+        tuple: &'hir Expression<'hir>,
+        _index: u16,
+    ) -> Self::Result {
+        walk_tuple_access(self, tuple)
+    }
+
     fn visit_struct_access(
         &mut self,
         _expr: &'hir Expression<'hir>,
@@ -528,6 +537,17 @@ where
     V::Result::output()
 }
 
+pub fn walk_tuple_access<'hir, V>(
+    v: &mut V,
+    tuple: &'hir Expression<'hir>,
+) -> V::Result
+where
+    V: Visitor<'hir> + ?Sized,
+{
+    v.visit_expression(tuple);
+    V::Result::output()
+}
+
 pub fn walk_struct_access<'hir, V>(
     v: &mut V,
     st: &'hir Expression<'hir>,
@@ -681,6 +701,9 @@ where
         }
         ExpressionKind::ArrayAccess { arr, index } => {
             v.visit_array_access(expr, arr, index);
+        }
+        ExpressionKind::TupleAccess { tuple, index } =>  {
+            v.visit_tuple_access(expr, tuple, *index);
         }
         ExpressionKind::StructAccess { st, field } => {
             v.visit_struct_access(expr, st, *field);

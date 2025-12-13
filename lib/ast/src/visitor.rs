@@ -184,6 +184,9 @@ where
             V::Result::output()
         }
         ExpressionKind::StructAccess { st, .. } => v.visit_expression(st),
+        ExpressionKind::TupleAccess { tuple, .. } => {
+            v.visit_expression(tuple)
+        }
         ExpressionKind::Block(block) => {
             for stmt in &block.val {
                 v.visit_statement(stmt);

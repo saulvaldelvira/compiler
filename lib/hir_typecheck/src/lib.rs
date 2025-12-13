@@ -1,5 +1,5 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_type_alias, walk_use, walk_variable_definition};
+use hir::visitor::{walk_tuple_access, walk_type_alias, walk_use, walk_variable_definition};
 use hir::{BlockExpr, Item, PathDef};
 use hir::{
     Expression, Type,
@@ -10,7 +10,7 @@ use hir::{
         walk_struct_definition, walk_while,
     },
 };
-use semantic::rules::expr::ValidateIf;
+use semantic::rules::expr::{ValidateIf, ValidateTupleAccess};
 use semantic::{
     Semantic, TypeKind, TypeLowering,
     errors::{SemanticError, SemanticErrorKind, SemanticWarning, SemanticWarningKind},
@@ -426,6 +426,24 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
             .apply(self.semantic, self.em);
         }
 
+    }
+
+    fn visit_tuple_access(
+            &mut self,
+            expr: &'hir Expression<'hir>,
+            tuple: &'hir Expression<'hir>,
+            index: u16,
+    ) -> Self::Result {
+        walk_tuple_access(self, tuple);
+        ValidateTupleAccess {
+            tuple,
+            index,
+            span: expr.span
+        }
+        .apply(self.semantic, self.em)
+        .inspect(|id| {
+            self.semantic.set_type_of(expr.id, *id);
+        });
     }
 
     fn visit_expression_as_stmt(

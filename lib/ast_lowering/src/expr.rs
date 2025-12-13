@@ -143,6 +143,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
 
                 HExprKind::ArrayAccess { arr, index }
             }
+            EK::TupleAccess { tuple, index } => {
+                let tuple = self.lower_expression(tuple);
+                let ast::expr::LitValue::Int(index) = index.val else { unreachable!() };
+                HExprKind::TupleAccess { tuple, index: index as u16 }
+            }
             EK::StructAccess { st, field } => {
                 let st = self.lower_expression(st);
 

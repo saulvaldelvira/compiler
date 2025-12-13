@@ -125,7 +125,6 @@ pub fn assign_memory_locals_expr(
             assign_memory_locals_expr(cg, acc, index)
         }
         ExpressionKind::StructAccess { st, .. } => assign_memory_locals_expr(cg, acc, st),
-        ExpressionKind::Variable(_) |
-        ExpressionKind::Literal(_) => acc
+        _ => acc
     }
 }

@@ -296,6 +296,13 @@ impl Parser<'_, '_> {
             self.primary()
         }
     }
+    fn int_literal(&mut self) -> Result<Spanned<LitValue>> {
+        let int = self.previous_parse::<i32>()?;
+        Ok(Spanned {
+            val: LitValue::Int(int),
+            span: self.previous_span()?,
+        })
+    }
     fn literal(&mut self) -> Result<Option<Spanned<LitValue>>> {
         macro_rules! spanned_lit {
             ($v:ident, $e:expr) => {
@@ -313,7 +320,7 @@ impl Parser<'_, '_> {
             } else if self.match_type(TokenKind::String) {
                 spanned_lit!(Str, self.previous_lexem()?)
             } else if self.match_type(TokenKind::IntLiteral) {
-                spanned_lit!(Int, self.previous_parse::<i32>()?)
+                self.int_literal()?
             } else if self.match_type(TokenKind::FloatLiteral) {
                 let span = self.previous()?.span;
                 let f: f64 = span.slice(self.base_offset, self.src).parse().unwrap();
@@ -376,16 +383,26 @@ impl Parser<'_, '_> {
             };
             self.access(expr)
         } else if self.match_type(TokenKind::Dot) {
-            let field = self.consume_ident_spanned()?;
-            let span = expr.span.join(&field.span);
+            if self.match_type(TokenKind::IntLiteral) {
+                let index = self.int_literal()?;
+                let span = expr.span.join(&index.span);
+                expr = Expression {
+                    kind: ExpressionKind::TupleAccess { tuple: Box::new(expr), index },
+                    span
+                }
 
-            expr = Expression {
-                kind: ExpressionKind::StructAccess {
-                    st: Box::new(expr),
-                    field,
-                },
-                span,
-            };
+            } else {
+                let field = self.consume_ident_spanned()?;
+                let span = expr.span.join(&field.span);
+
+                expr = Expression {
+                    kind: ExpressionKind::StructAccess {
+                        st: Box::new(expr),
+                        field,
+                    },
+                    span,
+                };
+            }
             self.access(expr)
         } else if self.match_type(TokenKind::LeftParen) {
             let args = self.args()?;

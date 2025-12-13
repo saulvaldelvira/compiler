@@ -94,8 +94,13 @@ impl Display for TypeKind<'_> {
             TypeKind::Array(of, len) => write!(f, "[{of}; {len}]"),
             TypeKind::Tuple(tys) => {
                 write!(f, "(")?;
+                let mut first = true;
                 for ty in *tys {
-                    write!(f, "{ty:?}")?;
+                    if !first {
+                        write!(f, ",")?;
+                    }
+                    first = false;
+                    write!(f, "{ty}")?;
                 }
                 write!(f, ")")
             }
@@ -237,7 +242,7 @@ impl<'ty> Ty<'ty> {
                     field: *field_name,
                 })
             }
-            _ => Err(SemanticErrorKind::AccessToNonStruct),
+            _ => Err(SemanticErrorKind::AccessToNonStruct(format!("{}", self.kind))),
         }
     }
 

@@ -344,6 +344,13 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 cg.builder().gep(sty, st, &mut [zero, idx], "tmp_gep")
 
             },
+            EK::TupleAccess { tuple, index } => {
+                let tty = cg.semantic.type_of(&tuple.id).unwrap().codegen(cg);
+                let tuple = tuple.address(cg);
+                let zero = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), 0);
+                let idx = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), *index as u64);
+                cg.builder().gep(tty, tuple, &mut [zero, idx], "tmp_gep")
+            }
             EK::Deref(expr) => expr.value(cg),
             _ => unreachable!("Can't get address of {self:?}")
         }
@@ -579,7 +586,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                     cg.builder().bit_cast(&value, &to, "tmp_cast")
                 }
             }
-            EK::ArrayAccess { .. } | EK::StructAccess { .. } =>
+            EK::ArrayAccess { .. } | EK::StructAccess { .. } | EK::TupleAccess { .. } =>
             {
                 let gep = self.address(cg);
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
@@ -615,6 +622,7 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
             }
             EK::ArrayAccess { arr, .. } => arr.execute(cg),
             EK::StructAccess { st, .. } => st.execute(cg),
+            EK::TupleAccess { tuple, .. } => tuple.execute(cg),
             EK::Block { .. } |
             EK::If { .. } => {
                 self.value_opt(cg);

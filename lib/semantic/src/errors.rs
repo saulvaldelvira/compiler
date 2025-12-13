@@ -4,7 +4,7 @@ use span::Span;
 
 pub enum SemanticErrorKind {
     LValue,
-    AccessToNonStruct,
+    AccessToNonStruct(String),
     NonExistingField { st: Symbol, field: Symbol },
     IndexToNonArray,
     NonIntegerIndex,
@@ -23,6 +23,8 @@ pub enum SemanticErrorKind {
     NonPrimitiveCast(String),
     DereferenceNonRef(String),
     NonBooleanCondition(&'static str),
+    TupleAccessOnNonTuple(String),
+    InvalidIndexForTuple(u16, u16),
 }
 
 pub struct SemanticError {
@@ -36,8 +38,8 @@ impl error_manager::Error for SemanticError {
     fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
         match &self.kind {
             SemanticErrorKind::LValue => write!(out, "Attempt to assign to non-lvalue"),
-            SemanticErrorKind::AccessToNonStruct => {
-                write!(out, "Attempt to perform field access on a non-struct type")
+            SemanticErrorKind::AccessToNonStruct(ty) => {
+                write!(out, "Attempt to perform field access on a non-struct type \"{ty}\"")
             }
             SemanticErrorKind::MissingField(ident) => {
                 write!(out, "Unexisting field with name '{:#?}'", ident.sym)
@@ -93,6 +95,12 @@ impl error_manager::Error for SemanticError {
             }
             SemanticErrorKind::NonEmptyThenWithoutElse(ty) => {
                 writeln!(out, "Non empty type on then block ({ty}) without an else")
+            }
+            SemanticErrorKind::TupleAccessOnNonTuple(ty) => {
+                writeln!(out, "Can't permform tuple access on non-tuple type \"{ty}\"")
+            }
+            SemanticErrorKind::InvalidIndexForTuple(index, len) => {
+                write!(out, "Index {index} invalid for tuple of length {len}")
             }
         }
     }
