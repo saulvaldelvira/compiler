@@ -7,6 +7,10 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         self.sess.alloc(self.lower_type_owned(ty))
     }
 
+    pub(super) fn lower_types(&mut self, ty: &[ast::types::Type]) -> &'hir [hir::Type<'hir>] {
+        self.sess.alloc_iter(ty.iter().map(|ty| self.lower_type_owned(ty)))
+    }
+
     pub(super) fn lower_type_owned(&mut self, ty: &ast::types::Type) -> hir::Type<'hir> {
         use ast::types::TypeKind;
         use hir::types::TypeKind as HTK;
@@ -23,7 +27,10 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             TypeKind::F64(_) => HTK::Primitive(PrimitiveType::F64),
             TypeKind::Bool(_) => HTK::Primitive(PrimitiveType::Bool),
             TypeKind::Char(_) => HTK::Primitive(PrimitiveType::Char),
-            TypeKind::Empty(_) => HTK::Primitive(PrimitiveType::Empty),
+            TypeKind::Tuple(t) => {
+                let tys = self.lower_types(t);
+                HTK::Tuple(tys)
+            }
             TypeKind::Array { ty, length, .. } => {
                 let ty = self.lower_type(ty);
                 HTK::Array(ty, *length)

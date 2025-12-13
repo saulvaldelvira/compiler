@@ -68,7 +68,21 @@ impl Parser<'_, '_> {
                 },
                 span,
             })
-        } else if self.match_type(TokenKind::And) {
+        }
+        else if self.match_type(TokenKind::LeftParen) {
+            let start = self.previous_span().unwrap();
+            let mut types = Vec::new();
+            while !self.match_type(TokenKind::RightParen) {
+                types.push(self.ty()?);
+            }
+            let end = self.previous_span().unwrap();
+            let span = start.join(&end);
+            Ok(Type {
+                kind: TypeKind::Tuple(types.into_boxed_slice()),
+                span,
+            })
+        }
+        else if self.match_type(TokenKind::And) {
             let aspan = self.previous_span()?;
             let inner = self.ty()?;
             let span = aspan.join(&inner.span);

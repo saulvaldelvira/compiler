@@ -95,6 +95,10 @@ impl<'low, 'ty, 'hir> TypeLowering<'low, 'ty, 'hir> {
             HTK::Primitive(primitive_type) => {
                 TypeKind::Primitive(PrimitiveType::from(primitive_type))
             }
+            HTK::Tuple(tys) => {
+                let tys = self.lower_hir_types(tys);
+                TypeKind::Tuple(tys)
+            }
             HTK::Ref(t) => TypeKind::Ref(self.lower_hir_type(t)),
             HTK::Array(arr, index) => TypeKind::Array(self.lower_hir_type(arr), *index),
             HTK::Function { is_variadic, params, ret_ty } => {

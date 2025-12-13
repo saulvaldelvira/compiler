@@ -18,7 +18,6 @@ pub enum PrimitiveType {
     F32,
     F64,
     Bool,
-    Empty,
 }
 
 impl fmt::Debug for PrimitiveType {
@@ -26,7 +25,6 @@ impl fmt::Debug for PrimitiveType {
         match self {
             Self::Char => write!(f, "char"),
             Self::Bool => write!(f, "bool"),
-            Self::Empty => write!(f, "()"),
             PrimitiveType::I8 => write!(f, "i8"),
             PrimitiveType::I16 => write!(f, "i16"),
             PrimitiveType::I32 => write!(f, "i32"),
@@ -46,6 +44,7 @@ pub enum TypeKind<'hir> {
     Primitive(PrimitiveType),
     Ref(&'hir Type<'hir>),
     Array(&'hir Type<'hir>, u32),
+    Tuple(&'hir [Type<'hir>]),
     Path(Path),
     Function {
         is_variadic: bool,
@@ -59,6 +58,13 @@ impl fmt::Debug for TypeKind<'_> {
         match self {
             Self::Primitive(arg0) => write!(f, "{arg0:?}"),
             Self::Ref(arg0) => write!(f, "&{arg0:?}"),
+            Self::Tuple(tys) => {
+                write!(f, "(")?;
+                for ty in *tys {
+                    write!(f, "{ty:?}")?;
+                }
+                write!(f, ")")
+            }
             Self::Array(arg0, arg1) => write!(f, "[{arg0:?}; {arg1}]"),
             Self::Path(arg0) => {
                 let mut first = true;
@@ -163,11 +169,17 @@ impl Type<'_> {
     const_variants!(I8, I16, I32, I64, U8, U16, U32, U64, F32, F64,
         = CHAR: Char,
         = BOOL: Bool,
-        = EMPTY: Empty
     );
 
     pub fn is_empty(&self) -> bool {
-        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
+        matches!(self.kind, TypeKind::Tuple([]))
+    }
+
+    pub const fn empty() -> &'static Self {
+        &Self {
+            id: HirId::DUMMY,
+            kind: TypeKind::Tuple(&[]),
+        }
     }
 }
 

@@ -70,7 +70,7 @@ impl<'sem> Semantic<'sem> {
     pub fn type_of_block(&self, block: &BlockExpr<'_>) -> Option<&'sem Ty<'sem>> {
         match block.tail {
             Some(t) => self.type_of(&t.id),
-            None => Some(self.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Empty)))
+            None => Some(self.get_or_intern_type(TypeKind::empty()))
         }
     }
 

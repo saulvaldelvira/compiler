@@ -22,7 +22,6 @@ pub enum PrimitiveType {
     F32,
     F64,
     Bool,
-    Empty,
 }
 
 impl Display for PrimitiveType {
@@ -30,7 +29,6 @@ impl Display for PrimitiveType {
         match self {
             Self::Char => write!(f, "char"),
             Self::Bool => write!(f, "bool"),
-            Self::Empty => write!(f, "()"),
             Self::I8 => write!(f, "i8"),
             Self::I16 => write!(f, "i16"),
             Self::I32 => write!(f, "i32"),
@@ -51,7 +49,6 @@ impl From<&hir::types::PrimitiveType> for PrimitiveType {
         match value {
             Prim::Char => Self::Char,
             Prim::Bool => Self::Bool,
-            Prim::Empty => Self::Empty,
             Prim::I8 => Self::I8,
             Prim::I16 => Self::I16,
             Prim::I32 => Self::I32,
@@ -86,6 +83,7 @@ pub enum TypeKind<'ty> {
         params: &'ty [&'ty Ty<'ty>],
         ret_ty: &'ty Ty<'ty>,
     },
+    Tuple(&'ty [&'ty Ty<'ty>]),
 }
 
 impl Display for TypeKind<'_> {
@@ -94,6 +92,13 @@ impl Display for TypeKind<'_> {
             TypeKind::Primitive(pt) => write!(f, "{pt}"),
             TypeKind::Ref(inner) => write!(f, "&{inner}"),
             TypeKind::Array(of, len) => write!(f, "[{of}; {len}]"),
+            TypeKind::Tuple(tys) => {
+                write!(f, "(")?;
+                for ty in *tys {
+                    write!(f, "{ty:?}")?;
+                }
+                write!(f, ")")
+            }
             TypeKind::Struct { name, .. } => write!(f, "{name:#?}"),
             TypeKind::Function { is_variadic, params, ret_ty } => {
                 write!(f, "fn(")?;
@@ -144,6 +149,10 @@ impl<'ty> TypeKind<'ty> {
     pub fn can_cast(&self, o: &TypeKind<'ty>) -> bool {
         matches!((self, o), (Self::Primitive(_) | Self::Ref(_), Self::Primitive(_) | Self::Ref(_)))
     }
+
+    pub const fn empty() -> Self {
+        Self::Tuple(&[])
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
@@ -161,7 +170,7 @@ impl Display for Ty<'_> {
 impl<'ty> Ty<'ty> {
     #[inline]
     pub const fn is_empty_type(&self) -> bool {
-        matches!(self.kind, TypeKind::Primitive(PrimitiveType::Empty))
+        matches!(self.kind, TypeKind::Tuple([]))
     }
 
     #[inline]

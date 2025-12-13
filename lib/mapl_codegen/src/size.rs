@@ -16,7 +16,6 @@ impl SizeOf for PrimitiveType {
             PrimitiveType::Bool => 2,
             PrimitiveType::Char => 1,
             PrimitiveType::F32 => 4,
-            PrimitiveType::Empty => 0,
             PrimitiveType::I8 |
             PrimitiveType::I32 |
             PrimitiveType::I64 |
@@ -33,6 +32,7 @@ impl SizeOf for Ty<'_> {
     fn size_of(&self) -> u64 {
         match self.kind {
             TypeKind::Primitive(p) => p.size_of(),
+            TypeKind::Tuple(tys) => tys.iter().map(|t| t.size_of()).sum(),
             TypeKind::Ref(_) => PrimitiveType::I16.size_of(),
             TypeKind::Array(ty, len) => ty.size_of() * u64::from(len),
             TypeKind::Struct { fields, .. } => fields.iter().map(|f| f.ty.size_of()).sum(),

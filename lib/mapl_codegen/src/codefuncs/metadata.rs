@@ -23,7 +23,6 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
                 PrimitiveType::Bool => "int",
                 PrimitiveType::Char => "char",
                 PrimitiveType::F32 => "float",
-                PrimitiveType::Empty => unreachable!(),
                 PrimitiveType::I8 |
                 PrimitiveType::I32 |
                 PrimitiveType::I64 |
@@ -39,6 +38,7 @@ fn mapl_ty_metadata(ty: &semantic::Ty<'_>, out: &mut dyn fmt::Write) -> fmt::Res
             mapl_ty_metadata(ty, out)?;
             write!(out, " * {len}")
         }
+        TypeKind::Tuple(_) => todo!(),
         TypeKind::Struct { name, .. } => write!(out, "{name}"),
         TypeKind::Function { .. } => todo!(),
     }

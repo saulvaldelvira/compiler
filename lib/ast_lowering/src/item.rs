@@ -89,7 +89,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let ret_ty = return_type
                     .as_ref()
                     .map_or(
-                        &hir::Type::EMPTY,
+                        hir::Type::empty(),
                         |rt| self.lower_type(rt));
                 let name = self.lower_pathdef(ident(name));
                 HIK::Function {

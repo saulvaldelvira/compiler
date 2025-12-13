@@ -842,7 +842,6 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
                 PrimitiveType::F64 => llvm::Type::float_64(cg.llvm_ctx),
                 PrimitiveType::Bool => llvm::Type::int_1(cg.llvm_ctx),
                 PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
-                PrimitiveType::Empty => llvm::Type::void(cg.llvm_ctx),
             },
             TypeKind::Function { is_variadic, params, ret_ty } => {
                 let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {
@@ -860,6 +859,19 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
             }
             TypeKind::Struct { .. } => {
                 *cg.types.get(&self.id).unwrap()
+            }
+            TypeKind::Tuple(tys) => {
+                if tys.is_empty() {
+                    return llvm::Type::void(cg.llvm_ctx)
+                }
+                if let Some(ty) = cg.types.get(&self.id) { *ty } else {
+                    let mut fields: TinyVec<_, 8> = tys.iter().map(|ty| {
+                        ty.codegen(cg)
+                    }).collect();
+                    let s = llvm::Type::struct_annon(&mut fields, false, cg.llvm_ctx);
+                    cg.types.insert(self.id, s);
+                    s
+                }
             }
         }
     }

@@ -30,7 +30,7 @@ pub enum TypeKind {
         ampersand: Span,
         of: Box<Type>,
     },
-    Empty(Span),
+    Tuple(Box<[Type]>),
 }
 
 #[derive(Clone, PartialEq)]

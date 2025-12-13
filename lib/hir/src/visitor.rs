@@ -302,6 +302,11 @@ where
         TypeKind::Path(path) => {
             v.visit_path(path);
         }
+        TypeKind::Tuple(tys) => {
+            for ty in *tys {
+                v.visit_type(ty);
+            }
+        }
         TypeKind::Ref(r) => {
             v.visit_type(r);
         }

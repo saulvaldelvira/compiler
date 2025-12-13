@@ -3,7 +3,7 @@ use span::Span;
 
 use super::SemanticRule;
 use crate::{
-    PrimitiveType, TypeKind,
+    TypeKind,
     errors::{SemanticError, SemanticErrorKind},
 };
 
@@ -52,7 +52,7 @@ impl SemanticRule<'_> for CheckReturnStmt<'_> {
         em: &mut error_manager::ErrorManager,
     ) -> Self::Result {
         let Some(found) = self.found.map_or_else(
-            || Some(sem.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Empty))),
+            || Some(sem.get_or_intern_type(TypeKind::empty())),
             |expr| sem.type_of(&expr.id),
         ) else {
             return;

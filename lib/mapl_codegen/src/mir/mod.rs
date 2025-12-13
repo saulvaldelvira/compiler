@@ -154,7 +154,6 @@ impl From<&'_ Ty<'_>> for MaplType {
                     PrimitiveType::Bool => MaplType::Int,
                     PrimitiveType::Char => MaplType::Byte,
                     PrimitiveType::F32 => MaplType::Float,
-                    PrimitiveType::Empty => todo!(),
                     PrimitiveType::I8 |
                     PrimitiveType::I32 |
                     PrimitiveType::I64 |
@@ -166,6 +165,7 @@ impl From<&'_ Ty<'_>> for MaplType {
                 }
             }
             TypeKind::Ref(_) => MaplType::Int,
+            TypeKind::Tuple(_) |
             TypeKind::Array(..) => todo!(),
             TypeKind::Struct { .. } => todo!(),
             TypeKind::Function { .. } => todo!(),

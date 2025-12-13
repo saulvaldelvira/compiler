@@ -17,7 +17,7 @@ fn unique_types() {
 
     let params = hir_sess.alloc_iter(params.into_iter().map(Type::new));
 
-    let ret_ty = hir_sess.alloc(Type::new(TypeKind::Primitive(PrimitiveType::Empty)));
+    let ret_ty = hir_sess.alloc(Type::new(TypeKind::Tuple(&[])));
 
     let func = TypeKind::Function { is_variadic: false, params, ret_ty };
     let func = hir_sess.alloc(Type::new(func));

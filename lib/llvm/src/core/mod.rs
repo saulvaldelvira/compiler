@@ -1,7 +1,7 @@
 use core::ffi::c_int;
 use core::marker::PhantomData;
 
-use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMConstString, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
+use crate::ffi::{LLVMAppendBasicBlockInContext, LLVMAppendExistingBasicBlock, LLVMArrayType, LLVMBasicBlockRef, LLVMConstInt, LLVMConstIntGetZExtValue, LLVMConstReal, LLVMConstString, LLVMCountParams, LLVMCreateBasicBlockInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFunctionType, LLVMGetElementType, LLVMGetParam, LLVMGetTypeKind, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMIntTypeInContext, LLVMIsConstant, LLVMPointerType, LLVMSetValueName, LLVMSizeOf, LLVMStructCreateNamed, LLVMStructSetBody, LLVMStructTypeInContext, LLVMTypeKind, LLVMTypeOf, LLVMTypeRef, LLVMValueRef, LLVMVoidTypeInContext};
 use crate::Context;
 
 mod module;
@@ -77,6 +77,20 @@ impl<'ctx> Type<'ctx> {
             let count = types.len() as u32;
             let types = types.as_mut_ptr().cast();
             LLVMStructSetBody(sty, types, count, packed as i32);
+            Self(sty, PhantomData)
+        }
+    }
+
+    pub fn struct_annon(
+        types: &mut [Type<'ctx>],
+        packed: bool,
+        ctx: &'ctx Context
+    ) -> Self
+    {
+        unsafe {
+            let count = types.len() as u32;
+            let types = types.as_mut_ptr().cast();
+            let sty = LLVMStructTypeInContext(ctx.raw, types, count, packed as i32);
             Self(sty, PhantomData)
         }
     }
