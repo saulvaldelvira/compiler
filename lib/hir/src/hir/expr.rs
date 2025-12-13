@@ -115,6 +115,15 @@ pub enum ExpressionKind<'hir> {
     StructAccess(&'hir StructAccess<'hir>),
 }
 
+impl<'hir> ExpressionKind<'hir> {
+    pub fn as_block(&self) -> Option<&BlockExpr<'hir>> {
+        match self {
+            ExpressionKind::Block(b) => Some(b),
+            _ => None
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Expression<'hir> {
     pub id: HirId,
