@@ -1,3 +1,4 @@
+use hir::expr::ExpressionKind;
 use hir::{Item, ItemKind, Module, Param, Statement};
 
 use super::{Address, Define, Eval, Execute};
@@ -24,7 +25,8 @@ impl Define for Item<'_> {
                 }
             }
             ItemKind::Function { params, body, .. } => {
-                return define_func(self, params, body.unwrap().stmts, cg);
+                let ExpressionKind::Block(block) = body.unwrap().kind else { unreachable!() };
+                return define_func(self, params, block.stmts, cg);
             }
             ItemKind::Struct { fields, .. } => {
                 let mut acc = 0;

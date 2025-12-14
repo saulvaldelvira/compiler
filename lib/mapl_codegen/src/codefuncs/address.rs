@@ -1,3 +1,4 @@
+use hir::expr::StructAccess;
 use hir::{Item, ItemKind, Param};
 use hir::{Expression, node_map::HirNodeKind};
 use semantic::types::TypeKind;
@@ -45,7 +46,7 @@ impl Address for Expression<'_> {
                     ty: MaplType::Int,
                 }
             }
-            ExpressionKind::StructAccess { st, field } => {
+            ExpressionKind::StructAccess(StructAccess { st, field }) => {
                 let addr = st.address(cg);
                 let TypeKind::Struct { fields, .. } = cg.sem.type_of(&st.id).unwrap().kind else {
                     unreachable!()

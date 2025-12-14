@@ -3,10 +3,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
-use hir::expr::CmpOp;
+use hir::expr::{CmpOp, StructAccess};
 use hir::node_map::HirNodeKind;
-use hir::stmt::StatementKind;
-use hir::{BlockExpr, Constness, HirId, ItemKind, Param, PathDef, Type};
+use hir::stmt::{ForStmt, StatementKind};
+use hir::{Constness, Expression, HirId, ItemKind, Param, PathDef, Type};
 use interner::Symbol;
 use lexer::unescaped::Unescaped;
 use llvm::core::{BasicBlock, Function, Global};
@@ -347,7 +347,7 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 }
                 alloca
             }
-            EK::StructAccess { st, field } => {
+            EK::StructAccess(StructAccess { st, field }) => {
                 let sty = cg.semantic.type_of(&st.id).unwrap();
                 let idx = sty.field_index_of(field.sym).unwrap();
                 let st = st.address(cg);
@@ -599,7 +599,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                     cg.builder().bit_cast(&value, &to, "tmp_cast")
                 }
             }
-            EK::ArrayAccess { .. } | EK::StructAccess { .. } | EK::TupleAccess { .. } | EK::Array(_) =>
+            EK::ArrayAccess { .. } | EK::StructAccess(_) | EK::TupleAccess { .. } | EK::Array(_) =>
             {
                 let gep = self.address(cg);
                 let ty = cg.semantic.type_of(&self.id).unwrap().codegen(cg);
@@ -634,7 +634,7 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
                 expr.execute(cg);
             }
             EK::ArrayAccess { arr, .. } => arr.execute(cg),
-            EK::StructAccess { st, .. } => st.execute(cg),
+            EK::StructAccess(StructAccess { st, .. }) => st.execute(cg),
             EK::TupleAccess { tuple, .. } => tuple.execute(cg),
             EK::Block { .. } |
             EK::If { .. } => {
@@ -647,7 +647,7 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
 fn codgen_if<'cg, 'hir, 'llvm>(
     cg: &mut CodegenState<'cg, 'llvm, 'hir>,
     cond: &'hir hir::Expression<'hir>,
-    if_true: &'hir hir::BlockExpr<'hir>,
+    if_true: &'hir hir::Expression<'hir>,
     if_false: Option<&'hir hir::Expression<'hir>>
 ) -> Option<Value<'llvm>>
 {
@@ -657,7 +657,7 @@ fn codgen_if<'cg, 'hir, 'llvm>(
 
     let alloca =
         if if_false.is_some() {
-            let ty = cg.semantic.type_of(&if_true.tail.unwrap().id).unwrap().codegen(cg);
+            let ty = cg.semantic.type_of(&if_true.id).unwrap().codegen(cg);
             Some((ty, cg.builder().alloca(ty, "synthetic_if_value")))
         } else {
             None
@@ -668,10 +668,9 @@ fn codgen_if<'cg, 'hir, 'llvm>(
     cg.function().append_existing_basic_block(&if_block);
     cg.builder().position_at_end(&mut if_block);
 
-    if_true.stmts.iter().for_each(|stmt| stmt.codegen(cg));
+    let val = if_true.value_opt(cg);
     if let Some((_, alloca)) = alloca {
-        let val = if_true.tail.unwrap().value(cg);
-        cg.builder().store(val, alloca);
+        cg.builder().store(val.unwrap(), alloca);
     }
     cg.builder().branch(&mut end_block);
 
@@ -730,7 +729,7 @@ impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
                 cg.current_loop_cond = old_loop_cond;
                 cg.current_loop_end = old_loop_end;
             }
-            StatementKind::For { init, cond, inc, body } => {
+            StatementKind::For(ForStmt { init, cond, inc, body }) => {
 
                 if let Some(init) = init {
                     let mut for_init = cg.llvm_ctx.create_basic_block("for.init");
@@ -827,7 +826,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                 }
             },
             hir::ItemKind::Function { is_extern, is_variadic: _, name, params, ret_ty, body } =>
-                codegen_function(cg, self, *is_extern, name, params, ret_ty, body.as_ref()),
+                codegen_function(cg, self, *is_extern, name, params, ret_ty, body.as_deref()),
             hir::ItemKind::Struct { .. } => {
                 let struct_type = cg.semantic.type_of(&self.id).unwrap();
                 let (name, fields) = struct_type.as_struct_type().unwrap();
@@ -904,7 +903,7 @@ fn codegen_function<'hir>(
     name: &PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir BlockExpr<'hir>>,
+    body: Option<&'hir Expression<'hir>>,
 ) {
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);

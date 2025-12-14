@@ -1,10 +1,11 @@
 use std::ops::ControlFlow;
 
-use crate::expr::BlockExpr;
+use crate::expr::{BlockExpr, StructAccess};
 use crate::item::Item;
+use crate::stmt::ForStmt;
 use crate::{Constness, Param, UseItem};
 use crate::{
-Expression, HirId, Ident, Module, Path, PathDef,
+Expression, HirId, Module, Path, PathDef,
 Statement, Type,
 item::Field,
 expr::{ArithmeticOp, CmpOp, LitValue, LogicalOp, UnaryOp},
@@ -141,7 +142,7 @@ fn visit_function_definition(
     name: &'hir PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir BlockExpr<'hir>>,
+    body: Option<&'hir Expression<'hir>>,
 ) -> Self::Result {
     walk_function_definition(self, base, name, params, ret_ty, body)
 }
@@ -167,11 +168,12 @@ fn visit_statement(&mut self, stmt: &'hir Statement<'hir>) -> Self::Result {
     walk_statement(self, stmt)
 }
 
-fn visit_block(
-    &mut self,
-    block: &BlockExpr<'hir>,
-) -> Self::Result {
-    walk_block(self, block)
+    fn visit_block(
+        &mut self,
+        _expr: &'hir Expression<'hir>,
+        block: &BlockExpr<'hir>,
+    ) -> Self::Result {
+        walk_block(self, block)
     }
 
     fn visit_break(&mut self, _base: &'hir Statement<'hir>) -> Self::Result {
@@ -207,12 +209,9 @@ fn visit_block(
     fn visit_for(
         &mut self,
         _base: &'hir Statement,
-        init: Option<&'hir Item<'hir>>,
-        cond: Option<&'hir Expression<'hir>>,
-        inc: Option<&'hir Expression<'hir>>,
-        body: &'hir Statement<'hir>,
+        f: &'hir ForStmt<'hir>,
     ) -> Self::Result {
-        walk_for(self, init, cond, inc, body)
+        walk_for(self, f)
     }
 
     fn visit_while(
@@ -228,7 +227,7 @@ fn visit_block(
         &mut self,
         _base: &'hir Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir BlockExpr<'hir>,
+        if_true: &'hir Expression<'hir>,
         if_false: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false)
@@ -271,10 +270,9 @@ fn visit_block(
     fn visit_struct_access(
         &mut self,
         _expr: &'hir Expression<'hir>,
-        st: &'hir Expression<'hir>,
-        field: Ident,
+        access: &'hir StructAccess<'hir>,
     ) -> Self::Result {
-        walk_struct_access(self, st, field)
+        walk_struct_access(self, access)
     }
 
     fn visit_type(&mut self, ty: &'hir Type<'hir>) -> Self::Result { walk_type(self, ty) }
@@ -383,7 +381,7 @@ where
             params,
             body,
             ret_ty,
-        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, body.as_ref()),
+        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, body.as_deref()),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
         ItemKind::TypeAlias { ty, name } => v.visit_type_alias(item, ty, name)
@@ -413,7 +411,7 @@ pub fn walk_function_definition<'hir, V>(
     name: &'hir PathDef,
     params: &'hir [Param<'hir>],
     ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir BlockExpr<'hir>>,
+    body: Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
@@ -423,7 +421,7 @@ where
     for p in params {
         v.visit_param(p);
     }
-    walk_opt!(v, body, visit_block);
+    walk_opt!(v, body, visit_expression);
     v.visit_type(ret_ty);
     v.get_ctx().exit_function();
     V::Result::output()
@@ -557,30 +555,26 @@ where
 
 pub fn walk_struct_access<'hir, V>(
     v: &mut V,
-    st: &'hir Expression<'hir>,
-    _field: Ident,
+    access: &'hir StructAccess<'hir>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    v.visit_expression(st);
+    v.visit_expression(access.st);
     V::Result::output()
 }
 
 pub fn walk_for<'hir, V>(
     v: &mut V,
-    init: Option<&'hir Item<'hir>>,
-    cond: Option<&'hir Expression<'hir>>,
-    inc: Option<&'hir Expression<'hir>>,
-    body: &'hir Statement<'hir>,
+    f: &'hir ForStmt<'hir>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    walk_opt!(v, init, visit_item);
-    walk_opt!(v, cond, visit_expression);
-    walk_opt!(v, inc, visit_expression);
-    v.visit_statement(body);
+    walk_opt!(v, f.init, visit_item);
+    walk_opt!(v, f.cond, visit_expression);
+    walk_opt!(v, f.inc, visit_expression);
+    v.visit_statement(f.body);
     V::Result::output()
 }
 
@@ -600,14 +594,14 @@ where
 pub fn walk_if<'hir, V>(
     v: &mut V,
     cond: &'hir Expression<'hir>,
-    if_true: &BlockExpr<'hir>,
+    if_true: &'hir Expression<'hir>,
     if_false: Option<&'hir Expression<'hir>>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
     v.visit_expression(cond);
-    v.visit_block(if_true);
+    v.visit_expression(if_true);
     walk_opt!(v, if_false, visit_expression);
     V::Result::output()
 }
@@ -722,11 +716,11 @@ where
         ExpressionKind::TupleAccess { tuple, index } =>  {
             v.visit_tuple_access(expr, tuple, *index);
         }
-        ExpressionKind::StructAccess { st, field } => {
-            v.visit_struct_access(expr, st, *field);
+        ExpressionKind::StructAccess(access) => {
+            v.visit_struct_access(expr, access);
         }
         ExpressionKind::Block(block) => {
-            v.visit_block(block);
+            v.visit_block(expr, block);
         }
         ExpressionKind::If {
             cond,
@@ -749,12 +743,7 @@ where
         StatementKind::Expr(expression) => v.visit_expression_as_stmt(stmt, expression),
         StatementKind::Item(item) => v.visit_item(item),
         StatementKind::While { cond, body } => v.visit_while(stmt, cond, body),
-        StatementKind::For {
-            init,
-            cond,
-            inc,
-            body,
-        } => v.visit_for(stmt, *init, *cond, *inc, body),
+        StatementKind::For(f) => v.visit_for(stmt, f),
         StatementKind::Empty => v.visit_empty(stmt),
         StatementKind::Break => v.visit_break(stmt),
         StatementKind::Continue => v.visit_continue(stmt),

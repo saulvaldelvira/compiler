@@ -13,7 +13,7 @@ fn needs_semicolon(expr: &Expression) -> bool {
             b.tail.is_some()
         }
         ExpressionKind::If { if_body, else_body, .. } => {
-            if_body.tail.is_some()
+            needs_semicolon(if_body)
             ||
             else_body.as_ref().is_some_and(|e| needs_semicolon(e))
         }

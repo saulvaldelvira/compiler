@@ -4,7 +4,7 @@ use compiler_driver::Compiler;
 use error_manager::{ErrorManager, FilePosition};
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
-use hir::{Expression, Item, ItemKind};
+use hir::{BlockExpr, Expression, Item, ItemKind};
 use interner::Symbol;
 use span::source::SourceMap;
 
@@ -91,16 +91,17 @@ fn simple_ok() {
     let ItemKind::Function { body: Some(body), .. } = main.kind else {
         panic!();
     };
+    let ExpressionKind::Block(BlockExpr { stmts, .. }) = body.kind else { unreachable!() };
 
-    let StatementKind::Item(Item { id: def1_id, .. }) = &body.stmts[0].kind else { panic!() };
-    let assignment = body.stmts[1];
+    let StatementKind::Item(Item { id: def1_id, .. }) = &stmts[0].kind else { panic!() };
+    let assignment = stmts[1];
     let StatementKind::Expr(Expression { kind: ExpressionKind::Assignment { left, .. }, ..}) = assignment.kind else { panic!() };
     let ExpressionKind::Variable(path) = &left.kind else { panic!() };
     let def = path.def();
     assert_eq!(*def1_id, def.get().unwrap());
 
-    let StatementKind::Item(Item { id: def2_id, .. }) = &body.stmts[2].kind else { panic!() };
-    let StatementKind::Expr(expr) = &body.stmts[3].kind else { panic!() };
+    let StatementKind::Item(Item { id: def2_id, .. }) = &stmts[2].kind else { panic!() };
+    let StatementKind::Expr(expr) = &stmts[3].kind else { panic!() };
     let ExpressionKind::Call { args, .. } = expr.kind else { panic!() };
     assert_eq!(args.len(), 1);
     let ExpressionKind::Variable(path) = &args[0].kind else { panic!() };

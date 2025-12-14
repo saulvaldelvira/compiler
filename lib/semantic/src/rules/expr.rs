@@ -1,5 +1,6 @@
 use error_manager::ErrorManager;
-use hir::BlockExpr;
+use hir::expr::StructAccess;
+use hir::stmt::ForStmt;
 use hir::{Expression, Ident, expr::ExpressionKind};
 use span::Span;
 
@@ -50,7 +51,7 @@ impl SideEffect for hir::Expression<'_> {
                 arr.has_side_effect() || index.has_side_effect()
             }
             ExpressionKind::Deref(e) => e.has_side_effect(),
-            ExpressionKind::StructAccess { st, .. } => st.has_side_effect(),
+            ExpressionKind::StructAccess(StructAccess { st, ..}) => st.has_side_effect(),
             ExpressionKind::TupleAccess { tuple, .. } => tuple.has_side_effect(),
             ExpressionKind::Array(arr) => arr.iter().any(SideEffect::has_side_effect),
             ExpressionKind::Unary { expr, .. }
@@ -86,7 +87,7 @@ impl SideEffect for hir::Statement<'_> {
         match &self.kind {
             StatementKind::Expr(expr) => expr.has_side_effect(),
             StatementKind::While { cond, body } => cond.has_side_effect() || body.has_side_effect(),
-            StatementKind::For { init, cond, inc, body } => {
+            StatementKind::For(ForStmt { init, cond, inc, body }) => {
                 init.is_some_and(SideEffect::has_side_effect) ||
                 cond.is_some_and(SideEffect::has_side_effect) ||
                 inc.is_some_and(SideEffect::has_side_effect) ||
@@ -400,7 +401,7 @@ impl<'sem> SemanticRule<'sem> for ValidateCast<'_, 'sem> {
 }
 
 pub struct ValidateIf<'hir> {
-    pub if_true: &'hir BlockExpr<'hir>,
+    pub if_true: &'hir Expression<'hir>,
     pub if_false: Option<&'hir Expression<'hir>>,
     pub span: Span,
 }
@@ -409,7 +410,7 @@ impl<'sem> SemanticRule<'sem> for ValidateIf<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'sem>, em: &mut ErrorManager) -> Self::Result {
-        let iftrue_ty = sem.type_of_block(self.if_true)?;
+        let iftrue_ty = sem.type_of(&self.if_true.id)?;
         if let Some(if_false) = self.if_false {
             let iffalse_ty = sem.type_of(&if_false.id)?;
 

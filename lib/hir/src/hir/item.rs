@@ -7,7 +7,7 @@ use span::source::FileId;
 use span::Span;
 
 use super::{Constness, Expression, types::Type};
-use crate::{BlockExpr, NodeRef, Path};
+use crate::{NodeRef, Path};
 use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind, path::PathDef};
 
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ pub enum ItemKind<'hir> {
         name: &'hir PathDef,
         params: &'hir [Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: Option<BlockExpr<'hir>>,
+        body: Option<&'hir Expression<'hir>>,
     },
     Struct {
         name: &'hir PathDef,

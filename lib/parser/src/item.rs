@@ -268,9 +268,9 @@ impl Parser<'_, '_> {
             span = ext.join(&scspan);
             semicolon = Some(scspan);
         } else {
-            let block = self.block()?;
-            span = kw_fn.join(&block.close_brace);
-            body = Some(block);
+            let block = self.block_expr()?;
+            span = kw_fn.join(&block.span);
+            body = Some(Box::new(block));
         }
 
         Ok(Item {

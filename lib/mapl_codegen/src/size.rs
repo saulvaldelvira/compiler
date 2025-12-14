@@ -1,3 +1,5 @@
+use hir::expr::StructAccess;
+use hir::stmt::ForStmt;
 use hir::ItemKind;
 use hir::{Statement, stmt::StatementKind};
 use semantic::{PrimitiveType, Ty, TypeKind};
@@ -53,7 +55,7 @@ pub fn assign_memory_locals(
             acc
         }
         StatementKind::While { body, .. } => assign_memory_locals(cg, acc, body),
-        StatementKind::For { body, init, .. } => {
+        StatementKind::For(ForStmt { body, init, .. }) => {
             if let Some(init) = init {
                 let def = Statement::new(StatementKind::Item(init), Span::dummy());
                 acc = assign_memory_locals(cg, acc, &def);
@@ -98,7 +100,7 @@ pub fn assign_memory_locals_expr(
         ExpressionKind::Block(block) => assign_memory_locals_block(cg, acc, block),
         ExpressionKind::If { cond, if_true, if_false } => {
             acc = assign_memory_locals_expr(cg, acc, cond);
-            acc = assign_memory_locals_block(cg, acc, if_true);
+            acc = assign_memory_locals_expr(cg, acc, if_true);
             if let Some(if_false) = if_false {
                 acc = assign_memory_locals_expr(cg, acc, if_false);
             }
@@ -124,7 +126,7 @@ pub fn assign_memory_locals_expr(
             acc = assign_memory_locals_expr(cg, acc, arr);
             assign_memory_locals_expr(cg, acc, index)
         }
-        ExpressionKind::StructAccess { st, .. } => assign_memory_locals_expr(cg, acc, st),
+        ExpressionKind::StructAccess(StructAccess{ st, .. }) => assign_memory_locals_expr(cg, acc, st),
         _ => acc
     }
 }

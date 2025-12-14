@@ -80,7 +80,7 @@ where
                 v.visit_type(rty);
             }
             if let Some(body) = body {
-                v.visit_block(body);
+                v.visit_expression(body);
             }
             V::Result::output()
         }
@@ -206,7 +206,7 @@ where
             ..
         } => {
             v.visit_expression(cond);
-            v.visit_block(if_body);
+            v.visit_expression(if_body);
             if let Some(e) = else_body {
                 v.visit_expression(e);
             }

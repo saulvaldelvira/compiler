@@ -1,5 +1,7 @@
 use error_manager::ErrorManager;
-use hir::visitor::{walk_array_expr, walk_tuple_access, walk_type_alias, walk_use, walk_variable_definition};
+use hir::expr::StructAccess;
+use hir::stmt::ForStmt;
+use hir::visitor::{walk_array_expr, walk_block, walk_tuple_access, walk_type_alias, walk_use, walk_variable_definition};
 use hir::{BlockExpr, Item, PathDef};
 use hir::{
     Expression, Type,
@@ -86,12 +88,11 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     fn visit_struct_access(
         &mut self,
         expr: &'hir Expression<'hir>,
-        st: &'hir Expression<'hir>,
-        field: hir::Ident,
+        access: &'hir StructAccess<'hir>,
     ) -> Self::Result {
-        walk_struct_access(self, st, field);
+        walk_struct_access(self, access);
 
-        ValidateFieldAccess { st, field }
+        ValidateFieldAccess { st: access.st, field: access.field }
             .apply(self.semantic, self.em)
             .inspect(|&id| {
                 self.semantic.set_type_of(expr.id, id);
@@ -125,14 +126,29 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
     fn visit_for(
         &mut self,
         _base: &'hir hir::Statement,
-        init: Option<&'hir Item<'hir>>,
-        cond: Option<&'hir Expression<'hir>>,
-        inc: Option<&'hir Expression<'hir>>,
-        body: &'hir hir::Statement<'hir>,
+        f: &'hir ForStmt<'hir>,
     ) -> Self::Result {
-        walk_for(self, init, cond, inc, body);
-        if let Some(cond) = cond {
+        walk_for(self, f);
+        if let Some(cond) = f.cond {
             self.check_boolean_condition(cond, "for");
+        }
+    }
+
+    fn visit_block(
+        &mut self,
+        expr: &'hir Expression<'hir>,
+        block: &BlockExpr<'hir>,
+    ) -> Self::Result {
+        walk_block(self, block);
+        match block.tail {
+            Some(tail) => {
+                if let Some(id) = self.semantic.type_of(&tail.id) {
+                    self.semantic.set_type_of(expr.id, id.id);
+                }
+            }
+            None => {
+                self.semantic.set_type_of(expr.id, self.semantic.get_or_intern_type(semantic::TypeKind::empty()).id);
+            }
         }
     }
 
@@ -140,7 +156,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         &mut self,
         base: &'hir hir::Expression,
         cond: &'hir Expression<'hir>,
-        if_true: &'hir BlockExpr<'hir>,
+        if_true: &'hir Expression<'hir>,
         if_false: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         walk_if(self, cond, if_true, if_false);
@@ -418,7 +434,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         name: &'hir PathDef,
         params: &'hir [hir::Param<'hir>],
         ret_ty: &'hir Type<'hir>,
-        body: Option<&'hir BlockExpr<'hir>>,
+        body: Option<&'hir Expression<'hir>>,
     ) -> Self::Result {
         {
             let params = params.iter().map(|p| p.ty);

@@ -87,7 +87,12 @@ impl Parser<'_, '_> {
         let cond = Box::new(self.expression()?);
 
         let if_body = self.block()?;
-        let mut span = kw_if.join(&if_body.close_brace);
+        let span = if_body.open_brace.join(&if_body.close_brace);
+        let if_body = Expression {
+            kind: ExpressionKind::Block(if_body),
+            span
+        };
+        let mut span = kw_if.join(&if_body.span);
 
         let mut else_body = None;
         let mut kw_else = None;
@@ -111,7 +116,7 @@ impl Parser<'_, '_> {
             kind: ExpressionKind::If {
                 kw_if,
                 cond,
-                if_body,
+                if_body: Box::new(if_body),
                 kw_else,
                 else_body: else_body.map(Box::new),
             },

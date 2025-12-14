@@ -4,7 +4,7 @@ use interner::Symbol;
 use span::source::FileId;
 use span::{Span, Spanned};
 
-use crate::{Path, Statement};
+use crate::Path;
 use crate::{types::Type, Block, Expression};
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub enum ItemKind {
         params: Box<[Param]>,
         variadic_span: Option<Span>,
         return_type: Option<Type>,
-        body: Option<Block<Statement, Expression>>,
+        body: Option<Box<Expression>>,
         semicolon: Option<Span>,
     },
     Struct {

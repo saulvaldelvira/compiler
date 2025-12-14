@@ -150,11 +150,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             }
             EK::StructAccess { st, field } => {
                 let st = self.lower_expression(st);
-
-                HExprKind::StructAccess {
-                    st,
-                    field: ident(field),
-                }
+                let field = ident(field);
+                let access = self.sess.alloc_annon(hir::expr::StructAccess {
+                    st, field
+                });
+                HExprKind::StructAccess(access)
             }
             EK::Block(block) => {
                 HExprKind::Block(self.lower_block(block))
@@ -166,7 +166,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 ..
             } => {
                 let cond = self.lower_expression(cond);
-                let if_true = self.lower_block(if_body);
+                let if_true = self.lower_expression(if_body);
                 let if_false = else_body.as_ref().map(|e| self.lower_expression(e));
                 HExprKind::If {
                     cond,

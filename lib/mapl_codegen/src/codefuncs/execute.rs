@@ -1,3 +1,4 @@
+use hir::stmt::ForStmt;
 use hir::{HirId, Item, ItemKind, Statement};
 use semantic::Semantic;
 use span::Span;
@@ -65,12 +66,12 @@ impl Execute for Statement<'_> {
                     MaplInstruction::DefineLabel(end_label),
                 ]))
             }
-            StatementKind::For {
+            StatementKind::For(ForStmt {
                 init,
                 cond,
                 inc,
                 body,
-            } => {
+            }) => {
                 let mut ins = Vec::new();
                 let cond_label = cg.next_label();
                 let end_label = cg.next_label();

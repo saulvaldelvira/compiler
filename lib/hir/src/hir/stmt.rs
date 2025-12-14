@@ -5,18 +5,21 @@ use crate::item::Item;
 use crate::{HirId, hir_id::HirNode, impl_hir_node, node_map::HirNodeKind};
 
 #[derive(Debug, Clone, Copy)]
+pub struct ForStmt<'hir> {
+    pub init: Option<&'hir Item<'hir>>,
+    pub cond: Option<&'hir Expression<'hir>>,
+    pub inc: Option<&'hir Expression<'hir>>,
+    pub body: &'hir Statement<'hir>,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum StatementKind<'hir> {
     Expr(&'hir Expression<'hir>),
     While {
         cond: &'hir Expression<'hir>,
         body: &'hir Statement<'hir>,
     },
-    For {
-        init: Option<&'hir Item<'hir>>,
-        cond: Option<&'hir Expression<'hir>>,
-        inc: Option<&'hir Expression<'hir>>,
-        body: &'hir Statement<'hir>,
-    },
+    For(&'hir ForStmt<'hir>),
     Empty,
     Break,
     Continue,

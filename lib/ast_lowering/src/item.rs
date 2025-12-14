@@ -84,7 +84,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 return_type,
                 ..
             } => {
-                let body = body.as_ref().map(|body| self.lower_block(body));
+                let body = body.as_ref().map(|body| self.lower_expression(body));
                 let params = self.lower_params(params);
                 let ret_ty = return_type
                     .as_ref()

@@ -38,12 +38,13 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let cond = cond.as_ref().map(|c| self.lower_expression(c));
                 let inc = inc.as_ref().map(|i| self.lower_expression(i));
                 let body = self.lower_statement(body);
-                HSK::For {
+                let f = hir::stmt::ForStmt {
                     init,
                     cond,
                     inc,
                     body,
-                }
+                };
+                HSK::For(self.sess.alloc_annon(f))
             }
             SK::Empty(_) => HSK::Empty,
             SK::Break(_) => HSK::Break,

@@ -54,6 +54,12 @@ pub struct BlockExpr<'hir> {
     pub tail: Option<&'hir Expression<'hir>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct StructAccess<'hir> {
+    pub st: &'hir Expression<'hir>,
+    pub field: Ident,
+}
+
 #[derive(Debug)]
 pub enum ExpressionKind<'hir> {
     Array(&'hir [Expression<'hir>]),
@@ -64,7 +70,7 @@ pub enum ExpressionKind<'hir> {
     Block(BlockExpr<'hir>),
     If {
         cond: &'hir Expression<'hir>,
-        if_true: BlockExpr<'hir>,
+        if_true: &'hir Expression<'hir>,
         if_false: Option<&'hir Expression<'hir>>,
     },
     Ref(&'hir Expression<'hir>),
@@ -106,10 +112,7 @@ pub enum ExpressionKind<'hir> {
         tuple: &'hir Expression<'hir>,
         index: u16,
     },
-    StructAccess {
-        st: &'hir Expression<'hir>,
-        field: Ident,
-    },
+    StructAccess(&'hir StructAccess<'hir>),
 }
 
 #[derive(Debug)]

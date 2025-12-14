@@ -1,5 +1,7 @@
 mod node;
 
+use hir::expr::StructAccess;
+use hir::stmt::ForStmt;
 use hir::{BlockExpr, Item, ItemKind};
 use hir::{
     Expression, Module, Statement, expr::ExpressionKind,
@@ -143,9 +145,8 @@ impl HirPrinter<'_, '_> {
                     ul.push(Node::collapse("params", Node::Ul(p)));
                 }
                 if let Some(body) = body {
-                    let mut stmts = Vec::new();
-                    self.serialize_block_expr(&mut stmts, body);
-                    ul.push(Node::collapse("body", Node::Ul(stmts)));
+                    let node = self.serialize_expr(body);
+                    ul.push(Node::collapse("body", node));
                 }
             }
             ItemKind::Struct { fields, .. } => {
@@ -244,9 +245,8 @@ impl HirPrinter<'_, '_> {
                 title.push(Node::Title("If"));
                 let cond = self.serialize_expr(cond).into();
                 attrs.push(Node::KeyVal("cond", cond));
-                let mut block = Vec::new();
-                self.serialize_block_expr(&mut block, if_true);
-                attrs.push(Node::Collapse(Node::Title("if_true").into(), Node::Ul(block).into()));
+                let node = self.serialize_expr(if_true);
+                attrs.push(Node::Collapse(Node::Title("if_true").into(), node.into()));
                 if let Some(if_false) = if_false {
                     let node = self.serialize_expr(if_false);
                     attrs.push(Node::Collapse(Node::Title("if_false").into(), node.into()));
@@ -285,7 +285,7 @@ impl HirPrinter<'_, '_> {
                 attrs.push(Node::KeyVal("arr", self.serialize_expr(arr).into()));
                 attrs.push(Node::KeyVal("index", self.serialize_expr(index).into()));
             }
-            ExpressionKind::StructAccess { st, field } => {
+            ExpressionKind::StructAccess(StructAccess { st, field }) => {
                 title.push(Node::Title("StructAccess"));
                 attrs.push(Node::KeyVal("struct", self.serialize_expr(st).into()));
                 attrs.push(Node::KeyVal(
@@ -330,12 +330,12 @@ impl HirPrinter<'_, '_> {
                 attrs.push(Node::KeyVal("cond", self.serialize_expr(cond).into()));
                 Node::collapse("body", self.serialize_stmt(body))
             }
-            StatementKind::For {
+            StatementKind::For(ForStmt {
                 init,
                 cond,
                 inc,
                 body,
-            } => {
+            }) => {
                 list.push(Node::Title("ForStmt"));
 
                 macro_rules! serialize_expr {

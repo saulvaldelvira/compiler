@@ -1,4 +1,5 @@
-use hir::{BlockExpr, Expression, Item};
+use hir::expr::ExpressionKind;
+use hir::{Expression, Item};
 use span::Span;
 
 use super::SemanticRule;
@@ -9,7 +10,7 @@ use crate::{
 
 pub struct CheckFunctionReturns<'hir> {
     pub def: &'hir Item<'hir>,
-    pub body: &'hir BlockExpr<'hir>,
+    pub body: &'hir Expression<'hir>,
     pub span: Span,
 }
 
@@ -28,7 +29,8 @@ impl SemanticRule<'_> for CheckFunctionReturns<'_> {
             .as_function_type()
             .expect("Expected function's type to be of FuncType");
 
-        if let Some(tail) = self.body.tail {
+        let ExpressionKind::Block(block) = self.body.kind else { unreachable!() };
+        if let Some(tail) = block.tail {
             if let Some(tailty) = sem.type_of(&tail.id)
                 && !tailty.kind.can_be_promoted_to(&ret_type.kind)
             {
