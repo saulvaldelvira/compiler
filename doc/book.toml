@@ -1,11 +1,14 @@
 [book]
 authors = ["Saúl Valdelvira"]
 language = "en"
-multilingual = false
 src = "src"
 title = "Compiler Documentation"
 
-[preprocessor]
+[output.html]
+additional-js = ["theme/mdbook-grammar.js"]
+additional-css = ["theme/mdbook-grammar.css"]
+
+[preprocessor.grammar]
 
 [preprocessor.plantuml]
 plantuml-cmd="plantuml"
