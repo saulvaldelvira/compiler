@@ -53,6 +53,16 @@ impl<'hir> Param<'hir> {
 impl_hir_node!(Param<'hir>, Param);
 
 #[derive(Debug, Clone, Copy)]
+pub struct Function<'hir> {
+    pub is_extern: bool,
+    pub is_variadic: bool,
+    pub name: &'hir PathDef,
+    pub params: &'hir [Param<'hir>],
+    pub ret_ty: &'hir Type<'hir>,
+    pub body: Option<&'hir Expression<'hir>>,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum ItemKind<'hir> {
     Mod(&'hir Module<'hir>),
     Variable {
@@ -61,14 +71,7 @@ pub enum ItemKind<'hir> {
         init: Option<&'hir Expression<'hir>>,
         constness: Constness,
     },
-    Function {
-        is_extern: bool,
-        is_variadic: bool,
-        name: &'hir PathDef,
-        params: &'hir [Param<'hir>],
-        ret_ty: &'hir Type<'hir>,
-        body: Option<&'hir Expression<'hir>>,
-    },
+    Function(&'hir Function<'hir>),
     Struct {
         name: &'hir PathDef,
         fields: &'hir [Field<'hir>],
@@ -85,7 +88,7 @@ impl ItemKind<'_> {
         match self {
             ItemKind::Mod(_) => "module",
             ItemKind::Variable { .. } => "variable",
-            ItemKind::Function { .. } => "function",
+            ItemKind::Function(_) => "function",
             ItemKind::Struct { .. } => "struct",
             ItemKind::Use(_) | ItemKind::TypeAlias { .. } => "use",
         }
@@ -161,14 +164,14 @@ impl<'hir> Item<'hir> {
             ItemKind::Use(u) => u.get_name()?,
             ItemKind::TypeAlias { name, .. } |
             ItemKind::Variable{ name, .. } |
-            ItemKind::Function { name, .. } |
+            ItemKind::Function(Function { name, .. }) |
             ItemKind::Struct { name, .. } => name.ident.sym
         })
     }
 
     pub const fn is_definition(&self) -> bool {
         matches!(self.kind, ItemKind::Variable {..}
-                            | ItemKind::Function { .. }
+                            | ItemKind::Function(_)
                             | ItemKind::Struct {.. })
     }
 }

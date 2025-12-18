@@ -92,14 +92,15 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                         hir::Type::empty(),
                         |rt| self.lower_type(rt));
                 let name = self.lower_pathdef(ident(name));
-                HIK::Function {
+                let func = self.sess.alloc_annon(hir::Function {
                     is_extern: kw_extern.is_some(),
                     is_variadic: variadic_span.is_some(),
                     name,
                     params,
                     body,
                     ret_ty,
-                }
+                });
+                HIK::Function(func)
             }
             IK::Struct { name, fields, .. } => {
                 let fields = self.lower_fields(&fields.val);

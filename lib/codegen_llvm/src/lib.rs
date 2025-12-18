@@ -6,7 +6,7 @@ use std::sync::{Arc, OnceLock};
 use hir::expr::{CmpOp, StructAccess};
 use hir::node_map::HirNodeKind;
 use hir::stmt::{ForStmt, StatementKind};
-use hir::{Constness, Expression, HirId, ItemKind, Param, PathDef, Type};
+use hir::{Constness, HirId, ItemKind};
 use interner::Symbol;
 use lexer::unescaped::Unescaped;
 use llvm::core::{BasicBlock, Function, Global};
@@ -272,9 +272,9 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Item<'hir> {
             ItemKind::Variable { name, .. } => {
                 cg.address_of(self.id, name.ident.sym)
             }
-            ItemKind::Function { is_extern, name, .. } => {
+            ItemKind::Function(hir::Function { is_extern, name, .. }) => {
                 name.ident.sym.borrow(|name| {
-                    let name = if is_extern {
+                    let name = if *is_extern {
                         Cow::Borrowed(name)
                     } else {
                         Cow::Owned(cg.get_mangled(self.id).unwrap())
@@ -825,8 +825,7 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                     },
                 }
             },
-            hir::ItemKind::Function { is_extern, is_variadic: _, name, params, ret_ty, body } =>
-                codegen_function(cg, self, *is_extern, name, params, ret_ty, body.as_deref()),
+            hir::ItemKind::Function(func) => codegen_function(cg, self, func),
             hir::ItemKind::Struct { .. } => {
                 let struct_type = cg.semantic.type_of(&self.id).unwrap();
                 let (name, fields) = struct_type.as_struct_type().unwrap();
@@ -899,16 +898,13 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
 fn codegen_function<'hir>(
     cg: &mut CodegenState<'_, '_, 'hir>,
     item: &'hir hir::Item<'hir>,
-    is_extern: bool,
-    name: &PathDef,
-    params: &'hir [Param<'hir>],
-    ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir Expression<'hir>>,
+    func: &'hir hir::Function<'hir>,
 ) {
+    let hir::Function { is_extern, name, ret_ty, params, body, .. } = func;
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
 
-    if is_extern {
+    if *is_extern {
         // TODO: Add a no_mangle attribute instead
         name.ident.sym.borrow(|name| {
             cg.module().add_function(name, fty);

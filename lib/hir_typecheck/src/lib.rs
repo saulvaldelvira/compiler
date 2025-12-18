@@ -428,27 +428,22 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
 
     fn visit_function_definition(
         &mut self,
-        _is_extern: bool,
-        is_variadic: bool,
         def: &'hir hir::Item<'hir>,
-        name: &'hir PathDef,
-        params: &'hir [hir::Param<'hir>],
-        ret_ty: &'hir Type<'hir>,
-        body: Option<&'hir Expression<'hir>>,
+        func: &'hir hir::Function<'hir>,
     ) -> Self::Result {
         {
-            let params = params.iter().map(|p| p.ty);
+            let params = func.params.iter().map(|p| p.ty);
             let params = self.lowerer.lower_hir_types_iter(params);
-            let ret_ty = self.lowerer.lower_hir_type(ret_ty);
+            let ret_ty = self.lowerer.lower_hir_type(func.ret_ty);
 
-            let func_type = semantic::types::TypeKind::Function { is_variadic, params, ret_ty };
+            let func_type = semantic::types::TypeKind::Function { is_variadic: func.is_variadic, params, ret_ty };
             let ty = self.semantic.get_or_intern_type(func_type).id;
             self.semantic.set_type_of(def.id, ty);
         }
 
-        walk_function_definition(self, def, name, params, ret_ty, body);
+        walk_function_definition(self, def, func);
 
-        if let Some(body) = body {
+        if let Some(body) = func.body {
             CheckFunctionReturns {
                 def,
                 body,

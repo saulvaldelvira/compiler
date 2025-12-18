@@ -4,7 +4,7 @@ use compiler_driver::Compiler;
 use error_manager::{ErrorManager, FilePosition};
 use hir::expr::ExpressionKind;
 use hir::stmt::StatementKind;
-use hir::{BlockExpr, Expression, Item, ItemKind};
+use hir::{BlockExpr, Expression, Function, Item, ItemKind};
 use interner::Symbol;
 use span::source::SourceMap;
 
@@ -88,7 +88,7 @@ fn simple_ok() {
     let root = hir.get_root();
 
     let main = root.find_item(Symbol::new("main")).unwrap();
-    let ItemKind::Function { body: Some(body), .. } = main.kind else {
+    let ItemKind::Function(Function { body: Some(body), .. }) = main.kind else {
         panic!();
     };
     let ExpressionKind::Block(BlockExpr { stmts, .. }) = body.kind else { unreachable!() };

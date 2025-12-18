@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use crate::expr::{BlockExpr, StructAccess};
 use crate::item::Item;
 use crate::stmt::ForStmt;
-use crate::{Constness, Param, UseItem};
+use crate::{Constness, Function, Param, UseItem};
 use crate::{
 Expression, HirId, Module, Path, PathDef,
 Statement, Type,
@@ -136,15 +136,10 @@ fn visit_variable(
 
 fn visit_function_definition(
     &mut self,
-    _is_extern: bool,
-    _is_variadic: bool,
     base: &'hir Item<'hir>,
-    name: &'hir PathDef,
-    params: &'hir [Param<'hir>],
-    ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir Expression<'hir>>,
+    func: &'hir Function<'hir>,
 ) -> Self::Result {
-    walk_function_definition(self, base, name, params, ret_ty, body)
+    walk_function_definition(self, base, func)
 }
 
 fn visit_struct_definition(
@@ -374,14 +369,7 @@ where
     match &item.kind {
         ItemKind::Variable { name, ty, init, constness } => v.visit_variable_definition(item, name, *ty, *init, *constness),
         ItemKind::Use(u) => v.visit_use(item, u),
-        ItemKind::Function {
-            is_extern,
-            is_variadic,
-            name,
-            params,
-            body,
-            ret_ty,
-        } => v.visit_function_definition(*is_extern, *is_variadic, item, name, params, ret_ty, body.as_deref()),
+        ItemKind::Function(func) => v.visit_function_definition(item, func),
         ItemKind::Struct { fields, name } => v.visit_struct_definition(item, name, fields),
         ItemKind::Mod(m) => v.visit_module(m),
         ItemKind::TypeAlias { ty, name } => v.visit_type_alias(item, ty, name)
@@ -408,21 +396,18 @@ where
 pub fn walk_function_definition<'hir, V>(
     v: &mut V,
     base: &'hir Item<'hir>,
-    name: &'hir PathDef,
-    params: &'hir [Param<'hir>],
-    ret_ty: &'hir Type<'hir>,
-    body: Option<&'hir Expression<'hir>>,
+    func: &'hir Function<'hir>,
 ) -> V::Result
 where
     V: Visitor<'hir> + ?Sized,
 {
-    v.visit_pathdef(base.id, name);
+    v.visit_pathdef(base.id, func.name);
     v.get_ctx().enter_function(base);
-    for p in params {
+    for p in func.params {
         v.visit_param(p);
     }
-    walk_opt!(v, body, visit_expression);
-    v.visit_type(ret_ty);
+    walk_opt!(v, func.body, visit_expression);
+    v.visit_type(func.ret_ty);
     v.get_ctx().exit_function();
     V::Result::output()
 }

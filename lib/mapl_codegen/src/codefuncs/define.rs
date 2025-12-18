@@ -24,7 +24,7 @@ impl Define for Item<'_> {
                     return MaplInstruction::Compose(Box::new(ins));
                 }
             }
-            ItemKind::Function { params, body, .. } => {
+            ItemKind::Function(hir::Function { params, body, .. }) => {
                 let ExpressionKind::Block(block) = body.unwrap().kind else { unreachable!() };
                 return define_func(self, params, block.stmts, cg);
             }

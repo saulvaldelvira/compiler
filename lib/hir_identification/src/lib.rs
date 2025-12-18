@@ -24,7 +24,7 @@
 
 use error_manager::ErrorManager;
 use hir::visitor::{walk_function_definition, Visitor};
-use hir::{Expression, Item, ItemKind, Module, Path};
+use hir::{Item, ItemKind, Module, Path};
 use span::source::SourceMap;
 
 use std::collections::HashMap;
@@ -293,7 +293,7 @@ fn try_shadow(node: HirNodeKind<'_>) -> Result<(), &'static str>  {
                 ItemKind::Variable { .. } |
                 ItemKind::TypeAlias { .. } |
                 ItemKind::Use(_) => Ok(()),
-                ItemKind::Function { .. } => Err("function"),
+                ItemKind::Function(_) => Err("function"),
                 ItemKind::Struct { .. } => Err("struct"),
                 ItemKind::Mod(_) => Err("module"),
             }
@@ -318,22 +318,17 @@ impl<'ident, 'hir: 'ident> Visitor<'hir> for Identification<'ident, 'hir> {
 
     fn visit_function_definition(
         &mut self,
-        _is_extern: bool,
-        _is_variadic: bool,
         base: &'hir hir::Item<'hir>,
-        name: &'hir hir::PathDef,
-        params: &'hir [hir::Param<'hir>],
-        ret_ty: &'hir hir::Type<'hir>,
-        body: Option<&'hir Expression<'hir>>,
+        func: &'hir hir::Function<'hir>,
     ) -> Self::Result {
-        self.define(name.ident.sym, base.id, true).unwrap_or_else(|err| {
+        self.define(func.name.ident.sym, base.id, true).unwrap_or_else(|err| {
             self.em.emit_error(IdentificationError {
                 kind: err,
                 span: base.span,
             });
         });
         self.ctx.st().enter_scope();
-        walk_function_definition(self, base, name, params, ret_ty, body);
+        walk_function_definition(self, base, func);
         self.ctx.st().exit_scope();
     }
 

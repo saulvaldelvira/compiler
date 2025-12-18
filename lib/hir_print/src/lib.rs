@@ -2,7 +2,7 @@ mod node;
 
 use hir::expr::StructAccess;
 use hir::stmt::ForStmt;
-use hir::{BlockExpr, Item, ItemKind};
+use hir::{BlockExpr, Function, Item, ItemKind};
 use hir::{
     Expression, Module, Statement, expr::ExpressionKind,
     stmt::StatementKind,
@@ -84,7 +84,7 @@ impl HirPrinter<'_, '_> {
 
         let h1 = match def.kind {
             ItemKind::Variable { .. } => "VariableDefinition",
-            ItemKind::Function { .. } => "FunctionDefinition",
+            ItemKind::Function(_) => "FunctionDefinition",
             ItemKind::Struct { .. } => "StructDefinition",
             ItemKind::Mod { .. } => "Module",
             ItemKind::Use(_) |
@@ -125,7 +125,7 @@ impl HirPrinter<'_, '_> {
                 }
             }
             ItemKind::TypeAlias { .. } => {}
-            ItemKind::Function { params, body, is_extern, is_variadic, .. } => {
+            ItemKind::Function(Function { params, body, is_extern, is_variadic, .. }) => {
                 if *is_extern {
                     ul.push(Node::Text("extern = true".into()));
                 }
