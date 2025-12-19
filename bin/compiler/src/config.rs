@@ -41,6 +41,7 @@ impl Config {
                         "mapl" => conf.emit = Emit::Mapl,
                         "llvm-ir" => conf.emit = Emit::LlvmIr,
                         "hir" => conf.emit = Emit::Hir,
+                        "hir-json" => conf.emit = Emit::HirJson,
                         "asm" => conf.emit = Emit::Asm,
                         "bin" => conf.emit = Emit::Bin,
                         a => {
@@ -58,6 +59,7 @@ impl Config {
     pub fn get_extension(&self) -> &'static str {
         match self.emit {
             Emit::Hir => "html",
+            Emit::HirJson => "json",
             Emit::Mapl => "mapl",
             Emit::LlvmIr => "ll",
             Emit::Asm => "s",

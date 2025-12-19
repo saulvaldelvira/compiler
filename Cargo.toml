@@ -18,3 +18,4 @@ map_unwrap_or = "allow"
 [workspace.dependencies]
 tiny-vec = { version = ">=0.4.1", git = "https://github.com/saulvaldelvira/tiny-vec" }
 tiny-str = { version = ">=0.4.1", git = "https://github.com/saulvaldelvira/tiny-vec" }
+jsonrs = { version = ">=1.4.0", git = "https://github.com/saulvaldelvira/json.rs" }

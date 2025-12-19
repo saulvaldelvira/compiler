@@ -14,6 +14,7 @@ use span::source::{FileId, FileName, SourceMap};
 #[derive(Clone, Copy, Debug)]
 pub enum Emit {
     Hir,
+    HirJson,
     LlvmIr,
     Mapl,
     Asm,
@@ -142,6 +143,7 @@ impl Compiler {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
             Emit::Hir => Output::Hir(hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow())),
+            Emit::HirJson => Output::Hir(hir_print::hir_serialize_json(&hir_sess, &semantic, &self.source.borrow()).to_string()),
             Emit::Asm | Emit::Bin | Emit::LlvmIr => {
                 let codegen = Codegen::new();
                 let modules = codegen.codegen(&hir_sess, &semantic, &self.source.borrow());

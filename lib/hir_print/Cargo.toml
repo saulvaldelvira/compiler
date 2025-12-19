@@ -7,6 +7,7 @@ edition = "2024"
 hir = { path = "../hir" }
 semantic = { path = "../semantic" }
 span = { path = "../span" }
+jsonrs.workspace = true
 
 [lints]
 workspace = true
