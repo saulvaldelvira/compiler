@@ -13,6 +13,8 @@ hir = { path = "../../lib/hir" }
 hir_identification = { path = "../../lib/hir_identification" }
 hir_typecheck = { path = "../../lib/hir_typecheck" }
 semantic = { path = "../../lib/semantic" }
+mir = { path = "../../lib/mir" }
+hir_lowering = { path = "../../lib/hir_lowering" }
 error_manager = { path = "../../lib/error_manager" }
 mapl_codegen = { path = "../../lib/mapl_codegen" }
 hir_print = { path = "../../lib/hir_print" }
