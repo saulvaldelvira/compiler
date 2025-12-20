@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use core::fmt::Debug;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::HashMap;
 use semantic::TypeId;
@@ -21,33 +22,71 @@ pub enum Operator {
     Assign,
 }
 
-#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Default, Clone, Copy, Eq, Hash, PartialEq)]
 pub struct MirId(usize);
 
-#[derive(Debug, Clone)]
+impl core::fmt::Debug for MirId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl core::fmt::Debug for LocalId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.0)
+    }
+}
+
+impl core::fmt::Debug for ExprId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.0)
+    }
+}
+
+
+#[derive(Clone, Copy)]
 pub struct LocalId(MirId);
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy)]
 pub struct ExprId(MirId);
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy)]
 pub enum RValue {
     Expr(ExprId),
     Local(LocalId),
     Literal(MirLiteral),
 }
 
-#[derive(Debug, Clone)]
+impl Debug for RValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Expr(arg0) => write!(f, "Expr({})", arg0.0.0),
+            Self::Local(arg0) => write!(f, "Local({})", arg0.0.0),
+            Self::Literal(arg0) => write!(f, "{arg0:#?}"),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum MirStatement {
     Assignment(LocalId, RValue),
 }
 
-#[derive(Debug, Clone)]
-pub enum Terminator {
-    CondBranch(RValue, MirId, MirId),
-    Branch(MirId),
+impl Debug for MirStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Assignment(arg0, arg1) => write!(f, "{arg0:#?} = {arg1:#?}")
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
+pub enum Terminator {
+    CondBranch(LocalId, MirId, MirId),
+    Branch(MirId),
+    End
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum MirLiteral {
     Int(i32),
 }
@@ -68,8 +107,9 @@ pub struct MirExpression {
 #[derive(Debug, Clone)]
 pub struct MirStart {
     pub id: MirId,
-    pub return_id: Option<LocalId>,
-    pub succesors: Vec<MirId>,
+    pub locals: Vec<MirLocal>,
+    pub succesor: MirId,
+    pub terminator: Terminator,
 }
 
 #[derive(Debug, Clone)]
@@ -89,10 +129,16 @@ pub struct BasicBlock {
     pub terminator: Terminator,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MirLocal {
     pub id: LocalId,
     pub ty: TypeId,
+}
+
+impl Debug for MirLocal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {:?}", self.id.0, self.ty)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -103,16 +149,14 @@ pub enum MirNode {
 
 pub struct Mir {
     ids: AtomicUsize,
-    bbs: RefCell<HashMap<MirId, MirNode>>,
+    funcs: Vec<MirId>,
+    bbs: HashMap<MirId, BasicBlock>,
 }
 
 impl core::fmt::Debug for Mir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (id, bb) in self.bbs.borrow().iter() {
-            match bb {
-                MirNode::BB(bb) => write!(f, "{} = {bb:#?}", id.0),
-                MirNode::End(mir_end) => write!(f, "{} = {mir_end:#?}", id.0),
-            }?;
+        for (id, bb) in self.bbs.iter() {
+            writeln!(f, "{} = {bb:#?}", id.0)?;
         }
         Ok(())
     }
@@ -120,19 +164,11 @@ impl core::fmt::Debug for Mir {
 
 impl Mir {
     pub fn new() -> Self {
-        Self { ids: AtomicUsize::new(100), bbs: Default::default() }
+        Self { ids: AtomicUsize::new(100), funcs: Vec::new(), bbs: HashMap::new() }
     }
 
     pub fn next_id(&self) -> MirId {
         MirId(self.ids.fetch_add(1, Ordering::Relaxed))
-    }
-
-    pub fn register_bb(&self, bb: BasicBlock) {
-        self.bbs.borrow_mut().insert(bb.id, MirNode::BB(bb));
-    }
-
-    pub fn register_end_block(&self, bb: MirEnd) {
-        self.bbs.borrow_mut().insert(bb.id, MirNode::End(bb));
     }
 
     pub fn next_rvalue_id(&self) -> ExprId {
@@ -140,6 +176,13 @@ impl Mir {
     }
     pub fn next_local_id(&self) -> LocalId {
         LocalId(self.next_id())
+    }
+
+    pub fn register_bb(&mut self, bb: BasicBlock) {
+        self.bbs.insert(bb.id, bb);
+    }
+    pub fn register_func(&mut self, func: MirId) {
+        self.funcs.push(func);
     }
 }
 

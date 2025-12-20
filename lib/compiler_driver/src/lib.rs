@@ -108,9 +108,9 @@ impl Compiler {
         hir_sess
     }
 
-    pub fn generate_mir<'mir>(&self, root: &hir::Session<'_>, sem: &Semantic<'mir>) -> mir::Mir<'mir> {
-        let mir = mir::Mir::new();
-        hir_lowering::lower_hir(root, &mir, sem);
+    pub fn generate_mir<'mir>(&self, root: &hir::Session<'_>, sem: &Semantic<'mir>) -> mir::Mir {
+        let mut mir = mir::Mir::new();
+        hir_lowering::lower_hir(root, &mut mir, sem);
         mir
     }
 
@@ -129,7 +129,9 @@ impl Compiler {
         step_emit(&self.source.borrow(), &mut em)?;
 
 
-        dbg!(self.generate_mir(&hir_sess, &semantic));
+        let mir = self.generate_mir(&hir_sess, &semantic);
+        println!("{mir:#?}");
+        std::process::exit(0);
 
         /* #[cfg(debug_assertions)] */
         /* eprintln!( */
