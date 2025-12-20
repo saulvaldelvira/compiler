@@ -1,0 +1,12 @@
+mod fibonacci;
+mod libc;
+mod malloc;
+mod print_args;
+mod say_hi;
+
+fn main(argc: i32, argv: &&char) {
+    print_args::main(argc, argv);
+    fibonacci::main(argc, argv);
+    malloc::main();
+    say_hi::main();
+}
