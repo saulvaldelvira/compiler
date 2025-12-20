@@ -1,11 +1,9 @@
+use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use std::collections::HashMap;
 use semantic::TypeId;
 
-arena::define_arenas!(
-    [visibility = pub]
-);
-
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operator {
     Add,
     Sub,
@@ -23,106 +21,118 @@ pub enum Operator {
     Assign,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub struct MirId(usize);
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct LocalId(MirId);
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExprId(MirId);
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum RValue {
     Expr(ExprId),
     Local(LocalId),
     Literal(MirLiteral),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MirStatement {
     Assignment(LocalId, RValue),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Terminator {
     CondBranch(RValue, MirId, MirId),
     Branch(MirId),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MirLiteral {
     Int(i32),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MirExpressionKind {
     Operation(RValue, Operator, RValue),
+    ArrayAccess(LocalId, RValue),
     Var(LocalId),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MirExpression {
     pub id: ExprId,
     pub kind: MirExpressionKind,
 }
 
-pub struct MirStart<'mir> {
+#[derive(Debug, Clone)]
+pub struct MirStart {
     pub id: MirId,
     pub return_id: Option<LocalId>,
-    pub succesors: &'mir [MirId],
+    pub succesors: Vec<MirId>,
 }
 
-#[derive(Clone, Copy)]
-pub struct MirEnd<'mir> {
+#[derive(Debug, Clone)]
+pub struct MirEnd {
     pub id: MirId,
     pub return_id: Option<LocalId>,
-    pub predecesors: &'mir [MirId],
+    pub predecesors: Vec<MirId>,
 }
 
-#[derive(Clone, Copy)]
-pub struct BasicBlock<'mir> {
+#[derive(Debug, Clone)]
+pub struct BasicBlock {
     pub id: MirId,
-    pub predecesors: &'mir [MirId],
-    pub locals: &'mir [MirLocal],
-    pub exprs: &'mir [MirExpression],
-    pub statements: &'mir [MirStatement],
+    pub predecesors: Vec<MirId>,
+    pub locals: Vec<MirLocal>,
+    pub exprs: Vec<MirExpression>,
+    pub statements: Vec<MirStatement>,
     pub terminator: Terminator,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MirLocal {
     pub id: LocalId,
     pub ty: TypeId,
 }
 
-pub struct Mir<'mir> {
-    arena: Arena<'mir>,
-    ids: AtomicUsize,
+#[derive(Debug, Clone)]
+pub enum MirNode {
+    BB(BasicBlock),
+    End(MirEnd),
 }
 
-impl<'mir> Mir<'mir> {
+pub struct Mir {
+    ids: AtomicUsize,
+    bbs: RefCell<HashMap<MirId, MirNode>>,
+}
+
+impl core::fmt::Debug for Mir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (id, bb) in self.bbs.borrow().iter() {
+            match bb {
+                MirNode::BB(bb) => write!(f, "{} = {bb:#?}", id.0),
+                MirNode::End(mir_end) => write!(f, "{} = {mir_end:#?}", id.0),
+            }?;
+        }
+        Ok(())
+    }
+}
+
+impl Mir {
     pub fn new() -> Self {
-        Self { arena: Arena::new(), ids: AtomicUsize::new(100) }
+        Self { ids: AtomicUsize::new(100), bbs: Default::default() }
     }
 
     pub fn next_id(&self) -> MirId {
         MirId(self.ids.fetch_add(1, Ordering::Relaxed))
     }
 
-    pub fn alloc<T, C>(&self, val: T) -> &'mir T
-    where
-        T: ArenaAllocable<'mir, C>
-    {
-        self.arena.alloc(val)
+    pub fn register_bb(&self, bb: BasicBlock) {
+        self.bbs.borrow_mut().insert(bb.id, MirNode::BB(bb));
     }
 
-    pub fn alloc_iter<T, I, C>(&self, val: I) -> &'mir [T]
-    where
-        T: ArenaAllocable<'mir, C>,
-        I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: ExactSizeIterator,
-    {
-        self.arena.alloc_iter(val)
+    pub fn register_end_block(&self, bb: MirEnd) {
+        self.bbs.borrow_mut().insert(bb.id, MirNode::End(bb));
     }
 
     pub fn next_rvalue_id(&self) -> ExprId {

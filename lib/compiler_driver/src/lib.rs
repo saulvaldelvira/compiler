@@ -108,6 +108,12 @@ impl Compiler {
         hir_sess
     }
 
+    pub fn generate_mir<'mir>(&self, root: &hir::Session<'_>, sem: &Semantic<'mir>) -> mir::Mir<'mir> {
+        let mir = mir::Mir::new();
+        hir_lowering::lower_hir(root, &mir, sem);
+        mir
+    }
+
     pub fn compile(&self) -> Option<(hir::Session<'_>, semantic::Semantic<'_>)> {
         let program = self.generate_ast()?;
 
@@ -121,6 +127,9 @@ impl Compiler {
         let semantic = Semantic::default();
         hir_typecheck::type_checking(&hir_sess, &mut em, &semantic);
         step_emit(&self.source.borrow(), &mut em)?;
+
+
+        dbg!(self.generate_mir(&hir_sess, &semantic));
 
         /* #[cfg(debug_assertions)] */
         /* eprintln!( */
