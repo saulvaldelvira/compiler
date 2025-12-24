@@ -18,7 +18,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         hir::Path::new(path.start_collon.is_some(), segments.into_boxed_slice())
     }
 
-    #[allow(clippy::too_many_lines)]
     fn lower_path_segment(seg: &Spanned<Symbol>) -> PathSegment {
         PathSegment {
             ident: ident(seg),
@@ -47,7 +46,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
         BlockExpr { stmts, tail }
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn lower_expression_owned(&mut self, expr: &ast::Expression) -> hir::Expression<'hir> {
         use ast::expr::{ExpressionKind as EK, UnaryExprOp};
         let kind = match &expr.kind {
@@ -146,7 +145,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             EK::TupleAccess { tuple, index } => {
                 let tuple = self.lower_expression(tuple);
                 let ast::expr::LitValue::Int(index) = index.val else { unreachable!() };
-                HExprKind::TupleAccess { tuple, index: index as u16 }
+                HExprKind::TupleAccess { tuple, index: u16::try_from(index).unwrap() }
             }
             EK::StructAccess { st, field } => {
                 let st = self.lower_expression(st);

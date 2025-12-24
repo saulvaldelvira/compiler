@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! Arena
 //!
 //! An arena allows to allocate objects dynamically, and bind them to a

@@ -38,7 +38,6 @@ impl Execute for Item<'_> {
 }
 
 impl Execute for Statement<'_> {
-    #[allow(clippy::too_many_lines)]
     fn execute(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         use hir::stmt::StatementKind;
         let md = self.metadata(cg);

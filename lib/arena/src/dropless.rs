@@ -17,21 +17,20 @@ pub struct DroplessArena<'ctx> {
 
 const ALIGNMENT: usize = mem::size_of::<usize>();
 
-#[allow(clippy::inline_always)]
+#[expect(clippy::inline_always)]
 #[inline(always)]
 const fn align_down(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
     val & !(align - 1)
 }
 
-#[allow(clippy::inline_always)]
+#[expect(clippy::inline_always)]
 #[inline(always)]
 const fn align_up(val: usize, align: usize) -> usize {
     debug_assert!(align.is_power_of_two());
     (val + align - 1) & !(align - 1)
 }
 
-#[allow(clippy::mut_from_ref)]
 impl<'ctx> DroplessArena<'ctx> {
     fn __alloc_raw(&self, layout: Layout) -> Option<*mut u8> {
         let start = self.start.get().addr();
@@ -67,7 +66,7 @@ impl<'ctx> DroplessArena<'ctx> {
     }
 
     /// Allocs an element, and returns a reference to it
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn alloc<T>(&self, value: T) -> &'ctx mut T {
         assert!(!mem::needs_drop::<T>());
 

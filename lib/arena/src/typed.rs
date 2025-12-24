@@ -49,7 +49,6 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     /// Allocs an slice of elements from the given [Iterator]
     ///
     /// The iterator must be an [`ExactSizeIterator`]
-    #[allow(clippy::mut_from_ref)]
     pub fn alloc_iter<I>(&self, values: I) -> &'ctx mut [T]
     where
         I: IntoIterator<Item = T>,
@@ -106,7 +105,6 @@ impl<'ctx, T> TypedArena<'ctx, T> {
     }
 
     /// Allocs an element, and returns a reference to it
-    #[allow(clippy::mut_from_ref)]
     pub fn alloc(&self, value: T) -> &'ctx mut T {
         self.reserve(1);
 

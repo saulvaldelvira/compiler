@@ -11,7 +11,7 @@ pub enum MemoryAddress {
 }
 
 #[derive(Clone)]
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 pub struct FunctionCtx {
     pub ret_size: u16,
     pub locals_size: u16,
@@ -59,7 +59,7 @@ impl<'cg, 'sem, 'hir> CodeGenerator<'cg, 'sem, 'hir> {
     pub fn current_function(&mut self) -> Option<FunctionCtx> { self.functions.last().cloned() }
 
     pub fn next_global_offset(&mut self, size: u64) -> MemoryAddress {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         let addr = MemoryAddress::Absolute(self.global_offset as u16);
         self.global_offset += size;
         addr

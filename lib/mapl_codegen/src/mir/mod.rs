@@ -204,9 +204,9 @@ pub enum MaplInstruction {
     Not(Box<MaplInstruction>),
     Push(MaplLiteral),
     Pushaddr(MemoryAddress),
-    #[allow(unused)]
+    #[expect(unused)]
     Out(MaplType),
-    #[allow(unused)]
+    #[expect(unused)]
     In(MaplType),
     Pop(MaplType),
     Load(MaplType),

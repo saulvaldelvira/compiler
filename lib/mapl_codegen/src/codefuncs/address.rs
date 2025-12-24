@@ -66,19 +66,7 @@ impl Address for Expression<'_> {
                 }
             }
             ExpressionKind::Deref(r) => r.eval(cg),
-            ExpressionKind::Ref(_)
-            | ExpressionKind::Array(_)
-            | ExpressionKind::Unary { .. }
-            | ExpressionKind::Logical { .. }
-            | ExpressionKind::Comparison { .. }
-            | ExpressionKind::Arithmetic { .. }
-            | ExpressionKind::Assignment { .. }
-            | ExpressionKind::Literal(_)
-            | ExpressionKind::Cast { .. }
-            | ExpressionKind::Block { .. }
-            | ExpressionKind::If { .. }
-            | ExpressionKind::Call { .. }
-            | _ => {
+            _ => {
                 unreachable!("We can't address a {:#?}", self.kind);
             }
         }

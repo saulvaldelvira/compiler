@@ -21,13 +21,13 @@ pub fn validate_ast(prog: &Module, em: &mut ErrorManager) {
 
 impl AstValidator<'_> {
     fn warn_unnecesary_paren(&mut self, no_paren: &Expression, precedence: u8) {
-        if let ExpressionKind::Paren(p) = &no_paren.kind {
-            if p.val.precedence() >= precedence {
+        if let ExpressionKind::Paren(p) = &no_paren.kind
+            && p.val.precedence() >= precedence
+        {
                 self.em.emit_warning(Error {
                     kind: ErrorKind::UnnecesaryParenthesis,
                     span: no_paren.span,
                 });
-            }
         }
     }
 }

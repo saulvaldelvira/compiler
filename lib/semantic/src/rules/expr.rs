@@ -130,13 +130,11 @@ impl SemanticRule<'_> for ValidateArrayAccess<'_> {
             });
         }
 
-        if let Some(ind) = index_ty {
-            if !ind.is_integer() {
+        if let Some(ind) = index_ty && !ind.is_integer() {
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::NonIntegerIndex,
                     span: self.index.span,
                 });
-            }
         }
 
         match arr_ty {
@@ -313,10 +311,10 @@ impl SemanticRule<'_> for ValidateCall<'_> {
         };
 
         let mut src_params = self.args.iter();
-        let mut dst_params = params.iter();
+        let dst_params = params.iter();
 
         let mut error = false;
-        while let Some(expected_param) = dst_params.next() {
+        for expected_param in dst_params {
             let Some(src_param) = src_params.next() else {
                 em.emit_error(SemanticError {
                     kind: SemanticErrorKind::MismatchedArgsNum {
@@ -461,7 +459,7 @@ impl<'sem> SemanticRule<'sem> for ValidateTupleAccess<'_> {
 
         if self.index as usize >= tys.len() {
             em.emit_error(SemanticError {
-                kind: SemanticErrorKind::InvalidIndexForTuple(self.index, tys.len() as u16),
+                kind: SemanticErrorKind::InvalidIndexForTuple(self.index, u16::try_from(tys.len()).unwrap() ),
                 span: self.span,
             });
             return None
@@ -496,7 +494,7 @@ impl<'sem> SemanticRule<'sem> for ValidateArrayExpr<'_> {
             }
         }
 
-        let arr_ty = sem.get_or_intern_type(TypeKind::Array(expected_ty, self.exprs.len() as _));
+        let arr_ty = sem.get_or_intern_type(TypeKind::Array(expected_ty, u32::try_from(self.exprs.len()).unwrap()));
         Some(arr_ty.id)
     }
 }

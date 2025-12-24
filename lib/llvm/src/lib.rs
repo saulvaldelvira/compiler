@@ -5,11 +5,10 @@
     clippy::ptr_cast_constness,
 )]
 
-#[allow(
+#[expect(
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
-    clippy::pedantic,
 )]
 /// FFI bindings to the LLVM C API
 pub mod ffi;

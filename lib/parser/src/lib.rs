@@ -190,11 +190,7 @@ impl Parser<'_, '_> {
             span = span.join(&l.span);
         }
 
-        let wc = if dc.is_some() {
-            Some((dc.unwrap(), star.unwrap()))
-        } else {
-            None
-        };
+        let wc = dc.map(|dc| (dc, star.unwrap()));
 
         Ok((Path { start_collon: from_root, span, segments}, wc))
     }

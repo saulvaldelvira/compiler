@@ -180,7 +180,7 @@ impl HirPrinter<'_, '_> {
         }
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn serialize_expr(&self, expr: &Expression<'_>) -> Node {
         let mut title = vec![/* Node::Id(expr.id) */];
 

@@ -143,14 +143,13 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
         }
     }
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn add_token(&self, kind: TokenKind) -> Option<Token> {
         Some(Token {
             kind,
             span: self.c.current_span(),
         })
     }
-    #[allow(clippy::too_many_lines)]
     fn scan_token(&mut self) -> Option<Token> {
         match self.c.advance() {
             '(' => self.add_token(TokenKind::LeftParen),

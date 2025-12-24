@@ -362,7 +362,7 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 let tty = cg.semantic.type_of(&tuple.id).unwrap().codegen(cg);
                 let tuple = tuple.address(cg);
                 let zero = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), 0);
-                let idx = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), *index as u64);
+                let idx = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), u64::from(*index));
                 cg.builder().gep(tty, tuple, &mut [zero, idx], "tmp_gep")
             }
             EK::Deref(expr) => expr.value(cg),
@@ -426,7 +426,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::BlockExpr<'hir> {
 }
 
 impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn value_opt(&'hir self, cg: &mut CodegenState<'cg, 'llvm, 'hir>) -> Option<llvm::Value<'llvm>> {
         use hir::expr::ExpressionKind as EK;
         use hir::expr::{UnaryOp, LogicalOp, ArithmeticOp, LitValue};
@@ -644,8 +644,8 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
     }
 }
 
-fn codgen_if<'cg, 'hir, 'llvm>(
-    cg: &mut CodegenState<'cg, 'llvm, 'hir>,
+fn codgen_if<'hir, 'llvm>(
+    cg: &mut CodegenState<'_, 'llvm, 'hir>,
     cond: &'hir hir::Expression<'hir>,
     if_true: &'hir hir::Expression<'hir>,
     if_false: Option<&'hir hir::Expression<'hir>>
@@ -693,7 +693,6 @@ fn codgen_if<'cg, 'hir, 'llvm>(
 impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
     type Output = ();
 
-    #[allow(clippy::too_many_lines)]
     fn codegen(&self, cg: &mut CodegenState<'_, 'cg, 'hir>) {
         match &self.kind {
             StatementKind::Expr(expr) => {
@@ -848,18 +847,18 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
     fn codegen(&self, cg: &mut CodegenState<'_, 'cg, '_>) -> Self::Output {
         match &self.kind {
             TypeKind::Primitive(prim) => match prim {
-                PrimitiveType::I8 => llvm::Type::int(8, cg.llvm_ctx),
-                PrimitiveType::I16 => llvm::Type::int(16, cg.llvm_ctx),
-                PrimitiveType::I32 => llvm::Type::int(32, cg.llvm_ctx),
-                PrimitiveType::I64 => llvm::Type::int(64, cg.llvm_ctx),
+                PrimitiveType::I8 |
                 PrimitiveType::U8 => llvm::Type::int(8, cg.llvm_ctx),
+                PrimitiveType::I16 |
                 PrimitiveType::U16 => llvm::Type::int(16, cg.llvm_ctx),
+                PrimitiveType::I32 |
                 PrimitiveType::U32 => llvm::Type::int(32, cg.llvm_ctx),
+                PrimitiveType::I64 |
                 PrimitiveType::U64 => llvm::Type::int(64, cg.llvm_ctx),
                 PrimitiveType::F32 => llvm::Type::float_32(cg.llvm_ctx),
                 PrimitiveType::F64 => llvm::Type::float_64(cg.llvm_ctx),
-                PrimitiveType::Bool => llvm::Type::int_1(cg.llvm_ctx),
-                PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
+                PrimitiveType::Bool
+                | PrimitiveType::Char => llvm::Type::int_1(cg.llvm_ctx),
             },
             TypeKind::Function { is_variadic, params, ret_ty } => {
                 let mut params_tys: TinyVec<_, 8> = params.iter().map(|param| {

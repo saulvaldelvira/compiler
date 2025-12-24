@@ -184,7 +184,6 @@ impl SourceMap {
     ///
     /// Returns a reference to the newly created file
     pub fn add_file(&mut self, fname: FileName, contents: Rc<str>) -> &SourceFile {
-        #[allow(clippy::cast_possible_truncation)]
         let offset = match self.files.last() {
             Some(file) => file.offset + file.len(),
             None => 0

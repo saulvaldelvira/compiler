@@ -67,7 +67,7 @@ impl Eval for BlockExpr<'_> {
 
 impl Eval for Expression<'_> {
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn eval(&self, cg: &mut CodeGenerator) -> MaplInstruction {
         use hir::expr::ExpressionKind;
         match &self.kind {
@@ -197,7 +197,7 @@ impl Eval for Expression<'_> {
                 let ty = MaplType::from(ty);
                 MaplInstruction::Compose(Box::new([self.address(cg), MaplInstruction::Load(ty)]))
             },
-            ExpressionKind::Block { .. } | _ => todo!(),
+            _ => todo!(),
         }
     }
 }
