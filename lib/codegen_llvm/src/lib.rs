@@ -348,9 +348,17 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 alloca
             }
             EK::StructAccess(StructAccess { st, field }) => {
-                let sty = cg.semantic.type_of(&st.id).unwrap();
+                let mut sty = cg.semantic.type_of(&st.id).unwrap();
+                /* Perform auto-deref */
+                let st =
+                    if let TypeKind::Ref(r) = sty.kind {
+                        sty = r;
+                        debug_assert!(!sty.is_pointer(), "Autoderef on nested pointer should be catched by the type checker");
+                        st.value(cg)
+                    } else {
+                        st.address(cg)
+                    };
                 let idx = sty.field_index_of(field.sym).unwrap();
-                let st = st.address(cg);
                 let sty = *cg.types.get(&sty.id).unwrap();
 
                 let zero = Value::const_int(llvm::Type::int_32(cg.llvm_ctx), 0);

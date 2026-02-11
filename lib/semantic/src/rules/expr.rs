@@ -5,6 +5,7 @@ use hir::{Expression, Ident, expr::ExpressionKind};
 use span::Span;
 
 use super::SemanticRule;
+use crate::errors::{SemanticWarning, SemanticWarningKind};
 use crate::{
     Ty, TypeId, TypeKind,
     errors::{SemanticError, SemanticErrorKind},
@@ -191,7 +192,18 @@ impl SemanticRule<'_> for ValidateFieldAccess<'_> {
     type Result = Option<TypeId>;
 
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
-        let struct_ty = sem.type_of(&self.st.id)?;
+        let mut struct_ty = sem.type_of(&self.st.id)?;
+
+        if let TypeKind::Ref(r) = struct_ty.kind {
+            struct_ty = r;
+        }
+        if let TypeKind::Ref(_) = struct_ty.kind {
+            em.emit_warning(SemanticWarning {
+                kind: SemanticWarningKind::DoubleAutoderefOnFieldAccess,
+                span: self.st.span,
+            });
+        }
+
 
         struct_ty
             .access_field(&self.field.sym)
