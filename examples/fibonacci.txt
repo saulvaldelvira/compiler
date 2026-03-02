@@ -2,16 +2,23 @@
 extern fn printf(fmt: &char, ...) -> i32;
 extern fn atoi(input: &char, ...) -> i32;
 
-fn fib(n: i32) -> i32 {
-    if (n == 0 || n == 1)
-        return n;
-    return fib(n - 1) + fib(n - 2);
+fn fib(n: i32) -> u64 {
+    let n1: u64 = 0;
+    let n2: u64 = 1;
+    let next: u64 = 1;
+    for (let i: i32 =0; i < n; i = i+1) {
+        next = n1 + n2;
+        n1 = n2;
+        n2 = next;
+    }
+    return n1;
 }
 
 fn main(argc: i32, argv: &&char) {
     let n: i32 = 5;
-    if (argc >= 2)
+    if argc >= 2 {
         n = atoi(argv[1]);
+    }
 
-    printf("fib(%d) = %d", n, fib(n));
+    printf("fib(%d) = %lu", n, fib(n));
 }

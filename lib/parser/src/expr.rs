@@ -11,23 +11,33 @@ use crate::error::ParseErrorKind;
 
 impl Parser<'_, '_> {
     pub(super) fn expression(&mut self) -> Result<Expression> {
-        if let Some(bexpr) = self.try_block_expr() {
-            bexpr
-        } else if let Some(ifexpr) = self.try_if_expr() {
-            ifexpr
-        } else {
-            self.assignment()
+        match self.try_expression() {
+            Ok(Some(e)) => Ok(e),
+            Err(err) => Err(err),
+            Ok(None) => Err(ParseErrorKind::ExpectedNode("Expression"))
         }
     }
 
-    pub(super) fn try_expression(&mut self) -> Option<Expression> { self.expression().ok() }
+    pub(super) fn try_expression(&mut self) -> Result<Option<Expression>> {
+        Ok(Some(if let Some(bexpr) = self.try_block_expr() {
+            bexpr?
+        } else if let Some(ifexpr) = self.try_if_expr() {
+            ifexpr?
+        } else {
+            match self.assignment() {
+                Err(ParseErrorKind::ExpectedConstruct { expected: "expression", .. }) => return Ok(None),
+                Ok(val) => val,
+                Err(err) => return Err(err),
+            }
+        }))
+     }
 
     pub(super) fn try_block_expr(&mut self) -> Option<Result<Expression>> {
        self.check(TokenKind::LeftBrace).then(|| self.block_expr())
     }
 
     fn block_body(&mut self, stmts: &mut Vec<Statement>, expr: &mut Option<Expression>) -> Result<bool> {
-        if let Some(e) = self.try_expression() {
+        if let Some(e) = self.try_expression()? {
             if self.check(TokenKind::RightBrace) {
                 *expr = Some(e);
                 return Ok(true)

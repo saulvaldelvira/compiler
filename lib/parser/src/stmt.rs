@@ -68,7 +68,7 @@ impl Parser<'_, '_> {
 
     fn ret_stmt(&mut self) -> Result<Statement> {
         let kw_ret = self.previous_span()?;
-        let expr = self.try_expression();
+        let expr = self.try_expression()?;
         let semmicollon = self.consume(TokenKind::Semicolon)?.span;
         Ok(Statement {
             kind: StatementKind::Return {
