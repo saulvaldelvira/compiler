@@ -19,6 +19,7 @@ pub const fn escape_char(c: char) -> Option<char> {
         '\\' => '\\',
         '\'' => '\'',
         '"' => '\"',
+        '0' => '\0',
         _ => return None,
     };
     Some(c)

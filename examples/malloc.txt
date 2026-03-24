@@ -7,6 +7,7 @@ fn main() {
     let buf: &char;
 
     buf = malloc(120 as u64);
+    buf[0] = '\0';
 
     strcat(buf, "Woo, I'm using dynamic memory. ");
     strcat(buf, "So cool!");
