@@ -6,14 +6,26 @@ fn main() {
     }) {
         return
     }
+    
+    let cmd = 
+        Command::new("llvm-config")
+        .arg("--libdir")
+        .arg("--libs")
+        .output();
 
-    let out = Command::new("llvm-config")
-                        .arg("--libdir")
-                        .arg("--libs")
-                        .output()
-                        .unwrap()
-                        .stdout;
-    let out = String::from_utf8(out).unwrap();
+    let Ok(out) = cmd else {        
+        if let Ok(llvm_home) = std::env::var("LLVM_HOME") {
+            println!("cargo::rustc-link-search={llvm_home}");
+        }
+        if let Ok(llvm_c) = std::env::var("LLVM_LIB_NAME") {
+            println!("cargo::rustc-link-lib={llvm_c}");
+        } else {
+            println!("cargo::rustc-link-lib=LLVM-C");
+        }
+        return
+    };
+
+    let out = String::from_utf8(out.stdout).unwrap();
 
     let mut split = out.lines();
     let libdir = split.next().unwrap();

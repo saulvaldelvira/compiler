@@ -61,7 +61,10 @@ impl Config {
             Emit::Mapl => "mapl",
             Emit::LlvmIr => "ll",
             Emit::Asm => "s",
-            Emit::Bin => "out",
+            Emit::Bin => {
+                #[cfg(windows)] { "exe" }
+                #[cfg(not(windows))] { "out" }
+            },
         }
     }
 }

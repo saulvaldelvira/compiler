@@ -78,10 +78,11 @@ fn main() {
             Output::ForBin(modules) => {
                 gen_llvm(&comp, &modules);
 
-                let out = conf.out_file.as_deref().unwrap_or("a.out");
+                let out = conf.out_file.clone()
+                                      .unwrap_or_else(|| format!("a.{}", conf.get_extension()));
 
                 let mut gcc = Command::new("clang");
-                gcc.args(["-Wno-override-module", "-o", out]);
+                gcc.args(["-Wno-override-module", "-o", &out]);
 
                 for file in comp.source().borrow().files() {
                     let mut path = PathBuf::from(file.path().unwrap());
