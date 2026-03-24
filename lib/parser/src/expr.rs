@@ -358,7 +358,8 @@ impl Parser<'_, '_> {
                     else { return Ok(None) };
                 let lit = Unescaped::from(lit)
                     .next()
-                    .ok_or_else(|| ParseErrorKind::InvalidEscape(lit.to_string()))?;
+                    .unwrap()
+                    .map_err(|_| ParseErrorKind::InvalidEscape(lit.to_string()))?;
                 spanned_lit!(Char, lit)
             } else {
                 return Ok(None);

@@ -284,7 +284,10 @@ impl<'lex, 'src> Lexer<'lex, 'src> {
             }
             if self.c.peek() == '\\' {
                 self.c.advance();
-                self.c.advance();
+                let c = self.c.advance();
+                if unescaped::escape_char(c).is_none() {
+                    self.error(LexerErrorKind::InvalidEscape(c));
+                }
             }
         }
         self.add_token(TokenKind::String)

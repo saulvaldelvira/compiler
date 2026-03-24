@@ -564,7 +564,7 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                     LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val), cg.llvm_ctx),
                     LitValue::Str(s) => s.borrow(|literal| {
                         let literal = &literal[1..literal.len() - 1];
-                        let literal: TinyString = Unescaped::from(literal).collect();
+                        let literal: TinyString = Unescaped::from(literal).map(Result::unwrap).collect();
                         let s = llvm::Value::const_string(&literal, true, cg.llvm_ctx);
                         let ty = s.get_type();
                         let mut global = cg.curr_mod.as_mut().unwrap().add_global(ty, "LitStr");

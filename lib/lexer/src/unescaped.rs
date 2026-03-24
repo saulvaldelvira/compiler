@@ -2,6 +2,12 @@
 
 use std::{char, str::Chars};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EscapeError {
+    InvalidEscape(char),
+    MissingCharAfterSlash,
+}
+
 /// Escapes the given char.
 ///
 /// # Example
@@ -35,14 +41,17 @@ pub struct Unescaped<'src> {
 }
 
 impl Iterator for Unescaped<'_> {
-    type Item = char;
+    type Item = Result<char, EscapeError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let c = self.chars.next()?;
         if c == '\\' {
-            escape_char(self.chars.next()?)
+            let Some(c) = self.chars.next() else {
+                return Some(Err(EscapeError::MissingCharAfterSlash));
+            };
+            Some(escape_char(c).ok_or(EscapeError::InvalidEscape(c)))
         } else {
-            Some(c)
+            Some(Ok(c))
         }
     }
 }
@@ -52,5 +61,22 @@ impl<'src> From<&'src str> for Unescaped<'src> {
         Self {
             chars: value.chars(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::unescaped::{EscapeError, Unescaped};
+
+    #[test]
+    fn test() {
+        let res: String = Unescaped::from("abc\\n").map(Result::unwrap).collect();
+        assert_eq!(res, "abc\n");
+
+        let err = Unescaped::from("abc\\?").skip_while(|s| s.is_ok()).next().unwrap();
+        assert_eq!(err, Err(EscapeError::InvalidEscape('?')));
+
+        let err = Unescaped::from("abc\\").skip_while(|s| s.is_ok()).next().unwrap();
+        assert_eq!(err, Err(EscapeError::MissingCharAfterSlash));
     }
 }

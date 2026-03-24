@@ -5,6 +5,7 @@ pub enum LexerErrorKind {
     ExpectedClosingTickOnCharLiteral,
     UnterminatedComment,
     UnterminatedString,
+    InvalidEscape(char),
 }
 
 pub struct LexerError {
@@ -25,6 +26,7 @@ impl error_manager::Error for LexerError {
             }
             LexerErrorKind::UnterminatedComment => write!(out, "Unterminated comment"),
             LexerErrorKind::UnterminatedString => write!(out, "Unterminated string"),
+            LexerErrorKind::InvalidEscape(c) => write!(out, "Invalid escape '\\{c}'"),
         }
     }
 }
