@@ -381,8 +381,30 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         constness: hir::Constness,
     ) -> Self::Result {
         walk_variable_definition(self, base, name, ty, init, constness);
-        let ty = ty.expect("TODO: Infer types");
-        let ty = self.lowerer.lower_hir_type(ty);
+        let ty = match ty {
+            Some(ty) => {
+                let left_ty = self.lowerer.lower_hir_type(ty);
+                if let Some(expr) = init {
+                    let exprty = self.semantic.type_of(&expr.id).unwrap();
+                    if exprty.promote_to(left_ty).is_none() {
+                        self.em.emit_error(SemanticError {
+                            span: expr.span,
+                            kind: SemanticErrorKind::InvalidCast {
+                                from: format!("{exprty}"),
+                                to: format!("{left_ty}"),
+                            }
+                        });
+                    }
+                }
+                left_ty
+            },
+            None => {
+                match init {
+                    Some(expr) => self.semantic.type_of(&expr.id).unwrap(),
+                    None => panic!("Can't infer type of a variable without an init expression"),
+                }
+            }
+        };
         self.semantic.set_type_of(base.id, ty.id);
     }
 
