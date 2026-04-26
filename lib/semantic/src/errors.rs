@@ -26,6 +26,7 @@ pub enum SemanticErrorKind {
     TupleAccessOnNonTuple(String),
     InvalidIndexForTuple(u16, u16),
     MismatchedArrayTypes(String, String),
+    CantInfer,
 }
 
 pub struct SemanticError {
@@ -105,6 +106,9 @@ impl error_manager::Error for SemanticError {
             }
             SemanticErrorKind::MismatchedArrayTypes(expected, found) => {
                 write!(out, "Unexpected type on array literal. Expected {expected}, found {found}")
+            }
+            SemanticErrorKind::CantInfer => {
+                write!(out, "Can't infer type of a variable without an init expression")
             }
         }
     }

@@ -1,0 +1,11 @@
+fn main() {
+    let a = 12;
+    let a_ty: i32 = a;
+
+    let f: f32 = 1.2;
+
+    let felid = f;
+    let felid2 = 1.2;
+
+    felid = felid2;
+}

@@ -78,11 +78,12 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
             .get()
             .unwrap();
 
-        let ty = self
-            .semantic
-            .type_id_of(&node)
-            .unwrap_or_else(|| todo!("Infer types"));
-        self.semantic.set_type_of(base.id, ty);
+        self
+        .semantic
+        .type_id_of(&node)
+        .inspect(|&ty| {
+            self.semantic.set_type_of(base.id, ty);
+        });
     }
 
     fn visit_struct_access(
@@ -381,9 +382,38 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         constness: hir::Constness,
     ) -> Self::Result {
         walk_variable_definition(self, base, name, ty, init, constness);
-        let ty = ty.expect("TODO: Infer types");
-        let ty = self.lowerer.lower_hir_type(ty);
-        self.semantic.set_type_of(base.id, ty.id);
+        let ty = match ty {
+            Some(ty) => {
+                let left_ty = self.lowerer.lower_hir_type(ty);
+                if let Some(expr) = init {
+                    let exprty = self.semantic.type_of(&expr.id).unwrap();
+                    if exprty.promote_to(left_ty).is_none() {
+                        self.em.emit_error(SemanticError {
+                            span: expr.span,
+                            kind: SemanticErrorKind::InvalidCast {
+                                from: format!("{exprty}"),
+                                to: format!("{left_ty}"),
+                            }
+                        });
+                    }
+                }
+                Some(left_ty)
+            },
+            None => {
+                if let Some(expr) = init {
+                    self.semantic.type_of(&expr.id)
+                } else {
+                    self.em.emit_error(SemanticError {
+                        span: base.span,
+                        kind: SemanticErrorKind::CantInfer,
+                    });
+                    None
+                }
+            }
+        };
+        if let Some(ty) = ty {
+            self.semantic.set_type_of(base.id, ty.id);
+        }
     }
 
     fn visit_param(&mut self, param: &'hir hir::Param<'hir>) -> Self::Result {
