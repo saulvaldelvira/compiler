@@ -28,6 +28,7 @@ pub struct FileId(usize);
 
 impl FileId {
     pub fn from_offset(off: usize) -> Self { Self(off) }
+    pub fn as_usize(&self) -> usize { self.0 }
 }
 
 /// A source file for the compiler

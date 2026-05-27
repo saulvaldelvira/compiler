@@ -1,45 +1,27 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs, process};
 
 pub mod config;
 use compiler_driver::{Compiler, Output};
 use config::Config;
-use span::source::{FileId, FileName};
-
-fn gen_llvm(comp: &Compiler, mods: &HashMap<FileId, String>) {
-    let src = comp.source().borrow();
-    for (id, code) in mods {
-        let file = src.get_file_for_id(id).unwrap();
-        match &file.fname {
-            FileName::Path(path) => {
-                let mut path = path.clone();
-                path.set_extension("ll");
-                fs::write(path, code).unwrap();
-            },
-            FileName::Stdin => todo!(),
-            FileName::Annon => todo!(),
-        }
-    }
-}
-
-fn gen_asm(comp: &Compiler, mods: &HashMap<FileId, String>) {
-    gen_llvm(comp, mods);
-
-    for f in comp.source().borrow().files() {
-        let mut path = PathBuf::from(f.path().unwrap());
-        path.set_extension("ll");
-        Command::new("llc")
-            .arg(path)
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap();
-    }
-}
+use span::source::FileName;
 
 fn main() {
+    let mut tmp_dir = {
+        let tmp_path = ["/dev/shm", "/tmp"]
+            .into_iter()
+            .find(|f| fs::exists(f).is_ok_and(|v| v))
+            .unwrap_or(".compiler_cache");
+        let mut path = PathBuf::from(tmp_path);
+        while path.exists() {
+            path.push(process::id().to_string());
+        }
+        let _ = fs::create_dir(&path);
+        path
+    };
+
+
     let conf = Config::parse(env::args());
     for file in &conf.files {
         let comp = Compiler::from_filename(file).unwrap_or_else(|err| {
@@ -70,60 +52,66 @@ fn main() {
                 println!("Program written to {}", fname.display());
             }
             Output::LlvmIr(modules) => {
-                gen_llvm(&comp, &modules);
+                let src = comp.source().borrow();
+                for (id, code) in &modules {
+                    let file = src.get_file_for_id(id).unwrap();
+                    match &file.fname {
+                        FileName::Path(path) => {
+                            let mut path = path.clone();
+                            path.set_extension("ll");
+                            fs::write(path, code).unwrap();
+                        },
+                        FileName::Stdin => todo!(),
+                        FileName::Annon => todo!(),
+                    }
+                }
             }
             Output::Asm(modules) => {
-                gen_asm(&comp, &modules);
+                let src = comp.source().borrow();
+                for (id, code) in &modules {
+                    let file = src.get_file_for_id(id).unwrap();
+                    match &file.fname {
+                        FileName::Path(path) => {
+                            let mut path = path.clone();
+                            path.set_extension("S");
+
+                            tmp_dir.push("tmp.ll");
+                            fs::write(&tmp_dir, code).unwrap();
+                            Command::new("llc")
+                                .arg(&tmp_dir)
+                                .arg("-o")
+                                .arg(&path)
+                                .spawn()
+                                .unwrap()
+                                .wait()
+                                .unwrap();
+                            tmp_dir.pop();
+                        },
+                        FileName::Stdin => todo!(),
+                        FileName::Annon => todo!(),
+                    }
+                }
             }
             Output::ForBin(modules) => {
-                gen_llvm(&comp, &modules);
-
                 let out = conf.out_file.clone()
                                       .unwrap_or_else(|| format!("a.{}", conf.get_extension()));
 
                 let mut gcc = Command::new("clang");
                 gcc.args(["-Wno-override-module", "-o", &out]);
 
-                for file in comp.source().borrow().files() {
-                    let mut path = PathBuf::from(file.path().unwrap());
-                    path.set_extension("ll");
-                    gcc.arg(path);
+                for (id, code) in &modules {
+                    tmp_dir.push(id.as_usize().to_string());
+                    tmp_dir.set_extension("ll");
+                    fs::write(&tmp_dir, code).unwrap();
+                    gcc.arg(&tmp_dir);
+                    tmp_dir.pop();
                 }
 
                 gcc.spawn().unwrap().wait().unwrap();
                 println!("Program written to {out}");
-
-                for file in comp.source().borrow().files() {
-                    let mut path = PathBuf::from(file.path().unwrap());
-
-                    path.set_extension("ll");
-                    fs::remove_file(path).unwrap();
-                }
             }
         }
 
     }
-    if conf.files.is_empty() {
-        /* let comp = Compiler::from_stdin().unwrap_or_else(|err| { */
-        /*     eprintln!("Error reading stdin: {err}"); */
-        /*     process::exit(1); */
-        /* }); */
-        /* if conf.check { */
-        /*     comp.check().unwrap_or_else(|| { */
-        /*         eprintln!("Check failed"); */
-        /*         process::exit(1); */
-        /*     }); */
-        /*     process::exit(0); */
-        /* } */
-        /* let Some(out) = comp.process(conf.emit) else { */
-        /*     return; */
-        /* }; */
-        /* match conf.out_file { */
-        /*     Some(f) => { */
-        /*         fs::write(&f, out).unwrap(); */
-        /*         println!("Program written to {f}"); */
-        /*     } */
-        /*     None => println!("{out}"), */
-        /* } */
-    }
+    fs::remove_dir_all(tmp_dir).unwrap();
 }
