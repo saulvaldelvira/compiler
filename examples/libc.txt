@@ -7,3 +7,14 @@ mod stdio {
 
     extern fn printf(fmt: &char, ...) -> c_int;
 }
+
+mod stdlib {
+    extern fn rand() -> i32;
+    extern fn srand(seed: i32);
+}
+
+mod time {
+    use i64 as time_t;
+
+    extern fn time(p: &time_t) -> time_t;
+}

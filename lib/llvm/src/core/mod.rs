@@ -165,8 +165,8 @@ impl<'ctx> Value<'ctx> {
         Self::const_float(Type::float_64(ctx), val)
     }
 
-    pub fn const_f32(val: f32, ctx: &'ctx Context) -> Self {
-        Self::const_float(Type::float_32(ctx), val as f64)
+    pub fn const_f32(val: f64, ctx: &'ctx Context) -> Self {
+        Self::const_float(Type::float_32(ctx), val)
     }
 
     pub fn const_string(contents: &str, null_terminate: bool, _ctx: &'ctx Context) -> Self {

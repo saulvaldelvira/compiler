@@ -560,7 +560,16 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                         let bytes = i64::from(*ival).to_le_bytes();
                         llvm::Value::const_int32(u64::from_le_bytes(bytes), cg.llvm_ctx)
                     },
-                    LitValue::Float(f) => llvm::Value::const_f64(*f, cg.llvm_ctx),
+                    LitValue::Float(f) => {
+                        let TypeKind::Primitive(prim) = cg.semantic.type_of(&self.id).unwrap().kind else {
+                            unreachable!()
+                        };
+                        if prim == PrimitiveType::F32 {
+                            llvm::Value::const_f32(*f, cg.llvm_ctx)
+                        } else {
+                            llvm::Value::const_f64(*f, cg.llvm_ctx)
+                        }
+                    },
                     LitValue::Bool(val) => llvm::Value::const_int1(u64::from(*val), cg.llvm_ctx),
                     LitValue::Str(s) => s.borrow(|literal| {
                         let literal = &literal[1..literal.len() - 1];
@@ -603,7 +612,11 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
 
                 if src_ty.is_integer() && dst_ty.is_integer() {
                    cg.builder().int_cast(&value, &to, dst_ty.is_signed(), "tmp_cast")
-                } else {
+                }
+                else if src_ty.is_real() && dst_ty.is_real() {
+                   cg.builder().float_cast(&value, &to, "tmp_cast")
+                }
+                else {
                     cg.builder().bit_cast(&value, &to, "tmp_cast")
                 }
             }

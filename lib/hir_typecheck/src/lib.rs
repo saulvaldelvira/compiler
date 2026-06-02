@@ -290,7 +290,7 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         use hir::expr::LitValue;
         let ty = match lit {
             LitValue::Int(_) => &Type::I32,
-            LitValue::Float(_) => &Type::F32,
+            LitValue::Float(_) => &Type::F64,
             LitValue::Bool(_) => &Type::BOOL,
             LitValue::Char(_) => &Type::CHAR,
             LitValue::Str(_) => {

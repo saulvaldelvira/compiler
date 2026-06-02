@@ -199,6 +199,14 @@ impl<'ty> Ty<'ty> {
     }
 
     #[inline]
+    pub const fn is_real(&self) -> bool {
+        matches!(
+            self.kind,
+            TypeKind::Primitive(PrimitiveType::F32 | PrimitiveType::F64)
+        )
+    }
+
+    #[inline]
     pub const fn is_signed(&self) -> bool {
         matches!(self.kind, TypeKind::Primitive(PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64))
     }

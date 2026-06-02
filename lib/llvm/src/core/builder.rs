@@ -2,7 +2,7 @@ use core::ffi::{c_char, c_int};
 use core::marker::PhantomData;
 
 use crate::core::{BasicBlock, Value};
-use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildArrayAlloca, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
+use crate::ffi::{LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildArrayAlloca, LLVMBuildBitCast, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildFCmp, LLVMBuildFDiv, LLVMBuildFPCast, LLVMBuildFRem, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildIntCast2, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNeg, LLVMBuildNot, LLVMBuildOr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSRem, LLVMBuildSelect, LLVMBuildStore, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildURem, LLVMBuildUnreachable, LLVMBuilderRef, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMIntPredicate, LLVMPositionBuilderAtEnd, LLVMRealPredicate, LLVMValueRef};
 use crate::{Context, Type};
 
 pub struct Builder<'ctx> {
@@ -282,6 +282,11 @@ impl<'ctx> Builder<'ctx> {
     pub fn int_cast(&mut self, val: &Value<'ctx>, to: &Type<'ctx>, is_signed: bool, name: &str) -> Value<'ctx> {
         cstr!(name);
         unsafe { Value(LLVMBuildIntCast2(self.raw, val.0, to.0, is_signed as c_int, name), PhantomData) }
+    }
+
+    pub fn float_cast(&mut self, val: &Value<'ctx>, to: &Type<'ctx>, name: &str) -> Value<'ctx> {
+        cstr!(name);
+        unsafe { Value(LLVMBuildFPCast(self.raw, val.0, to.0, name), PhantomData) }
     }
 
     pub fn branch(&mut self, block: &mut BasicBlock) -> Value<'ctx> {
