@@ -29,6 +29,7 @@ pub enum ParseErrorKind {
     ReadFile(PathBuf, io::Error),
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub span: Span,
