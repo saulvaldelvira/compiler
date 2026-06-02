@@ -140,6 +140,9 @@ impl<'ty> TypeKind<'ty> {
     }
 
     pub fn can_be_promoted_to(&self, o: &TypeKind<'ty>) -> bool {
+        if let (Self::Tuple([]), Self::Tuple([])) = (self, o) {
+            return true
+        }
         if let (Self::Ref(r1), Self::Ref(r2)) = (self, o) {
             return r1.kind == r2.kind;
         }

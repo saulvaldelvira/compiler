@@ -720,7 +720,14 @@ impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
                 expr.execute(cg);
             },
             StatementKind::Return(expr) => {
-                let val = expr.map(|expr| expr.value(cg));
+                let val = match expr {
+                    Some(expr) => {
+                        let val = expr.value(cg);
+                        (!cg.semantic.type_of(&expr.id).unwrap().is_empty_type())
+                        .then_some(val)
+                    },
+                    None => None,
+                };
                 cg.builder().ret(val);
             },
             StatementKind::While { cond, body } => {
