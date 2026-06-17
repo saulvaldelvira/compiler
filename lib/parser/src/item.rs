@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ast::{Item, ItemKind, ModuleBody, Symbol, UseTarget};
+use ast::{Item, ItemKind, ModuleBody, StructBody, Symbol, UseTarget};
 use ast::{
     item::{Field, Param, VariableConstness},
     Block, Module,
@@ -174,6 +174,19 @@ impl Parser<'_, '_> {
     fn struct_decl(&mut self) -> Result<Item> {
         let kw_struct = self.previous_span()?;
         let name = self.consume_ident_spanned()?;
+
+        if self.match_type(TokenKind::Semicolon) {
+            let semi = self.previous_span().expect("We've just matched above");
+            return Ok(Item {
+                span: kw_struct.join(&semi),
+                kind: ItemKind::Struct {
+                    kw_struct,
+                    name,
+                    body: StructBody::Semicollon(semi)
+                }
+            })
+        }
+
         let lb = self.consume(TokenKind::LeftBrace)?.span;
 
         let mut fields = Vec::new();
@@ -206,7 +219,7 @@ impl Parser<'_, '_> {
             kind: ItemKind::Struct {
                 kw_struct,
                 name,
-                fields,
+                body: StructBody::Fields(fields),
             },
             span,
         })

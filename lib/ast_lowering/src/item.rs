@@ -1,5 +1,5 @@
 use ast::item::{Item, VariableConstness};
-use ast::UseTarget;
+use ast::{StructBody, UseTarget};
 use hir::{Constness, Ident, UseItem};
 
 use super::AstLowering;
@@ -102,8 +102,11 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 });
                 HIK::Function(func)
             }
-            IK::Struct { name, fields, .. } => {
-                let fields = self.lower_fields(&fields.val);
+            IK::Struct { name, body, .. } => {
+                let fields = match body {
+                    StructBody::Fields(fields) => self.lower_fields(&fields.val),
+                    StructBody::Semicollon(_) => &[],
+                };
                 let name = self.lower_pathdef(ident(name));
                 HIK::Struct { fields, name }
             },

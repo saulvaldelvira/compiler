@@ -34,6 +34,12 @@ pub enum UseTarget {
 }
 
 #[derive(Debug)]
+pub enum StructBody {
+    Fields(Block<Field>),
+    Semicollon(Span),
+}
+
+#[derive(Debug)]
 pub enum ItemKind {
     Variable {
         constness: VariableConstness,
@@ -55,7 +61,7 @@ pub enum ItemKind {
     Struct {
         kw_struct: Span,
         name: Spanned<Symbol>,
-        fields: Block<Field>,
+        body: StructBody,
     },
     Use {
         kw_use: Span,

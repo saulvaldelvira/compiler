@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use crate::item::{Item, ItemKind, Module};
-use crate::Block;
+use crate::{Block, StructBody};
 use crate::{
     expr::ExpressionKind,
     stmt::{Statement, StatementKind},
@@ -84,9 +84,11 @@ where
             }
             V::Result::output()
         }
-        ItemKind::Struct { fields, .. } => {
-            for f in &fields.val {
-                v.visit_type(&f.ty);
+        ItemKind::Struct { body, .. } => {
+            if let StructBody::Fields(fields) = body {
+                for f in &fields.val {
+                    v.visit_type(&f.ty);
+                }
             }
             V::Result::output()
         },

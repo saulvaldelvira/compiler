@@ -2,9 +2,11 @@
 
 r[item.struct.syntax]
 ```grammar,items
-StructDecl -> `struct` IDENT `{` Fields? `}`
+StructDecl -> `struct` IDENT StructBody
 
-Fields -> Field (`,` Field)* `,`?
+StructBody ->
+    `{` ( Field (`,` Field)* `,`? )? `}`
+    | `;`
 
 Field -> IDENT `:` Type
 ```
