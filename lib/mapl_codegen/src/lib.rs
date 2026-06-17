@@ -38,7 +38,7 @@ where
     ins.push(MaplInstruction::Literal(format!("#SOURCE \"{fname}\"")));
 
 
-    ins.push(MaplInstruction::Call("self_main".to_string()));
+    ins.push(MaplInstruction::Call("root_main".to_string()));
     ins.push(MaplInstruction::Halt);
 
     ins.push(prog.define(&mut cg));

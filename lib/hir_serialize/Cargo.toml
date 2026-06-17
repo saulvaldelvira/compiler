@@ -1,0 +1,13 @@
+[package]
+name = "hir_serialize"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hir = { path = "../hir" }
+jsonrs = "1.4.0"
+semantic = { path = "../semantic" }
+span = { path = "../span" }
+
+[lints]
+workspace = true

@@ -141,7 +141,7 @@ impl Compiler {
     pub fn process(&self, emit: Emit) -> Option<Output> {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
-            Emit::Hir => Output::Hir(hir_print::hir_print_html(&hir_sess, &semantic, &self.source.borrow())),
+            Emit::Hir => Output::Hir(hir_serialize::serialize_json(&hir_sess, &semantic)),
             Emit::Asm | Emit::Bin | Emit::LlvmIr => {
                 let codegen = Codegen::new();
                 let modules = codegen.codegen(&hir_sess, &semantic, &self.source.borrow());
