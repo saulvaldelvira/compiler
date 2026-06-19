@@ -57,7 +57,7 @@ impl Config {
 
     pub fn get_extension(&self) -> &'static str {
         match self.emit {
-            Emit::Hir => "html",
+            Emit::Hir => "json",
             Emit::Mapl => "mapl",
             Emit::LlvmIr => "ll",
             Emit::Asm => "s",
