@@ -1,6 +1,8 @@
 use core::fmt;
 use std::hash::Hash;
 
+use span::Span;
+
 use super::Path;
 use crate::{HirId, hir_id::HirNode, node_map::HirNodeKind};
 
@@ -46,11 +48,6 @@ pub enum TypeKind<'hir> {
     Array(&'hir Type<'hir>, u32),
     Tuple(&'hir [Type<'hir>]),
     Path(Path),
-    Function {
-        is_variadic: bool,
-        params: &'hir [Type<'hir>],
-        ret_ty: &'hir Type<'hir>,
-    },
 }
 
 impl fmt::Debug for TypeKind<'_> {
@@ -77,21 +74,6 @@ impl fmt::Debug for TypeKind<'_> {
                 }
                 Ok(())
             }
-            Self::Function { is_variadic, params, ret_ty } => {
-                write!(f, "fn (")?;
-                let mut first = true;
-                for p in *params {
-                    if !first {
-                        write!(f, ",")?;
-                    }
-                    first = false;
-                    write!(f, "{p:?}")?;
-                }
-                if *is_variadic {
-                    write!(f, ", ...")?;
-                }
-                write!(f, ") -> {ret_ty:?}")
-            }
         }
     }
 }
@@ -114,18 +96,6 @@ impl PartialEq for TypeKind<'_> {
             (Self::Path(l0), Self::Path(r0)) => {
                 l0.last_segment().ident.sym == r0.last_segment().ident.sym
             }
-            (
-                Self::Function {
-                    is_variadic: l_isvariadic,
-                    params: l_params,
-                    ret_ty: l_ret_ty,
-                },
-                Self::Function {
-                    is_variadic: r_isvariadic,
-                    params: r_params,
-                    ret_ty: r_ret_ty,
-                },
-            ) => l_params == r_params && l_ret_ty == r_ret_ty && l_isvariadic == r_isvariadic,
             _ => false,
         }
     }
@@ -137,6 +107,7 @@ impl Eq for TypeKind<'_> {}
 pub struct Type<'hir> {
     pub id: HirId,
     pub kind: TypeKind<'hir>,
+    pub span: Span,
 }
 
 impl fmt::Debug for Type<'_> {
@@ -145,41 +116,9 @@ impl fmt::Debug for Type<'_> {
     }
 }
 
-macro_rules! const_variants {
-    ( $v:ident ) => {
-            pub const $v: Self = Self {
-                kind: TypeKind::Primitive(PrimitiveType::$v),
-                id: HirId::DUMMY,
-            };
-    };
-    ( = $name:ident : $v:ident) => {
-            pub const $name: Self = Self {
-                kind: TypeKind::Primitive(PrimitiveType::$v),
-                id: HirId::DUMMY,
-            };
-    };
-    ($($( = $name:ident :)?  $v:ident),* $(,)?) => {
-        $(
-            const_variants!( $( = $name :)? $v);
-        )*
-    };
-}
-
 impl Type<'_> {
-    const_variants!(I8, I16, I32, I64, U8, U16, U32, U64, F32, F64,
-        = CHAR: Char,
-        = BOOL: Bool,
-    );
-
     pub fn is_empty(&self) -> bool {
         matches!(self.kind, TypeKind::Tuple([]))
-    }
-
-    pub const fn empty() -> &'static Self {
-        &Self {
-            id: HirId::DUMMY,
-            kind: TypeKind::Tuple(&[]),
-        }
     }
 }
 
@@ -194,10 +133,11 @@ impl PartialEq for Type<'_> {
 impl Eq for Type<'_> {}
 
 impl<'hir> Type<'hir> {
-    pub fn new(kind: TypeKind<'hir>) -> Self {
+    pub const fn new(kind: TypeKind<'hir>, span: Span) -> Self {
         Self {
             kind,
             id: HirId::DUMMY,
+            span
         }
     }
 }

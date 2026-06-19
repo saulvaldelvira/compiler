@@ -38,6 +38,6 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
             TypeKind::Path(spanned) => HTK::Path(Self::lower_path(spanned)),
             TypeKind::Ref { of, .. } => HTK::Ref(self.lower_type(of)),
         };
-        hir::Type::new(kind)
+        hir::Type::new(kind, ty.span)
     }
 }

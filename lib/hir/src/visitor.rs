@@ -322,10 +322,6 @@ where
         TypeKind::Array(ty, _) => {
             v.visit_type(ty);
         }
-        TypeKind::Function { is_variadic: _, params, ret_ty } => {
-            walk_iter!(v, params, visit_type);
-            v.visit_type(ret_ty);
-        }
         TypeKind::Primitive(_) => {}
     }
     V::Result::output()
@@ -407,7 +403,7 @@ where
         v.visit_param(p);
     }
     walk_opt!(v, func.body, visit_expression);
-    v.visit_type(func.ret_ty);
+    walk_opt!(v, func.ret_ty, visit_type);
     v.get_ctx().exit_function();
     V::Result::output()
 }

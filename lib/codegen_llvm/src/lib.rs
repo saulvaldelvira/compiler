@@ -927,7 +927,13 @@ fn codegen_function<'hir>(
     item: &'hir hir::Item<'hir>,
     func: &'hir hir::Function<'hir>,
 ) {
-    let hir::Function { is_extern, name, ret_ty, params, body, .. } = func;
+    let hir::Function { is_extern, name, params, body, .. } = func;
+    let Some(semantic::TypeKind::Function { ret_ty, .. })
+        = cg.semantic.type_of(&item.id).map(|t| t.kind)
+    else {
+        panic!("Expected a hir::Function to hace a Function Type");
+    };
+
     let ty = cg.semantic.type_of(&item.id).unwrap();
     let fty = ty.codegen(cg);
 
@@ -964,7 +970,7 @@ fn codegen_function<'hir>(
         let old_f = cg.curr_func.replace(function);
 
         let val = body.expect("A non-extern function MUST have a block").value_opt(cg);
-        if ret_ty.is_empty() {
+        if ret_ty.is_empty_type() {
             cg.builder().ret(None);
         } else if let Some(val) = val {
             cg.builder().ret(Some(val));

@@ -288,19 +288,20 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         lit: &hir::expr::LitValue,
     ) -> Self::Result {
         use hir::expr::LitValue;
+        use semantic::{TypeKind, PrimitiveType};
         let ty = match lit {
-            LitValue::Int(_) => &Type::I32,
-            LitValue::Float(_) => &Type::F64,
-            LitValue::Bool(_) => &Type::BOOL,
-            LitValue::Char(_) => &Type::CHAR,
+            LitValue::Int(_) => TypeKind::Primitive(PrimitiveType::I32),
+            LitValue::Float(_) => TypeKind::Primitive(PrimitiveType::F64),
+            LitValue::Bool(_) => TypeKind::Primitive(PrimitiveType::Bool),
+            LitValue::Char(_) => TypeKind::Primitive(PrimitiveType::Char),
             LitValue::Str(_) => {
-                let ctype = self.semantic.get_or_intern_type(semantic::TypeKind::Primitive(semantic::PrimitiveType::Char));
-                let ty = self.semantic.get_or_intern_type(semantic::TypeKind::Ref(ctype));
+                let ctype = self.semantic.get_or_intern_type(TypeKind::Primitive(PrimitiveType::Char));
+                let ty = self.semantic.get_or_intern_type(TypeKind::Ref(ctype));
                 self.semantic.set_type_of(expr.id, ty.id);
                 return;
             }
         };
-        let ty = self.lowerer.lower_hir_type(ty);
+        let ty = self.semantic.get_or_intern_type(ty);
         self.semantic.set_type_of(expr.id, ty.id);
     }
 
@@ -464,9 +465,14 @@ impl<'hir> Visitor<'hir> for TypeChecking<'_, 'hir, '_> {
         {
             let params = func.params.iter().map(|p| p.ty);
             let params = self.lowerer.lower_hir_types_iter(params);
-            let ret_ty = self.lowerer.lower_hir_type(func.ret_ty);
+            let ret_ty = func.ret_ty
+                             .map_or_else(|| self.semantic.get_or_intern_type(semantic::TypeKind::empty()),
+                                          |ty| self.lowerer.lower_hir_type(ty));
 
-            let func_type = semantic::types::TypeKind::Function { is_variadic: func.is_variadic, params, ret_ty };
+            let func_type = semantic::types::TypeKind::Function {
+                is_variadic: func.is_variadic,
+                params, ret_ty
+            };
             let ty = self.semantic.get_or_intern_type(func_type).id;
             self.semantic.set_type_of(def.id, ty);
         }

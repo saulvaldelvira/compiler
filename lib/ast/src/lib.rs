@@ -10,23 +10,9 @@
 //! We try to presserve all the syntactic information of the program
 //! (semicolons, parenthesis, etc.), and we don't make up things that aren't there.
 //!
-//! For example, see [`ItemKind::Function`]. Its return type is an [Option],
-//! beacuse this program is syntactically correct:
-//! ```text
-//! fn foo() { }
-//! ```
-//! but this one is also correct:
-//! ```text
-//! fn foo() -> int { ... }
-//! ```
-//!
-//! So the AST doesn't infer anything. It's job is to represent the input program as
-//! faithfully as possible. That's why the return type is optional, beacuse it can
-//! be ommited.
-//!
-//! Later, we'll lower this AST to a HIR Tree, which will desugar some things, like
-//! return types. It'll also remove parenthesis, since their only job is to explicit
-//! the precedence of operations, and they become useless after building the AST.
+//! Later, we'll lower this AST to a HIR Tree, which will desugar some things. It also
+//! removes parenthesis, since their only job is to explicit the precedence of operations,
+//! and they become useless after building the AST.
 
 pub mod expr;
 pub mod stmt;

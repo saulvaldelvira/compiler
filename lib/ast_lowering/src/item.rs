@@ -88,9 +88,7 @@ impl<'low, 'hir: 'low> AstLowering<'low, 'hir> {
                 let params = self.lower_params(params);
                 let ret_ty = return_type
                     .as_ref()
-                    .map_or(
-                        hir::Type::empty(),
-                        |rt| self.lower_type(rt));
+                    .map(|rt| self.lower_type(rt));
                 let name = self.lower_pathdef(ident(name));
                 let func = self.sess.alloc_annon(hir::Function {
                     is_extern: kw_extern.is_some(),

@@ -314,7 +314,7 @@ impl SemanticRule<'_> for ValidateCall<'_> {
     fn apply(&self, sem: &crate::Semantic<'_>, em: &mut ErrorManager) -> Self::Result {
         let expr_ty = sem.type_of(&self.callee.id)?;
 
-        let TypeKind::Function { is_variadic, params, ret_ty } = expr_ty.kind else {
+        let TypeKind::Function { is_variadic, params, ret_ty, .. } = expr_ty.kind else {
             em.emit_error(SemanticError {
                 kind: SemanticErrorKind::CallToNonFunction,
                 span: self.callee.span,

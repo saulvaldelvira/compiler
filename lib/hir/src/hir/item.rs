@@ -58,7 +58,7 @@ pub struct Function<'hir> {
     pub is_variadic: bool,
     pub name: &'hir PathDef,
     pub params: &'hir [Param<'hir>],
-    pub ret_ty: &'hir Type<'hir>,
+    pub ret_ty: Option<&'hir Type<'hir>>,
     pub body: Option<&'hir Expression<'hir>>,
 }
 
