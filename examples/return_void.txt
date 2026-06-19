@@ -1,0 +1,13 @@
+
+fn foo() {
+   return { };
+}
+
+fn bar() {
+    return foo();
+}
+
+fn main() {
+    /* TODO: Support this
+    let a: () = {}; */
+}

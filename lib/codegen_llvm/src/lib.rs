@@ -722,9 +722,10 @@ impl<'hir, 'cg> CG<'hir, 'cg> for &'hir hir::Statement<'hir> {
             StatementKind::Return(expr) => {
                 let val = match expr {
                     Some(expr) => {
-                        let val = expr.value(cg);
+                        let val = expr.value_opt(cg);
                         (!cg.semantic.type_of(&expr.id).unwrap().is_empty_type())
                         .then_some(val)
+                        .flatten()
                     },
                     None => None,
                 };
@@ -841,14 +842,14 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                         }
                         let ty = cg.semantic.type_of(&self.id).unwrap();
                         let ty = ty.codegen(cg);
-                        name.ident.sym.borrow(|name| {
-                            let alloca = cg.builder().alloca(ty, name);
-                            cg.allocas.insert(self.id, alloca);
-                            if let Some(init) = init {
-                                let initializer = init.value(cg);
-                                cg.builder().store(initializer, alloca);
-                            }
+                        let alloca = name.ident.sym.borrow(|name| {
+                            cg.builder().alloca(ty, name)
                         });
+                        cg.allocas.insert(self.id, alloca);
+                        if let Some(init) = init {
+                            let initializer = init.value(cg);
+                            cg.builder().store(initializer, alloca);
+                        }
                     },
                 }
             },
@@ -972,9 +973,8 @@ fn codegen_function<'hir>(
         let val = body.expect("A non-extern function MUST have a block").value_opt(cg);
         if ret_ty.is_empty_type() {
             cg.builder().ret(None);
-        } else if let Some(val) = val {
-            cg.builder().ret(Some(val));
-
+        } else {
+            cg.builder().ret(val);
         }
 
         cg.curr_builder.take();
