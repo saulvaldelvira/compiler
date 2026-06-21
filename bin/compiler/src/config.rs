@@ -1,7 +1,7 @@
 use std::env;
 use std::{env::Args, process};
 
-use compiler_driver::Emit;
+use compiler_driver::{Emit, HirEmitKind};
 
 pub struct Config {
     pub files: Vec<String>,
@@ -40,12 +40,23 @@ impl Config {
                     match em.as_str() {
                         "mapl" => conf.emit = Emit::Mapl,
                         "llvm-ir" => conf.emit = Emit::LlvmIr,
-                        "hir" => conf.emit = Emit::Hir,
+                        "hir" => conf.emit = Emit::Hir(HirEmitKind::Json),
                         "asm" => conf.emit = Emit::Asm,
                         "bin" => conf.emit = Emit::Bin,
                         a => {
-                            eprintln!("Unknown argument for '--emit': {a}\n");
-                            help();
+                            if let Some(kind) = a.strip_prefix("hir=") {
+                                match kind {
+                                    "json" => conf.emit = Emit::Hir(HirEmitKind::Json),
+                                    "html" => conf.emit = Emit::Hir(HirEmitKind::Html),
+                                    k => {
+                                        eprintln!("Unknown argument for '--emit hir=': {k}\n");
+                                        help();
+                                    }
+                                }
+                            } else {
+                                eprintln!("Unknown argument for '--emit': {a}\n");
+                                help();
+                            }
                         }
                     }
                 }
@@ -57,7 +68,8 @@ impl Config {
 
     pub fn get_extension(&self) -> &'static str {
         match self.emit {
-            Emit::Hir => "json",
+            Emit::Hir(HirEmitKind::Json) => "json",
+            Emit::Hir(HirEmitKind::Html) => "html",
             Emit::Mapl => "mapl",
             Emit::LlvmIr => "ll",
             Emit::Asm => "s",
@@ -76,7 +88,7 @@ USAGE: {name} <file1>..<fileN> [-o <output>] [--emit <output_type>] [--check]
 OPTIONS:
     -o      Specify output file
     --emit  Set type of output
-        hir: An html representation of the program
+        hir[=<json|html>]: A serialized representation of the program
         llvm-ir: LLVM Intermediate representation
         asm: Assembly
         bin: Binary executable (default)

@@ -12,8 +12,14 @@ use semantic::Semantic;
 use span::source::{FileId, FileName, SourceMap};
 
 #[derive(Clone, Copy, Debug)]
+pub enum HirEmitKind {
+    Json,
+    Html
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum Emit {
-    Hir,
+    Hir(HirEmitKind),
     LlvmIr,
     Mapl,
     Asm,
@@ -141,9 +147,13 @@ impl Compiler {
     pub fn process(&self, emit: Emit) -> Option<Output> {
         let (hir_sess, semantic) = self.compile()?;
         Some(match emit {
-            Emit::Hir => {
+            Emit::Hir(kind) => {
                 let sm = self.source().borrow();
-                Output::Hir(hir_serialize::serialize_json(&hir_sess, &sm, &semantic))
+                let out = match kind {
+                    HirEmitKind::Json => hir_serialize::serialize_json(&hir_sess, &sm, &semantic),
+                    HirEmitKind::Html => hir_serialize::hir_print_html(&hir_sess, &semantic, &sm),
+                };
+                Output::Hir(out)
             },
             Emit::Asm | Emit::Bin | Emit::LlvmIr => {
                 let codegen = Codegen::new();
