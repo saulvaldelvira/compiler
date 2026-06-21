@@ -4,3 +4,7 @@ For now, something like this: `let a: ()` has a size of 1 byte.
 The ideal thing would be to avoid generating an alloca unless we really need the
 address of the variable.
 See: examples/return_void.txt
+
+== hir_serialize ==
+- Add HirId to the nodes
+- Add semantic type to expressions and items
