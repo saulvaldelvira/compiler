@@ -26,7 +26,7 @@ pub struct NodeRef<T> {
 
 impl<T: Debug> Debug for NodeRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?}", &*self.inner.borrow())
+        write!(f, "{:#?}", *self.inner.borrow())
     }
 }
 
