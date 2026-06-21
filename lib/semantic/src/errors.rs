@@ -29,6 +29,7 @@ pub enum SemanticErrorKind {
     InvalidIndexForTuple(u16, u16),
     MismatchedArrayTypes(String, String),
     CantInfer,
+    FailedAutoderef,
 }
 
 pub struct SemanticError {
@@ -112,13 +113,15 @@ impl error_manager::Error for SemanticError {
             SemanticErrorKind::CantInfer => {
                 write!(out, "Can't infer type of a variable without an init expression")
             }
+            SemanticErrorKind::FailedAutoderef => {
+                write!(out, "Attemp to access field on a reference type pointing to a non-struct type")
+            }
         }
     }
 }
 
 pub enum SemanticWarningKind {
     UselessExpressionAsStmt,
-    DoubleAutoderefOnFieldAccess,
 }
 
 pub struct SemanticWarning {
@@ -133,9 +136,6 @@ impl error_manager::Error for SemanticWarning {
         match &self.kind {
             SemanticWarningKind::UselessExpressionAsStmt => {
                 write!(out, "This expression has no side-effects and can be elided")
-            }
-            SemanticWarningKind::DoubleAutoderefOnFieldAccess => {
-                write!(out, "Attemp to access field on a reference type with 2 or more layers of indirection.")
             }
         }
     }

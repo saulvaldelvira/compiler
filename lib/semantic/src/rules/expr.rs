@@ -5,7 +5,6 @@ use hir::{Expression, Ident, expr::ExpressionKind};
 use span::Span;
 
 use super::SemanticRule;
-use crate::errors::{SemanticWarning, SemanticWarningKind};
 use crate::{
     Ty, TypeId, TypeKind,
     errors::{SemanticError, SemanticErrorKind},
@@ -198,10 +197,11 @@ impl SemanticRule<'_> for ValidateFieldAccess<'_> {
             struct_ty = r;
         }
         if let TypeKind::Ref(_) = struct_ty.kind {
-            em.emit_warning(SemanticWarning {
-                kind: SemanticWarningKind::DoubleAutoderefOnFieldAccess,
+            em.emit_error(SemanticError {
+                kind: SemanticErrorKind::FailedAutoderef,
                 span: self.st.span,
             });
+            return None
         }
 
 
