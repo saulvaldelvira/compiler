@@ -28,6 +28,7 @@ use hir::{Item, ItemKind, Module, Path};
 use span::source::SourceMap;
 
 use std::collections::HashMap;
+use std::io;
 
 use error_manager::{FilePosition, Span};
 use hir::visitor::VisitorCtx;
@@ -419,7 +420,7 @@ struct IdentificationError {
 impl error_manager::Error for IdentificationError {
     fn get_span(&self) -> Span { self.span }
 
-    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         match &self.kind {
             IdentificationErrorKind::Redefinition { name, node_type, prev } => {
                 write!(out, "Redefinition of '{name}' (previous definition: {node_type} at {prev})")

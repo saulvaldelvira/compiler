@@ -1,3 +1,5 @@
+use std::io;
+
 use span::Span;
 
 pub enum LexerErrorKind {
@@ -16,7 +18,7 @@ pub struct LexerError {
 impl error_manager::Error for LexerError {
     fn get_span(&self) -> Span { self.span }
 
-    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         match self.kind {
             LexerErrorKind::UnexpectedCharacter(c) => {
                 write!(out, "Encountered unexpected character '{c}'")

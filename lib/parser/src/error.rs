@@ -38,7 +38,7 @@ pub struct ParseError {
 impl error_manager::Error for ParseError {
     fn get_span(&self) -> Span { self.span }
 
-    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         match &self.kind {
             ParseErrorKind::ExpectedToken { tokens, found } => {
                 write!(out, "Expected {tokens:?}, found {found}")

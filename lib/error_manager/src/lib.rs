@@ -1,5 +1,4 @@
 use core::any::Any;
-use core::fmt;
 use std::{borrow::Cow, io};
 
 use span::source::SourceMap;
@@ -24,13 +23,13 @@ pub use span::{FilePosition, Span};
 /// ```
 /// use error_manager::{Error, ErrorManager, Span};
 /// use core::any::Any;
-/// use core::fmt;
+/// use std::io;
 ///
 /// struct MyError(Span);
 ///
 /// impl Error for MyError {
 ///     fn get_span(&self) -> Span { self.0 }
-///     fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+///     fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
 ///         Ok(())
 ///     }
 /// }
@@ -59,7 +58,7 @@ pub use span::{FilePosition, Span};
 /// But that would require memory allocations, and more virtual calls.
 pub trait Error : Any {
     fn get_span(&self) -> Span;
-    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result;
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()>;
 }
 
 pub struct StringError {
@@ -68,7 +67,7 @@ pub struct StringError {
 }
 
 impl Error for StringError {
-    fn write_msg(&self, out: &mut dyn fmt::Write) -> fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         write!(out, "{}", self.msg)
     }
 
@@ -81,7 +80,7 @@ pub struct ErrorManager {
     warnings: Vec<Box<dyn Error>>,
 }
 
-fn print_error(err: &dyn Error, src: &SourceMap, out: &mut dyn fmt::Write) -> fmt::Result {
+fn print_error(err: &dyn Error, src: &SourceMap, out: &mut dyn io::Write) -> io::Result<()> {
     let span = err.get_span();
     let file = src.get_file_of_span(&span).unwrap();
     let FilePosition {
@@ -129,13 +128,10 @@ impl ErrorManager {
         })
     }
 
-    pub fn print_errors(&self, src: &SourceMap, out: &mut dyn io::Write) -> fmt::Result {
-        let mut buf = String::new();
+    pub fn print_errors(&self, src: &SourceMap, out: &mut dyn io::Write) -> io::Result<()> {
         for err in &self.errors {
             out.write_all("ERROR ".as_bytes()).unwrap();
-            print_error(&**err, src, &mut buf)?;
-            out.write_all(buf.as_bytes()).unwrap();
-            buf.clear();
+            print_error(&**err, src, out)?;
         }
         Ok(())
     }
@@ -144,13 +140,10 @@ impl ErrorManager {
 
     pub fn clear_warnings(&mut self) { self.warnings.clear(); }
 
-    pub fn print_warnings(&self, src: &SourceMap, out: &mut dyn io::Write) -> fmt::Result {
-        let mut buf = String::new();
+    pub fn print_warnings(&self, src: &SourceMap, out: &mut dyn io::Write) -> io::Result<()> {
         for err in &self.warnings {
             out.write_all("WARNING ".as_bytes()).unwrap();
-            print_error(&**err, src, &mut buf)?;
-            out.write_all(buf.as_bytes()).unwrap();
-            buf.clear();
+            print_error(&**err, src, out)?;
         }
         Ok(())
     }

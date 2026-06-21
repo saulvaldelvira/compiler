@@ -1,3 +1,5 @@
+use std::io;
+
 use hir::Ident;
 use interner::Symbol;
 use span::Span;
@@ -37,7 +39,7 @@ pub struct SemanticError {
 impl error_manager::Error for SemanticError {
     fn get_span(&self) -> Span { self.span }
 
-    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         match &self.kind {
             SemanticErrorKind::LValue => write!(out, "Attempt to assign to non-lvalue"),
             SemanticErrorKind::AccessToNonStruct(ty) => {
@@ -127,7 +129,7 @@ pub struct SemanticWarning {
 impl error_manager::Error for SemanticWarning {
     fn get_span(&self) -> Span { self.span }
 
-    fn write_msg(&self, out: &mut dyn core::fmt::Write) -> core::fmt::Result {
+    fn write_msg(&self, out: &mut dyn io::Write) -> io::Result<()> {
         match &self.kind {
             SemanticWarningKind::UselessExpressionAsStmt => {
                 write!(out, "This expression has no side-effects and can be elided")
