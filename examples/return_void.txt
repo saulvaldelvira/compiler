@@ -1,13 +1,23 @@
+mod libc;
+use libc::stdio::printf;
 
 fn foo() {
    return { };
 }
 
-fn bar() {
+fn bar() -> () {
     return foo();
 }
 
+
 fn main() {
-    /* TODO: Support this
-    let a: () = {}; */
+    let start: () = {};
+    let arr_4: [(); 4];
+    let end = {};
+
+    start = end = {
+        printf("Side effects!\n");
+    };
+
+    printf("start = %p, arr_4 = %p, end = %p\n", &start, &arr_4, &end);
 }

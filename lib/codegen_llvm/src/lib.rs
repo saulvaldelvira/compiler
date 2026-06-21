@@ -525,10 +525,10 @@ impl<'cg, 'llvm, 'hir> CGValue<'cg, 'hir, 'llvm> for hir::Expression<'hir> {
                 return codgen_if(cg, cond, if_true, if_false.as_deref())
             }
             EK::Assignment { left, right } => {
-                let left = left.address(cg);
-                let right = right.value(cg);
-                cg.builder().store(right, left);
-                right
+                return right.value_opt(cg).inspect(|&right| {
+                    let left = left.address(cg);
+                    cg.builder().store(right, left);
+                })
             }
             EK::Variable(path) => {
                 let id = path.def().expect_resolved();
@@ -647,9 +647,6 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
                     left.execute(cg);
                     right.execute(cg);
                 }
-            EK::Assignment { .. } | EK::Call { .. } => {
-                self.value(cg);
-            }
             EK::Variable(_) | EK::Literal(_) => {},
             EK::Cast { expr, .. } => {
                 expr.execute(cg);
@@ -658,6 +655,8 @@ impl<'hir> CGExecute<'hir> for hir::Expression<'hir> {
             EK::StructAccess(StructAccess { st, .. }) => st.execute(cg),
             EK::TupleAccess { tuple, .. } => tuple.execute(cg),
             EK::Block { .. } |
+            EK::Assignment { .. } |
+            EK::Call { .. } |
             EK::If { .. } => {
                 self.value_opt(cg);
             }
@@ -841,14 +840,20 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Item<'hir> {
                             return
                         }
                         let ty = cg.semantic.type_of(&self.id).unwrap();
-                        let ty = ty.codegen(cg);
+                        let ty = if ty.is_empty_type() {
+                            llvm::Type::int_1(cg.llvm_ctx)
+                        } else {
+                            ty.codegen(cg)
+                        };
                         let alloca = name.ident.sym.borrow(|name| {
                             cg.builder().alloca(ty, name)
                         });
                         cg.allocas.insert(self.id, alloca);
                         if let Some(init) = init {
-                            let initializer = init.value(cg);
-                            cg.builder().store(initializer, alloca);
+                            let initializer = init.value_opt(cg);
+                            if let Some(val) = initializer {
+                                cg.builder().store(val, alloca);
+                            }
                         }
                     },
                 }
@@ -901,7 +906,12 @@ impl<'cg> CG<'_, 'cg> for semantic::Ty<'_> {
                 llvm::Type::pointer(to.codegen(cg))
             }
             TypeKind::Array(ty, len) => {
-                llvm::Type::array(ty.codegen(cg), *len as _)
+                let ty = if ty.is_empty_type() {
+                    llvm::Type::int_1(cg.llvm_ctx)
+                } else {
+                    ty.codegen(cg)
+                };
+                llvm::Type::array(ty, *len as _)
             }
             TypeKind::Struct { .. } => {
                 *cg.types.get(&self.id).unwrap()
