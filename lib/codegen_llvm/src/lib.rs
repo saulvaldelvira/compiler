@@ -374,6 +374,13 @@ impl<'cg, 'hir> Address<'cg, 'hir> for hir::Expression<'hir> {
                 cg.builder().gep(tty, tuple, &mut [zero, idx], "tmp_gep")
             }
             EK::Deref(expr) => expr.value(cg),
+            EK::Block(block) => {
+                if let Some(expr) = &block.tail {
+                    expr.address(cg)
+                } else {
+                    unreachable!("Can't get address of a block without a tail expression: {self:?}");
+                }
+            }
             _ => unreachable!("Can't get address of {self:?}")
         }
     }
