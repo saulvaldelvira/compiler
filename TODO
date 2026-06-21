@@ -1,0 +1,6 @@
+== codegen_llvm ==
+- Avoid waste on empty-type variables.
+For now, something like this: `let a: ()` has a size of 1 byte.
+The ideal thing would be to avoid generating an alloca unless we really need the
+address of the variable.
+See: examples/return_void.txt
