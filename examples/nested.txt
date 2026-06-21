@@ -1,0 +1,22 @@
+mod libc;
+use libc::stdio::printf;
+
+fn main() {
+    mod foo {
+        fn get() -> i32 {
+            mod supernested {
+                let a: i32 = 12;
+                fn get() -> i32 {
+                    self::a
+                }
+            }
+
+            supernested::get()
+        }
+    }
+
+    fn get() -> i32 { return foo::get() * 2; }
+
+    printf("foo::get() = %d\n", foo::get());
+    printf("get() = %d\n", get());
+}

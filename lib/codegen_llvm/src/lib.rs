@@ -172,7 +172,7 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
             alloca
         }
         else if let Some(global) = self.get_global_value(id) {
-            global
+            *global.as_value()
         }
         else {
             *self.allocas.get(&id).unwrap()
@@ -205,8 +205,10 @@ impl<'cg, 'llvm, 'hir> CodegenState<'cg, 'llvm, 'hir> {
         global
     }
 
-    fn get_global_value(&self, id: HirId) -> Option<Value<'llvm>> {
-        self.globals.borrow().get(&id).copied()
+    fn get_global_value(&mut self, id: HirId) -> Option<Global<'llvm>> {
+        let name = self.hir.get_node(&id).as_item().unwrap().get_name().unwrap();
+        let name = self.mangle_symbol(id, name);
+        self.module().get_global(&name)
     }
 }
 
@@ -243,21 +245,14 @@ impl<'hir> CG<'hir, '_> for &'hir hir::Module<'hir> {
     type Output = ();
 
     fn codegen(&self, cg: &mut CodegenState<'_, '_, 'hir>) {
+        let mut newcg = cg.clone().enter_extern(self);
+        for item in self.items {
+            item.codegen(&mut newcg);
+        }
         if let Some(id) = self.extern_file {
-            let mut cg = cg.clone().enter_extern(self);
-            for item in self.items {
-                item.codegen(&mut cg);
-            }
-            cg.modules.borrow_mut().insert(id, cg.curr_mod.unwrap());
+            newcg.modules.borrow_mut().insert(id, newcg.curr_mod.unwrap());
         } else {
-            let sym = self.name.ident.sym;
-            if sym != "root" {
-                cg.enter(sym);
-            }
-            for item in self.items {
-                item.codegen(cg);
-            }
-            cg.exit();
+            cg.module().link(newcg.curr_mod.unwrap());
         }
     }
 }
@@ -982,7 +977,7 @@ fn codegen_function<'hir>(
             cg.params.insert(params[i as usize].id, param);
         }
 
-        debug_assert!(cg.curr_builder.is_none());
+        let old_builder = cg.curr_builder.take();
         cg.curr_builder = Some(builder);
 
         let old_f = cg.curr_func.replace(function);
@@ -990,11 +985,11 @@ fn codegen_function<'hir>(
         let val = body.expect("A non-extern function MUST have a block").value_opt(cg);
         if ret_ty.is_empty_type() {
             cg.builder().ret(None);
-        } else {
+        } else if let Some(val) = val {
             cg.builder().ret(val);
         }
 
-        cg.curr_builder.take();
+        cg.curr_builder = old_builder;
         cg.curr_func = old_f;
     }
 

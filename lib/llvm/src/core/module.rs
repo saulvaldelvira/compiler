@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use core::ptr;
 
 use super::{Function, Type, Value};
-use crate::ffi::{LLVMAddFunction, LLVMAddGlobal, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMLinkage, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMTypeKind};
+use crate::ffi::{LLVMAddFunction, LLVMAddGlobal, LLVMDisposeMessage, LLVMDisposeModule, LLVMGetNamedFunction, LLVMGetNamedGlobal, LLVMLinkage, LLVMModuleCreateWithNameInContext, LLVMModuleRef, LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMTypeKind};
 use crate::Context;
 
 pub struct Module<'ctx> {
@@ -42,6 +42,12 @@ impl<'ctx> Module<'ctx> {
         cstr!(name);
         let ptr = unsafe { LLVMGetNamedFunction(self.raw, name) };
         (!ptr.is_null()).then_some(Function(Value(ptr, PhantomData), self.ctx))
+    }
+
+    pub fn get_global(&self, name: &str) -> Option<Global<'ctx>> {
+        cstr!(name);
+        let ptr = unsafe { LLVMGetNamedGlobal(self.raw, name) };
+        (!ptr.is_null()).then_some(Global(Value(ptr, PhantomData)))
     }
 
     /// Gets the raw LLVM module reference
